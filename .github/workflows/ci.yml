@@ -38,7 +38,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       # Nx 本地缓存：覆盖 home 目录与工作区两种可能的缓存位置
       # key 按 commit 唯一，保证每次运行都能写入增量缓存；restore-keys 回退到最近的 OS 缓存
@@ -90,11 +90,11 @@ jobs:
             echo "[MVP Placeholder] No Dockerfile at $DOCKERFILE yet — skipping build for ${{ matrix.service }}."
           fi
 
-  # 仅在合并到 main 时构建小程序；MVP 阶段占位，脚本缺失时跳过
+  # 仅在合并到 master/main 时构建小程序；MVP 阶段占位，脚本缺失时跳过
   build-miniprogram:
     name: Build Mini Program (weapp)
     needs: lint-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

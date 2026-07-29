@@ -35,7 +35,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       # 校验 PR 内所有 commit 是否符合 Conventional Commits 规范
       - name: Lint commit messages
