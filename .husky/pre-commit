@@ -3,4 +3,5 @@
 # 在提交前运行 lint-staged 对暂存区文件执行 lint/format
 . "$(dirname -- "$0")/_/husky.sh"
 
-npx lint-staged
+# 直接调用本地 lint-staged，避免依赖全局 npx（fnm/node PATH 在 git 子 shell 中不可见）
+node_modules/.bin/lint-staged

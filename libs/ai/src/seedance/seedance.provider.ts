@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import axios, { AxiosInstance, AxiosError } from 'axios'
+import { CONFIG_STORE_SERVICE, type IConfigStore } from '@reelclone/common'
 import {
   GenerationType,
   SeedanceSubmitResult,
@@ -46,8 +47,8 @@ export class SeedanceNoAvailableKeyError extends Error {
 @Injectable()
 export class SeedanceProvider {
   private readonly logger = new Logger(SeedanceProvider.name)
-  /** API Key 列表（去空后保留） */
-  private readonly apiKeys: string[] = []
+  /** API Key 列表（去空后保留），运行时可被 reloadKeys() 刷新 */
+  private apiKeys: string[] = []
   /** 当前使用的 Key 序号 */
   private currentKeyIndex = 0
   /** Seedance 服务地址 */
@@ -57,7 +58,11 @@ export class SeedanceProvider {
   /** Mock 任务的提交时间记录，用于推进状态 */
   private readonly mockSubmitTime = new Map<string, number>()
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() @Inject(CONFIG_STORE_SERVICE) private readonly configStore: IConfigStore | null,
+  ) {
+    // 优先从环境变量加载初始 Key 列表（同步可用）
     const rawKeys = this.config.get<string>('SEEDANCE_API_KEYS') ?? ''
     this.apiKeys = rawKeys
       .split(',')
@@ -68,15 +73,69 @@ export class SeedanceProvider {
       this.config.get<string>('SEEDANCE_BASE_URL') ?? 'https://ark.cn-beijing.volces.com/api/v3'
 
     if (this.isMockMode()) {
+      // 生产环境硬失败：不允许在 production 下使用 Mock 模式
+      // 防止误留空 API Key 导致所有视频生成返回不可访问的 Mock URL
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'Seedance Provider 在生产环境中不允许 Mock 模式：请配置 SEEDANCE_API_KEYS 或通过 admin-service 设置 API Key',
+        )
+      }
       this.logger.warn('Seedance 处于 Mock 模式：未配置 SEEDANCE_API_KEYS，将返回模拟数据')
     } else {
       this.logger.log(`Seedance 已加载 ${this.apiKeys.length} 个 API Key，启用真实模式`)
+    }
+
+    // 如果 ConfigStore 可用，异步从 DB 加载最新 Key（覆盖环境变量）
+    if (this.configStore) {
+      this.reloadKeys().catch((err) => {
+        this.logger.warn(
+          `从 ConfigStore 初始加载 Key 失败，回退到环境变量: ${(err as Error).message}`,
+        )
+      })
     }
   }
 
   /** 是否为 Mock 模式 */
   isMockMode(): boolean {
     return this.apiKeys.length === 0
+  }
+
+  /**
+   * 从 ConfigStore 重新加载 API Key 列表（热刷新）
+   *
+   * - ConfigStore 不可用时，回退到环境变量
+   * - ConfigStore 可用但未配置时，保留现有 Key（不覆盖为空）
+   * - 加载成功后重置 currentKeyIndex 为 0
+   *
+   * @returns 实际加载的 Key 数量
+   */
+  async reloadKeys(): Promise<number> {
+    if (!this.configStore) {
+      // 回退到环境变量
+      const rawKeys = this.config.get<string>('SEEDANCE_API_KEYS') ?? ''
+      this.apiKeys = rawKeys
+        .split(',')
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0)
+      this.currentKeyIndex = 0
+      this.logger.log(`Seedance Key 已从环境变量重新加载（${this.apiKeys.length} 个）`)
+      return this.apiKeys.length
+    }
+
+    try {
+      const keys = await this.configStore.getApiKeys('seedance')
+      // 仅在 ConfigStore 中确实有配置时覆盖（避免 DB 未配置时清空 Key）
+      if (keys.length > 0) {
+        this.apiKeys = keys
+        this.currentKeyIndex = 0
+        this.logger.log(`Seedance Key 已从 ConfigStore 热刷新（${this.apiKeys.length} 个）`)
+      } else {
+        this.logger.debug('ConfigStore 中未配置 Seedance Key，保留现有 Key')
+      }
+    } catch (err) {
+      this.logger.warn(`从 ConfigStore 加载 Key 失败，保留现有 Key: ${(err as Error).message}`)
+    }
+    return this.apiKeys.length
   }
 
   /**

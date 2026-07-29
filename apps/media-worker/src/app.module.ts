@@ -20,6 +20,7 @@ import { Controller, Get, Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { DatabaseModule, RedisModule } from '@reelclone/database'
 import { AiModule } from '@reelclone/ai'
+import { ConfigStoreModule } from '@reelclone/common'
 import { OSSModule } from '@reelclone/oss'
 import { TemporalModule } from '@reelclone/temporal'
 import { WorkerModule } from './worker/worker.module'
@@ -54,6 +55,7 @@ export class HealthController {
     DatabaseModule.forRoot(),
     RedisModule.forRoot(),
     AiModule,
+    ConfigStoreModule,
     OSSModule.forRoot(),
     TemporalModule.forRoot(),
     WorkerModule,

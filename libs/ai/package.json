@@ -19,6 +19,9 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
+  "peerDependencies": {
+    "@reelclone/common": "*"
+  },
   "optionalDependencies": {
     "fluent-ffmpeg": "^2.1.3"
   },

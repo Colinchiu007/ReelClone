@@ -1,26 +1,27 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { DataSourceOptions } from 'typeorm';
-import { SnakeNamingStrategy } from './snake-naming.strategy';
+import { DynamicModule, Module } from '@nestjs/common'
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm'
+import { DataSourceOptions } from 'typeorm'
+import { SnakeNamingStrategy } from './snake-naming.strategy'
 
 // ---------------- 实体导入 ----------------
-import { User } from '../entities/user.entity';
-import { Asset } from '../entities/asset.entity';
-import { AvatarGroup } from '../entities/avatar-group.entity';
-import { Work } from '../entities/work.entity';
-import { GenerationTask } from '../entities/generation-task.entity';
-import { Package } from '../entities/package.entity';
-import { Order } from '../entities/order.entity';
-import { UserPackage } from '../entities/user-package.entity';
-import { SmsCode } from '../entities/sms-code.entity';
-import { Notification } from '../entities/notification.entity';
-import { PointTransaction } from '../entities/point-transaction.entity';
-import { Template } from '../entities/template.entity';
-import { Favorite } from '../entities/favorite.entity';
-import { Benchmark } from '../entities/benchmark.entity';
+import { User } from '../entities/user.entity'
+import { Asset } from '../entities/asset.entity'
+import { AvatarGroup } from '../entities/avatar-group.entity'
+import { Work } from '../entities/work.entity'
+import { GenerationTask } from '../entities/generation-task.entity'
+import { Package } from '../entities/package.entity'
+import { Order } from '../entities/order.entity'
+import { UserPackage } from '../entities/user-package.entity'
+import { SmsCode } from '../entities/sms-code.entity'
+import { Notification } from '../entities/notification.entity'
+import { PointTransaction } from '../entities/point-transaction.entity'
+import { Template } from '../entities/template.entity'
+import { Favorite } from '../entities/favorite.entity'
+import { Benchmark } from '../entities/benchmark.entity'
+import { SystemConfig } from '../entities/system-config.entity'
 
 /** 实体构造器类型（避免直接使用 Function 字面量） */
-export type EntityConstructor = new (...args: unknown[]) => unknown;
+export type EntityConstructor = new (...args: unknown[]) => unknown
 
 /** 数据库连接名 */
 export const DATABASE_CONNECTIONS = {
@@ -28,10 +29,10 @@ export const DATABASE_CONNECTIONS = {
   BILLING: 'billing',
   TEMPLATE: 'template',
   BENCHMARK: 'benchmark',
-} as const;
+} as const
 
 export type DatabaseConnectionName =
-  (typeof DATABASE_CONNECTIONS)[keyof typeof DATABASE_CONNECTIONS];
+  (typeof DATABASE_CONNECTIONS)[keyof typeof DATABASE_CONNECTIONS]
 
 /** main 库实体清单 */
 export const MAIN_ENTITIES: EntityConstructor[] = [
@@ -45,16 +46,17 @@ export const MAIN_ENTITIES: EntityConstructor[] = [
   UserPackage,
   SmsCode,
   Notification,
-];
+  SystemConfig,
+]
 
 /** billing 库实体清单 */
-export const BILLING_ENTITIES: EntityConstructor[] = [PointTransaction];
+export const BILLING_ENTITIES: EntityConstructor[] = [PointTransaction]
 
 /** template 库实体清单 */
-export const TEMPLATE_ENTITIES: EntityConstructor[] = [Template, Favorite];
+export const TEMPLATE_ENTITIES: EntityConstructor[] = [Template, Favorite]
 
 /** benchmark 库实体清单 */
-export const BENCHMARK_ENTITIES: EntityConstructor[] = [Benchmark];
+export const BENCHMARK_ENTITIES: EntityConstructor[] = [Benchmark]
 
 /**
  * 构造指定数据库的连接配置
@@ -75,9 +77,8 @@ export function buildDataSourceOptions(
     entities,
     synchronize: false,
     namingStrategy: new SnakeNamingStrategy(),
-    logging:
-      process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-  };
+    logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  }
 }
 
 /**
@@ -114,13 +115,13 @@ export class DatabaseModule {
         name: DATABASE_CONNECTIONS.BENCHMARK,
         ...buildDataSourceOptions('reelclone_benchmark', BENCHMARK_ENTITIES),
       },
-    ];
+    ]
 
     return {
       module: DatabaseModule,
       imports: connections.map((opts) => TypeOrmModule.forRoot(opts)),
       exports: [TypeOrmModule],
-    };
+    }
   }
 
   /**
@@ -132,6 +133,6 @@ export class DatabaseModule {
     entities: EntityConstructor[],
     connection?: DatabaseConnectionName,
   ): DynamicModule {
-    return TypeOrmModule.forFeature(entities, connection);
+    return TypeOrmModule.forFeature(entities, connection)
   }
 }

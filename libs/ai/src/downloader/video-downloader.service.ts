@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types';
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types'
 
 /**
  * 视频下载器服务
@@ -12,20 +12,26 @@ import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types
  * 相关环境变量：
  * - VIDEO_DOWNLOADER: mock | auto（默认 auto）
  * - DOWNLOAD_OUTPUT_DIR: 下载目录，默认 ./downloads
+ * - VIDEO_DOWNLOADER_COOKIES: cookies.txt 文件路径（抖音等平台需要浏览器 cookies）
  */
 @Injectable()
 export class VideoDownloaderService {
-  private readonly logger = new Logger(VideoDownloaderService.name);
-  private readonly outputDir: string;
-  private readonly forceMock: boolean;
+  private readonly logger = new Logger(VideoDownloaderService.name)
+  private readonly outputDir: string
+  private readonly forceMock: boolean
+  /** cookies.txt 文件路径（yt-dlp 用于抖音等需要登录的平台） */
+  private readonly cookiesFile: string | null
   /** lux / yt-dlp 可用性缓存（避免每次都探测） */
-  private toolAvailability: { lux: boolean; ytdlp: boolean } | null = null;
+  private toolAvailability: { lux: boolean; ytdlp: boolean } | null = null
 
   constructor(private readonly config: ConfigService) {
-    this.outputDir =
-      this.config.get<string>('DOWNLOAD_OUTPUT_DIR') ?? './downloads';
-    const mode = this.config.get<string>('VIDEO_DOWNLOADER') ?? 'auto';
-    this.forceMock = mode === 'mock';
+    this.outputDir = this.config.get<string>('DOWNLOAD_OUTPUT_DIR') ?? './downloads'
+    const mode = this.config.get<string>('VIDEO_DOWNLOADER') ?? 'auto'
+    this.forceMock = mode === 'mock'
+    this.cookiesFile = this.config.get<string>('VIDEO_DOWNLOADER_COOKIES') ?? null
+    if (this.cookiesFile) {
+      this.logger.log(`视频下载器使用 cookies 文件: ${this.cookiesFile}`)
+    }
   }
 
   /**
@@ -34,106 +40,94 @@ export class VideoDownloaderService {
    * @returns 下载结果（路径、平台、元信息）
    */
   async download(url: string): Promise<DownloadResult> {
-    const platform = this.detectPlatform(url);
-    this.logger.log(`开始下载 url=${url} platform=${platform}`);
+    const platform = this.detectPlatform(url)
+    this.logger.log(`开始下载 url=${url} platform=${platform}`)
 
     if (this.forceMock) {
-      return this.mockDownload(url, platform);
+      return this.mockDownload(url, platform)
     }
 
     // 探测可用工具
-    const availability = await this.detectTools();
+    const availability = await this.detectTools()
 
     // 优先 lux
     if (availability.lux) {
       try {
-        return await this.downloadWithLux(url, platform);
+        return await this.downloadWithLux(url, platform)
       } catch (err) {
-        this.logger.warn(`lux 下载失败，降级 yt-dlp: ${this.formatError(err)}`);
+        this.logger.warn(`lux 下载失败，降级 yt-dlp: ${this.formatError(err)}`)
       }
     }
 
     // 兜底 yt-dlp
     if (availability.ytdlp) {
       try {
-        return await this.downloadWithYtDlp(url, platform);
+        return await this.downloadWithYtDlp(url, platform)
       } catch (err) {
-        this.logger.warn(`yt-dlp 下载失败: ${this.formatError(err)}`);
+        this.logger.warn(`yt-dlp 下载失败: ${this.formatError(err)}`)
       }
     }
 
     // 无可用工具，回退 Mock
-    this.logger.warn('未检测到 lux/yt-dlp，回退 Mock 模式');
-    return this.mockDownload(url, platform);
+    this.logger.warn('未检测到 lux/yt-dlp，回退 Mock 模式')
+    return this.mockDownload(url, platform)
   }
 
   /**
    * 识别视频平台
    */
   detectPlatform(url: string): VideoPlatform {
-    const lower = url.toLowerCase();
+    const lower = url.toLowerCase()
     if (lower.includes('douyin.com') || lower.includes('iesdouyin')) {
-      return VideoPlatform.DOUYIN;
+      return VideoPlatform.DOUYIN
     }
-    if (
-      lower.includes('xiaohongshu.com') ||
-      lower.includes('xhslink.com')
-    ) {
-      return VideoPlatform.XIAOHONGSHU;
+    if (lower.includes('xiaohongshu.com') || lower.includes('xhslink.com')) {
+      return VideoPlatform.XIAOHONGSHU
     }
     if (lower.includes('bilibili.com') || lower.includes('b23.tv')) {
-      return VideoPlatform.BILIBILI;
+      return VideoPlatform.BILIBILI
     }
     if (lower.includes('kuaishou.com') || lower.includes('chenbing.com')) {
-      return VideoPlatform.KUAISHOU;
+      return VideoPlatform.KUAISHOU
     }
     if (lower.includes('weibo.com') || lower.includes('weibo.cn')) {
-      return VideoPlatform.WEIBO;
+      return VideoPlatform.WEIBO
     }
-    return VideoPlatform.UNKNOWN;
+    return VideoPlatform.UNKNOWN
   }
 
   // -------------------- 真实下载 --------------------
 
   /** 使用 lux 下载 */
-  private async downloadWithLux(
-    url: string,
-    platform: VideoPlatform,
-  ): Promise<DownloadResult> {
-    const result = await this.runCommand('lux', [
-      '-o',
-      this.outputDir,
-      url,
-    ]);
+  private async downloadWithLux(url: string, platform: VideoPlatform): Promise<DownloadResult> {
+    const result = await this.runCommand('lux', ['-o', this.outputDir, url])
     if (result.exitCode !== 0) {
-      throw new Error(`lux 退出码 ${result.exitCode}: ${result.stderr}`);
+      throw new Error(`lux 退出码 ${result.exitCode}: ${result.stderr}`)
     }
     // lux 输出中解析文件路径（实际实现需解析 stdout）
-    const videoPath = this.parseLuxOutput(result.stdout, platform);
+    const videoPath = this.parseLuxOutput(result.stdout, platform)
     return {
       videoPath,
       platform,
       metadata: this.parseLuxMetadata(result.stdout),
       downloader: 'lux',
-    };
+    }
   }
 
   /** 使用 yt-dlp 下载 */
-  private async downloadWithYtDlp(
-    url: string,
-    platform: VideoPlatform,
-  ): Promise<DownloadResult> {
-    const outputPath = `${this.outputDir}/%(id)s.%(ext)s`;
-    const result = await this.runCommand('yt-dlp', [
-      '-o',
-      outputPath,
-      '--print-json',
-      url,
-    ]);
-    if (result.exitCode !== 0) {
-      throw new Error(`yt-dlp 退出码 ${result.exitCode}: ${result.stderr}`);
+  private async downloadWithYtDlp(url: string, platform: VideoPlatform): Promise<DownloadResult> {
+    const outputPath = `${this.outputDir}/%(id)s.%(ext)s`
+    const args = ['-o', outputPath, '--print-json']
+    // 抖音等平台需要 cookies 才能下载
+    if (this.cookiesFile) {
+      args.push('--cookies', this.cookiesFile)
     }
-    const metadata = this.parseYtDlpJson(result.stdout);
+    args.push(url)
+    const result = await this.runCommand('yt-dlp', args)
+    if (result.exitCode !== 0) {
+      throw new Error(`yt-dlp 退出码 ${result.exitCode}: ${result.stderr}`)
+    }
+    const metadata = this.parseYtDlpJson(result.stdout)
     return {
       videoPath: metadata._filename ?? `${this.outputDir}/${platform}.mp4`,
       platform,
@@ -144,51 +138,46 @@ export class VideoDownloaderService {
         coverUrl: metadata.thumbnail,
       },
       downloader: 'yt-dlp',
-    };
+    }
   }
 
   /** 探测 lux / yt-dlp 是否可用 */
   private async detectTools(): Promise<{ lux: boolean; ytdlp: boolean }> {
     if (this.toolAvailability) {
-      return this.toolAvailability;
+      return this.toolAvailability
     }
     const [luxOk, ytdlpOk] = await Promise.all([
       this.checkCommand('lux', ['--version']),
       this.checkCommand('yt-dlp', ['--version']),
-    ]);
-    this.toolAvailability = { lux: luxOk, ytdlp: ytdlpOk };
-    this.logger.log(
-      `下载工具可用性 lux=${luxOk} yt-dlp=${ytdlpOk}`,
-    );
-    return this.toolAvailability;
+    ])
+    this.toolAvailability = { lux: luxOk, ytdlp: ytdlpOk }
+    this.logger.log(`下载工具可用性 lux=${luxOk} yt-dlp=${ytdlpOk}`)
+    return this.toolAvailability
   }
 
   /** 检查命令是否可执行 */
   private async checkCommand(cmd: string, args: string[]): Promise<boolean> {
     try {
-      const result = await this.runCommand(cmd, args, { timeout: 5_000 });
-      return result.exitCode === 0;
+      const result = await this.runCommand(cmd, args, { timeout: 5_000 })
+      return result.exitCode === 0
     } catch {
-      return false;
+      return false
     }
   }
 
   // -------------------- Mock 模式 --------------------
 
   /** Mock 下载：返回示例视频路径 */
-  private async mockDownload(
-    url: string,
-    platform: VideoPlatform,
-  ): Promise<DownloadResult> {
-    const timestamp = Date.now();
-    const videoPath = `${this.outputDir}/mock-${platform.toLowerCase()}-${timestamp}.mp4`;
-    this.logger.log(`[Mock] 下载完成 url=${url} → ${videoPath}`);
+  private async mockDownload(url: string, platform: VideoPlatform): Promise<DownloadResult> {
+    const timestamp = Date.now()
+    const videoPath = `${this.outputDir}/mock-${platform.toLowerCase()}-${timestamp}.mp4`
+    this.logger.log(`[Mock] 下载完成 url=${url} → ${videoPath}`)
     return {
       videoPath,
       platform,
       metadata: this.buildMockMetadata(platform),
       downloader: 'mock',
-    };
+    }
   }
 
   /** 构造模拟元信息 */
@@ -200,7 +189,7 @@ export class VideoDownloaderService {
       [VideoPlatform.KUAISHOU]: '快手',
       [VideoPlatform.WEIBO]: '微博',
       [VideoPlatform.UNKNOWN]: '未知平台',
-    };
+    }
     return {
       title: `${platformLabel[platform]}爆款种草视频示例`,
       author: 'mock_creator',
@@ -208,7 +197,7 @@ export class VideoDownloaderService {
       description: '这是一条用于联调的模拟视频，实际下载需安装 lux 或 yt-dlp。',
       duration: 15,
       coverUrl: 'https://mock.reelclone.local/covers/mock-cover.jpg',
-    };
+    }
   }
 
   // -------------------- 解析与工具方法 --------------------
@@ -216,29 +205,29 @@ export class VideoDownloaderService {
   /** 解析 lux stdout 提取文件路径 */
   private parseLuxOutput(stdout: string, platform: VideoPlatform): string {
     // lux 默认输出文件路径在末尾行
-    const lines = stdout.split('\n').filter((l) => l.trim());
+    const lines = stdout.split('\n').filter((l) => l.trim())
     for (const line of lines) {
       if (line.includes('.mp4') || line.includes('.flv')) {
-        return line.trim().split(/\s+/).pop() ?? `${this.outputDir}/${platform}.mp4`;
+        return line.trim().split(/\s+/).pop() ?? `${this.outputDir}/${platform}.mp4`
       }
     }
-    return `${this.outputDir}/${platform}.mp4`;
+    return `${this.outputDir}/${platform}.mp4`
   }
 
   /** 解析 lux 输出为元信息 */
   private parseLuxMetadata(stdout: string): VideoMetadata {
-    return { title: stdout.split('\n')[0]?.trim() || undefined };
+    return { title: stdout.split('\n')[0]?.trim() || undefined }
   }
 
   /** 解析 yt-dlp --print-json 输出 */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseYtDlpJson(stdout: string): Record<string, any> {
     try {
-      const lines = stdout.trim().split('\n');
-      const lastLine = lines[lines.length - 1];
-      return JSON.parse(lastLine);
+      const lines = stdout.trim().split('\n')
+      const lastLine = lines[lines.length - 1]
+      return JSON.parse(lastLine)
     } catch {
-      return {};
+      return {}
     }
   }
 
@@ -252,25 +241,25 @@ export class VideoDownloaderService {
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     try {
       // 动态导入 execa 以兼容 ESM-only 的 execa v9+
-      const execaModule = await import('execa');
-      const execa = execaModule.execa;
+      const execaModule = await import('execa')
+      const execa = execaModule.execa
       const result = await execa(cmd, args, {
         reject: false,
         timeout: options?.timeout,
-      });
+      })
       return {
         exitCode: result.exitCode ?? 0,
         stdout: result.stdout ?? '',
         stderr: result.stderr ?? '',
-      };
+      }
     } catch (err) {
       // execa 不可用或命令不存在
-      throw new Error(`执行命令失败 ${cmd}: ${this.formatError(err)}`);
+      throw new Error(`执行命令失败 ${cmd}: ${this.formatError(err)}`)
     }
   }
 
   private formatError(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    return String(err);
+    if (err instanceof Error) return err.message
+    return String(err)
   }
 }

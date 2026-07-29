@@ -23,11 +23,13 @@ export * from './filters/all-exceptions.filter'
 // -------------------- 守卫 --------------------
 export * from './guards/jwt-auth.guard'
 export * from './guards/rate-limit.guard'
+export * from './guards/roles.guard'
 
 // -------------------- 装饰器 --------------------
 export * from './decorators/current-user.decorator'
 export * from './decorators/public.decorator'
 export * from './decorators/rate-limit.decorator'
+export * from './decorators/roles.decorator'
 
 // -------------------- Pipe --------------------
 export * from './pipes/validation.pipe'
@@ -42,3 +44,6 @@ export * from './config/configuration'
 export * from './config/database.config'
 export * from './config/redis.config'
 export * from './config/jwt.config'
+export * from './config/config-store.interface'
+export { ConfigStoreService } from './config/config-store.service'
+export { ConfigStoreModule } from './config/config-store.module'

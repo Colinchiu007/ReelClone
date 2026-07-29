@@ -4,6 +4,7 @@
  * 路由前缀：/api/v1/auth（全局前缀 api/v1 + 控制器前缀 auth）
  *
  * 端点：
+ *  - POST /api/v1/auth/admin-login    管理员登录（@Public）
  *  - POST /api/v1/auth/wechat-login   微信登录（@Public）
  *  - POST /api/v1/auth/refresh-token  刷新 Token（@Public）
  *  - POST /api/v1/auth/logout         登出（需 JWT 守卫）
@@ -13,18 +14,27 @@
  *   { code: 0, message: 'success', data: <返回值>, traceId }
  */
 import { Body, Controller, Get, Post } from '@nestjs/common'
-import {
-  Public,
-  CurrentUser,
-  type CurrentUserPayload,
-} from '@reelclone/common'
+import { Public, CurrentUser, type CurrentUserPayload } from '@reelclone/common'
 import { AuthService } from './auth.service'
 import { WechatLoginDto } from './dto/wechat-login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
+import { AdminLoginDto } from './dto/admin-login.dto'
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  /**
+   * 管理员登录（手机号 + 密码）
+   *
+   * 请求体：{ mobile: string, password: string }
+   * 响应：{ accessToken, refreshToken, user: { id, nickname, role } }
+   */
+  @Public()
+  @Post('admin-login')
+  async adminLogin(@Body() dto: AdminLoginDto): ReturnType<AuthService['adminLogin']> {
+    return this.authService.adminLogin(dto)
+  }
 
   /**
    * 微信小程序登录
@@ -34,9 +44,7 @@ export class AuthController {
    */
   @Public()
   @Post('wechat-login')
-  async wxLogin(
-    @Body() dto: WechatLoginDto,
-  ): ReturnType<AuthService['wxLogin']> {
+  async wxLogin(@Body() dto: WechatLoginDto): ReturnType<AuthService['wxLogin']> {
     return this.authService.wxLogin(dto)
   }
 
@@ -48,9 +56,7 @@ export class AuthController {
    */
   @Public()
   @Post('refresh-token')
-  async refreshToken(
-    @Body() dto: RefreshTokenDto,
-  ): ReturnType<AuthService['refreshToken']> {
+  async refreshToken(@Body() dto: RefreshTokenDto): ReturnType<AuthService['refreshToken']> {
     return this.authService.refreshToken(dto.refreshToken)
   }
 
@@ -61,9 +67,7 @@ export class AuthController {
    * 响应：{ success: true }
    */
   @Post('logout')
-  async logout(
-    @CurrentUser() user: CurrentUserPayload,
-  ): Promise<{ success: true }> {
+  async logout(@CurrentUser() user: CurrentUserPayload): Promise<{ success: true }> {
     await this.authService.logout(user)
     return { success: true }
   }

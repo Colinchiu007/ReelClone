@@ -14,25 +14,23 @@
  * 全局守卫：
  *  - JwtAuthGuard：默认所有路由需 JWT
  */
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { APP_GUARD } from '@nestjs/core'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
 import {
   JwtAuthGuard,
   jwtConfig,
   configuration,
   resolveJwtSecret,
-} from '@reelclone/common';
-import {
-  DatabaseModule,
-  RedisModule,
-} from '@reelclone/database';
-import { TemporalModule } from '@reelclone/temporal';
-import { AiModule } from '@reelclone/ai';
-import { WorkbenchModule } from './workbench/workbench.module';
-import { JwtStrategy } from './auth/jwt.strategy';
+  ConfigStoreModule,
+} from '@reelclone/common'
+import { DatabaseModule, RedisModule } from '@reelclone/database'
+import { TemporalModule } from '@reelclone/temporal'
+import { AiModule } from '@reelclone/ai'
+import { WorkbenchModule } from './workbench/workbench.module'
+import { JwtStrategy } from './auth/jwt.strategy'
 
 @Module({
   imports: [
@@ -56,6 +54,8 @@ import { JwtStrategy } from './auth/jwt.strategy';
     }),
     // AI 能力
     AiModule,
+    // 运行时配置存储（API Key 热刷新）
+    ConfigStoreModule,
     // Passport + JWT
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

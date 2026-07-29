@@ -7,11 +7,11 @@
  *  - GET    /                    模板广场列表（公开，分页 + 筛选 + 排序）
  *  - POST   /publish             用户发布模板（需 JWT）
  *  - POST   /internal/publish    内部接口：发布模板（服务间调用）
- *  - GET    /pending-review      待审核模板列表（需 JWT，TODO: 加管理员守卫）
+ *  - GET    /pending-review      待审核模板列表（需 JWT + ADMIN 角色）
  *  - GET    /my-published        我发布的模板列表（需 JWT，分页）
  *  - GET    /favorites           我的收藏列表（需 JWT，分页）
  *  - GET    /:id                 模板详情（公开）
- *  - POST   /:id/review          审核模板（需 JWT，TODO: 加管理员守卫）
+ *  - POST   /:id/review          审核模板（需 JWT + ADMIN 角色）
  *  - POST   /:id/increment-use   内部接口：使用次数 +1（服务间调用）
  *  - POST   /:id/favorite        收藏模板（需 JWT）
  *  - DELETE /:id/favorite        取消收藏（需 JWT）
@@ -19,8 +19,8 @@
  * 注意: 静态路由（publish/internal/publish/pending-review/my-published/favorites）
  *       必须在 /:id 之前定义，否则会被当作 :id 参数。
  */
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common'
-import { Public, CurrentUser } from '@reelclone/common'
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
+import { Public, CurrentUser, Roles, RolesGuard } from '@reelclone/common'
 import { TemplateService } from './template.service'
 import { FavoriteService } from './favorite.service'
 import { ListTemplatesDto } from './dto/list-templates.dto'
@@ -29,6 +29,7 @@ import { ReviewTemplateDto } from './dto/review-template.dto'
 import { PaginationDto } from '@reelclone/common'
 
 @Controller('templates')
+@UseGuards(RolesGuard)
 export class TemplateController {
   constructor(
     private readonly templateService: TemplateService,
@@ -66,9 +67,10 @@ export class TemplateController {
   }
 
   /**
-   * 待审核模板列表（需 JWT，TODO: 加管理员守卫）
+   * 待审核模板列表（需 JWT + 管理员角色）
    * 运营查询待审核模板，分页返回。
    */
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Get('pending-review')
   async pendingReview(@Query() pagination: PaginationDto) {
     const page = pagination.page ?? 1
@@ -108,9 +110,10 @@ export class TemplateController {
   }
 
   /**
-   * 审核模板（需 JWT，TODO: 加管理员守卫）
+   * 审核模板（需 JWT + 管理员角色）
    * 设置模板审核状态（ACTIVE / REJECTED）及审核备注。
    */
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Post(':id/review')
   async review(@Param('id') id: string, @Body() dto: ReviewTemplateDto) {
     return this.templateService.review(id, dto)

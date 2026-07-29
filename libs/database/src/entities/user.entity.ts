@@ -6,22 +6,29 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
-} from 'typeorm';
-import { Asset } from './asset.entity';
-import { Work } from './work.entity';
-import { AvatarGroup } from './avatar-group.entity';
-import { Order } from './order.entity';
-import { UserPackage } from './user-package.entity';
-import { Notification } from './notification.entity';
-import { Benchmark } from './benchmark.entity';
-import { PointTransaction } from './point-transaction.entity';
-import { Favorite } from './favorite.entity';
+} from 'typeorm'
+import { Asset } from './asset.entity'
+import { Work } from './work.entity'
+import { AvatarGroup } from './avatar-group.entity'
+import { Order } from './order.entity'
+import { UserPackage } from './user-package.entity'
+import { Notification } from './notification.entity'
+import { Benchmark } from './benchmark.entity'
+import { PointTransaction } from './point-transaction.entity'
+import { Favorite } from './favorite.entity'
 
 /** 用户状态 */
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   FROZEN = 'FROZEN',
   DELETED = 'DELETED',
+}
+
+/** 用户角色 */
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN',
 }
 
 /**
@@ -31,105 +38,109 @@ export enum UserStatus {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id: string
 
   /** 微信 OpenID（唯一） */
   @Index({ unique: true })
   @Column({ type: 'varchar', length: 64 })
-  openId: string;
+  openId: string
 
   /** 微信 UnionID */
   @Column({ type: 'varchar', length: 64, nullable: true })
-  unionId: string | null;
+  unionId: string | null
 
   /** 绑定手机号 */
   @Index({ unique: true })
   @Column({ type: 'varchar', length: 16, nullable: true })
-  mobile: string | null;
+  mobile: string | null
 
   /** 密码（哈希） */
   @Column({ type: 'varchar', length: 128, nullable: true })
-  password: string | null;
+  password: string | null
 
   /** 昵称 */
   @Column({ type: 'varchar', length: 64 })
-  nickname: string;
+  nickname: string
 
   /** 头像 URL */
   @Column({ type: 'varchar', length: 512, nullable: true })
-  avatarUrl: string | null;
+  avatarUrl: string | null
 
   /** 邮箱 */
   @Column({ type: 'varchar', length: 128, nullable: true })
-  email: string | null;
+  email: string | null
 
   /** 当前积分（可用余额） */
   @Column({ type: 'int', default: 0 })
-  currentPoints: number;
+  currentPoints: number
 
   /** 累计积分 */
   @Column({ type: 'int', default: 0 })
-  totalPoints: number;
+  totalPoints: number
 
   /** 行业偏好（JSON 数组） */
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
-  industryPreferences: string[];
+  industryPreferences: string[]
 
   /** 用户状态 */
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
-  status: UserStatus;
+  status: UserStatus
+
+  /** 用户角色 */
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole
 
   /** 最后登录时间 */
   @Column({ type: 'timestamptz', nullable: true })
-  lastLoginAt: Date | null;
+  lastLoginAt: Date | null
 
   @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  createdAt: Date
 
   @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
+  updatedAt: Date
 
   // ---------------- 关联关系 ----------------
 
   /** 用户拥有的资产（main 库内一对多） */
   @OneToMany(() => Asset, (asset) => asset.user)
-  assets: Asset[];
+  assets: Asset[]
 
   /** 用户创作的作品（main 库内一对多） */
   @OneToMany(() => Work, (work) => work.user)
-  works: Work[];
+  works: Work[]
 
   /** 用户的真人形象组（main 库内一对多） */
   @OneToMany(() => AvatarGroup, (group) => group.user)
-  avatarGroups: AvatarGroup[];
+  avatarGroups: AvatarGroup[]
 
   /** 用户的订单（main 库内一对多） */
   @OneToMany(() => Order, (order) => order.user)
-  orders: Order[];
+  orders: Order[]
 
   /** 用户的套餐（main 库内一对多） */
   @OneToMany(() => UserPackage, (pkg) => pkg.user)
-  userPackages: UserPackage[];
+  userPackages: UserPackage[]
 
   /** 用户的通知（main 库内一对多） */
   @OneToMany(() => Notification, (notification) => notification.user)
-  notifications: Notification[];
+  notifications: Notification[]
 
   /** 用户的对标解析（跨库 benchmark，仅逻辑关联，不建外键） */
   @OneToMany(() => Benchmark, (benchmark) => benchmark.user, {
     createForeignKeyConstraints: false,
   })
-  benchmarks: Benchmark[];
+  benchmarks: Benchmark[]
 
   /** 用户的积分流水（跨库 billing，仅逻辑关联，不建外键） */
   @OneToMany(() => PointTransaction, (tx) => tx.user, {
     createForeignKeyConstraints: false,
   })
-  pointTransactions: PointTransaction[];
+  pointTransactions: PointTransaction[]
 
   /** 用户的模板收藏（跨库 template，仅逻辑关联，不建外键） */
   @OneToMany(() => Favorite, (favorite) => favorite.user, {
     createForeignKeyConstraints: false,
   })
-  favorites: Favorite[];
+  favorites: Favorite[]
 }

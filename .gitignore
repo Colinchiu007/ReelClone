@@ -49,6 +49,9 @@ coverage/
 .env.test
 !.env.example
 
+# ==================== 本地记忆副本（不入库） ====================
+.trae/project_memory.md
+
 # ==================== Taro 构建产物 ====================
 .taro-cache/
 # Taro 各端编译产物

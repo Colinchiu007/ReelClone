@@ -6,25 +6,24 @@
  *  2. refreshToken   用 Refresh Token 换发新的 Token 对
  *  3. logout         将当前 Token 的 jti 加入 Redis 黑名单（剩余 TTL 内有效）
  */
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import * as bcrypt from 'bcrypt'
 import type { Redis } from 'ioredis'
-import {
-  User,
-  UserStatus,
-  REDIS_CLIENT,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
-import {
-  BusinessException,
-  ErrorCode,
-  type CurrentUserPayload,
-} from '@reelclone/common'
+import { User, UserStatus, UserRole, REDIS_CLIENT, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { BusinessException, ErrorCode, type CurrentUserPayload } from '@reelclone/common'
 import { WechatService } from './wechat.service'
 import { JwtCustomService, type JwtPayload } from './jwt.service'
 import { buildBlacklistKey } from './jwt.strategy'
 import type { WechatLoginDto } from './dto/wechat-login.dto'
+import type { AdminLoginDto } from './dto/admin-login.dto'
 
 /** 登录响应中暴露的用户信息（脱敏） */
 export interface AuthUserResponse {
@@ -51,6 +50,17 @@ export interface WxLoginResult {
 export interface RefreshTokenResult {
   accessToken: string
   refreshToken: string
+}
+
+/** 管理员登录响应 */
+export interface AdminLoginResult {
+  accessToken: string
+  refreshToken: string
+  user: {
+    id: string
+    nickname: string
+    role: UserRole
+  }
 }
 
 /** 单位：秒 */
@@ -94,8 +104,7 @@ export class AuthService {
       user = this.userRepo.create({
         openId: session.openid,
         unionId: session.unionid ?? null,
-        nickname:
-          dto.nickname?.trim() || `用户${session.openid.slice(-6)}`,
+        nickname: dto.nickname?.trim() || `用户${session.openid.slice(-6)}`,
         avatarUrl: dto.avatarUrl ?? null,
         status: UserStatus.ACTIVE,
         currentPoints: 0,
@@ -105,9 +114,7 @@ export class AuthService {
       })
       user = await this.userRepo.save(user)
       isNewUser = true
-      this.logger.log(
-        `New user registered: userId=${user.id} openId=${user.openId}`,
-      )
+      this.logger.log(`New user registered: userId=${user.id} openId=${user.openId}`)
     } else {
       // 老用户：更新登录时间 + 可选字段
       user.lastLoginAt = new Date()
@@ -126,20 +133,74 @@ export class AuthService {
 
     // 3. 校验用户状态
     if (user.status !== UserStatus.ACTIVE) {
-      throw new BusinessException(
-        ErrorCode.FORBIDDEN,
-        `账号当前状态（${user.status}）不允许登录`,
-        { status: user.status },
-      )
+      throw new BusinessException(ErrorCode.FORBIDDEN, `账号当前状态（${user.status}）不允许登录`, {
+        status: user.status,
+      })
     }
 
-    // 4. 签发 JWT
-    const tokens = this.jwtService.signTokenPair(user.id, user.openId)
+    // 4. 签发 JWT（payload 携带 role，供 RolesGuard 校验权限）
+    const tokens = this.jwtService.signTokenPair(user.id, user.openId, user.role)
 
     return {
       ...tokens,
       user: this.toAuthUserResponse(user),
       isNewUser,
+    }
+  }
+
+  /**
+   * 管理员登录（手机号 + 密码）
+   *
+   * 流程：
+   *  1. 通过 mobile 查找用户
+   *  2. 校验用户存在 / 已设置密码 / 角色为管理员 / 状态为 ACTIVE
+   *  3. bcrypt.compare 验证密码
+   *  4. 更新 lastLoginAt
+   *  5. 签发 Access + Refresh Token
+   */
+  async adminLogin(dto: AdminLoginDto): Promise<AdminLoginResult> {
+    // 1. 通过 mobile 查找用户
+    const user = await this.userRepo.findOne({
+      where: { mobile: dto.mobile },
+    })
+
+    // 2. 用户不存在 / 未设置密码 → 统一返回"账号或密码错误"（避免信息泄露）
+    if (!user || !user.password) {
+      throw new UnauthorizedException('账号或密码错误')
+    }
+
+    // 3. 角色校验：仅 ADMIN / SUPER_ADMIN 允许通过此端点登录
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('需要管理员权限')
+    }
+
+    // 4. 状态校验：非 ACTIVE 拒绝登录
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new ForbiddenException('账号已被冻结')
+    }
+
+    // 5. 密码校验
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password)
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('账号或密码错误')
+    }
+
+    // 6. 更新登录时间
+    user.lastLoginAt = new Date()
+    await this.userRepo.save(user)
+
+    // 7. 签发 JWT
+    const tokens = this.jwtService.signTokenPair(user.id, user.openId, user.role)
+
+    this.logger.log(`Admin login: userId=${user.id} mobile=${dto.mobile}`)
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        nickname: user.nickname,
+        role: user.role,
+      },
     }
   }
 
@@ -165,20 +226,15 @@ export class AuthService {
 
     // 检查黑名单
     if (payload.jti) {
-      const isBlacklisted = await this.redis.exists(
-        buildBlacklistKey(payload.jti),
-      )
+      const isBlacklisted = await this.redis.exists(buildBlacklistKey(payload.jti))
       if (isBlacklisted) {
-        throw new BusinessException(
-          ErrorCode.UNAUTHORIZED,
-          '登录已失效，请重新登录',
-          undefined,
-        )
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, '登录已失效，请重新登录', undefined)
       }
     }
 
-    // 签发新 Token 对
-    return this.jwtService.signTokenPair(payload.sub, payload.openId)
+    // 签发新 Token 对（沿用原 payload 中的 role；兼容旧 Token 缺失 role 时回落 USER）
+    const role = payload.role ?? UserRole.USER
+    return this.jwtService.signTokenPair(payload.sub, payload.openId, role)
   }
 
   /**
@@ -195,9 +251,7 @@ export class AuthService {
 
     if (!jti) {
       // 没有 jti 的 Token 无法加入黑名单，直接返回成功（幂等）
-      this.logger.warn(
-        `Logout called without jti: userId=${user.userId ?? 'unknown'}`,
-      )
+      this.logger.warn(`Logout called without jti: userId=${user.userId ?? 'unknown'}`)
       return
     }
 
@@ -208,14 +262,10 @@ export class AuthService {
     if (ttl > 0) {
       // EX 选项：秒级过期
       await this.redis.set(buildBlacklistKey(jti), '1', 'EX', ttl)
-      this.logger.log(
-        `User logout: userId=${user.userId} jti=${jti} ttl=${ttl}s`,
-      )
+      this.logger.log(`User logout: userId=${user.userId} jti=${jti} ttl=${ttl}s`)
     } else {
       // 已过期的 Token 无需加入黑名单
-      this.logger.log(
-        `Logout called with already-expired token: userId=${user.userId}`,
-      )
+      this.logger.log(`Logout called with already-expired token: userId=${user.userId}`)
     }
   }
 

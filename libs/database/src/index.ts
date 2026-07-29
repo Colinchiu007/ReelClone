@@ -3,7 +3,7 @@
 // ============================================================
 
 // ---------------- 实体 ----------------
-export { User, UserStatus } from './entities/user.entity'
+export { User, UserStatus, UserRole } from './entities/user.entity'
 export { Asset, AssetType, AssetStatus } from './entities/asset.entity'
 export { AvatarGroup, AuthorizationStatus, AvatarGroupStatus } from './entities/avatar-group.entity'
 export { Work, WorkType, WorkStatus } from './entities/work.entity'
@@ -21,6 +21,7 @@ export { Order, OrderStatus, PaymentMethod } from './entities/order.entity'
 export { PointTransaction, PointTransactionType } from './entities/point-transaction.entity'
 export { SmsCode, SmsCodePurpose } from './entities/sms-code.entity'
 export { Notification, NotificationType } from './entities/notification.entity'
+export { SystemConfig } from './entities/system-config.entity'
 
 // ---------------- 模块 ----------------
 export {
@@ -42,4 +43,6 @@ export {
   InitTemplate1700000000002,
   AddUgcFields1700000000003,
   InitBenchmark1700000000003,
+  AddUserRole1700000000004,
+  AddSystemConfig1700000000005,
 } from './migrations'
