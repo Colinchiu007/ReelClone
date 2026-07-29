@@ -30,6 +30,9 @@ interface StructuredReport {
 
 /**
  * 构造一份可复用的 StructuredReport 测试数据
+ *
+ * shotList 默认时长合计 5 秒（2+3），映射到 Seedance 支持档位 5s。
+ * 需要 10s 场景的测试通过 overrides 传入合计 ~10s 的 shotList。
  */
 function buildReport(overrides: Partial<StructuredReport> = {}): StructuredReport {
   return {
@@ -38,14 +41,14 @@ function buildReport(overrides: Partial<StructuredReport> = {}): StructuredRepor
     shotList: [
       {
         sceneIndex: 1,
-        duration: 3,
+        duration: 2,
         visual: '产品特写，高饱和度暖色调',
         voiceover: '这款面膜真的太绝了',
         onScreenText: '7 天见效',
       },
       {
         sceneIndex: 2,
-        duration: 5,
+        duration: 3,
         visual: '真人试用对比，左右分屏',
         voiceover: '看看我用了 7 天的变化',
         onScreenText: '前后对比',
@@ -61,6 +64,26 @@ function buildReport(overrides: Partial<StructuredReport> = {}): StructuredRepor
     summaryMs: 1200,
     ...overrides,
   }
+}
+
+/** 构造 shotList 合计 ~10 秒的报告（用于 10s 推荐场景） */
+function buildLongShotList(): StructuredReport['shotList'] {
+  return [
+    {
+      sceneIndex: 1,
+      duration: 5,
+      visual: '产品特写，高饱和度暖色调',
+      voiceover: '这款面膜真的太绝了',
+      onScreenText: '7 天见效',
+    },
+    {
+      sceneIndex: 2,
+      duration: 5,
+      visual: '真人试用对比，左右分屏',
+      voiceover: '看看我用了 7 天的变化',
+      onScreenText: '前后对比',
+    },
+  ]
 }
 
 describe('PromptEngineService', () => {
@@ -141,7 +164,7 @@ describe('PromptEngineService', () => {
 
     it('横屏风格应推荐 16:9 + 10 秒', async () => {
       llm.complete.mockResolvedValue(mockLlmText)
-      const report = buildReport({ style: '横屏品牌大片' })
+      const report = buildReport({ style: '横屏品牌大片', shotList: buildLongShotList() })
 
       const result = await service.generateClonePrompt(report)
 
@@ -151,7 +174,7 @@ describe('PromptEngineService', () => {
 
     it('长视频风格应推荐 16:9 + 10 秒', async () => {
       llm.complete.mockResolvedValue(mockLlmText)
-      const report = buildReport({ style: '长视频深度测评' })
+      const report = buildReport({ style: '长视频深度测评', shotList: buildLongShotList() })
 
       const result = await service.generateClonePrompt(report)
 
@@ -164,6 +187,7 @@ describe('PromptEngineService', () => {
       const report = buildReport({
         style: '品牌宣传',
         pacing: '横屏叙事，节奏舒缓',
+        shotList: buildLongShotList(),
       })
 
       const result = await service.generateClonePrompt(report)

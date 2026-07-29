@@ -172,7 +172,7 @@ export class PromptEngineService {
       { temperature: 0.6, maxTokens: 512 },
     )
 
-    const { aspectRatio, duration } = this.inferRecommendParams(report.style, report.pacing)
+    const { aspectRatio, duration } = this.inferRecommendParams(report)
 
     return {
       prompt: text.trim(),
@@ -297,22 +297,75 @@ export class PromptEngineService {
   }
 
   /**
-   * 根据 style 和 pacing 推断推荐参数
-   * - 竖屏/短视频 → 9:16 + 5s
-   * - 横屏/长视频 → 16:9 + 10s
-   * - 默认 → 9:16 + 5s
+   * 根据结构化报告推断推荐参数
+   *
+   * 改进点（相比原版仅用 style/pacing 关键词匹配）：
+   *  - 时长：基于 shotList 聚合对标视频总时长，映射到模型支持的最近档位（3/5/10s）
+   *  - 宽高比：扩展同义词（竖屏/横屏/方形/竖版/横版），增加 1:1、3:4 分支
+   *  - 兜底：shotList 为空时回退到 style/pacing 关键词匹配
+   *
+   * @param report 结构化对标解析报告
+   * @returns 推荐宽高比与时长
    */
-  private inferRecommendParams(
-    style: string,
-    pacing: string,
-  ): { aspectRatio: string; duration: number } {
-    const text = `${style} ${pacing}`
-    if (text.includes('竖屏') || text.includes('短视频')) {
-      return { aspectRatio: '9:16', duration: 5 }
+  private inferRecommendParams(report: StructuredReport): {
+    aspectRatio: string
+    duration: number
+  } {
+    // -------------------- 时长推断 --------------------
+    // 优先用 shotList 聚合对标视频总时长
+    const totalDuration = report.shotList.reduce((sum, s) => sum + (s.duration || 0), 0)
+    let duration: number
+    if (totalDuration > 0) {
+      // Seedance 支持档位 3/5/10s，取最近档位
+      const supported = [3, 5, 10]
+      duration = supported.reduce((best, cur) =>
+        Math.abs(cur - totalDuration) < Math.abs(best - totalDuration) ? cur : best,
+      )
+    } else {
+      // shotList 为空时回退到 pacing 关键词
+      const pacing = report.pacing ?? ''
+      if (pacing.includes('长视频') || pacing.includes('10') || pacing.includes('15')) {
+        duration = 10
+      } else if (pacing.includes('3') || pacing.includes('短')) {
+        duration = 3
+      } else {
+        duration = 5
+      }
     }
-    if (text.includes('横屏') || text.includes('长视频')) {
-      return { aspectRatio: '16:9', duration: 10 }
+
+    // -------------------- 宽高比推断 --------------------
+    const text = `${report.style ?? ''} ${report.pacing ?? ''}`
+    // 竖屏系列（最常见，放在最前）
+    if (
+      text.includes('竖屏') ||
+      text.includes('竖版') ||
+      text.includes('9:16') ||
+      text.includes('短视频')
+    ) {
+      return { aspectRatio: '9:16', duration }
     }
-    return { aspectRatio: '9:16', duration: 5 }
+    // 横屏系列
+    if (
+      text.includes('横屏') ||
+      text.includes('横版') ||
+      text.includes('16:9') ||
+      text.includes('长视频')
+    ) {
+      return { aspectRatio: '16:9', duration }
+    }
+    // 方形（小红书常见）
+    if (text.includes('方形') || text.includes('1:1') || text.includes('正方形')) {
+      return { aspectRatio: '1:1', duration }
+    }
+    // 竖屏短（3:4，部分电商场景）
+    if (text.includes('3:4') || text.includes('竖屏短')) {
+      return { aspectRatio: '3:4', duration }
+    }
+    // 超宽（电影感）
+    if (text.includes('21:9') || text.includes('超宽') || text.includes('电影')) {
+      return { aspectRatio: '21:9', duration }
+    }
+    // 默认：竖屏（短视频最常见形态）
+    return { aspectRatio: '9:16', duration }
   }
 }

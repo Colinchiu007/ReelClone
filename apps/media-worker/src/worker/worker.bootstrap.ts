@@ -12,7 +12,13 @@
  */
 import { type INestApplication, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { SeedanceProvider } from '@reelclone/ai'
+import {
+  FfmpegService,
+  LlmProvider,
+  SeedanceProvider,
+  VideoAnalyzerService,
+  VideoDownloaderService,
+} from '@reelclone/ai'
 import { setActivityDependencies, startWorker, stopWorker } from '@reelclone/temporal'
 import { buildActivities } from './activities.container'
 
@@ -60,12 +66,24 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
   const activities = buildActivities()
   logger.log(`已装配 Activity 数量: ${Object.keys(activities).length}`)
 
-  // 注入 Activity 依赖：从 NestJS DI 容器取出 SeedanceProvider 实例，
+  // 注入 Activity 依赖：从 NestJS DI 容器取出 Provider 实例，
   // 供真实模式 Activity 通过 getActivityDependencies() 访问。
   // （Activity 运行在 Worker 进程，无法直接注入 NestJS Service，故用全局容器传递）
   const seedanceProvider = app.get(SeedanceProvider)
-  setActivityDependencies({ seedanceProvider })
-  logger.log('已注入 Activity 依赖: SeedanceProvider')
+  const videoDownloader = app.get(VideoDownloaderService)
+  const videoAnalyzer = app.get(VideoAnalyzerService)
+  const ffmpegService = app.get(FfmpegService)
+  const llmProvider = app.get(LlmProvider)
+  setActivityDependencies({
+    seedanceProvider,
+    videoDownloader,
+    videoAnalyzer,
+    ffmpegService,
+    llmProvider,
+  })
+  logger.log(
+    '已注入 Activity 依赖: SeedanceProvider, VideoDownloaderService, VideoAnalyzerService, FfmpegService, LlmProvider',
+  )
 
   logger.log(
     `启动 Temporal Worker address=${address} namespace=${namespace} taskQueue=${currentTaskQueue}`,

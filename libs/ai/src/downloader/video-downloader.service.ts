@@ -100,7 +100,13 @@ export class VideoDownloaderService {
 
   /** 使用 lux 下载 */
   private async downloadWithLux(url: string, platform: VideoPlatform): Promise<DownloadResult> {
-    const result = await this.runCommand('lux', ['-o', this.outputDir, url])
+    const args = ['-o', this.outputDir]
+    // 抖音等平台需要 cookies 才能下载（与 yt-dlp 对齐）
+    if (this.cookiesFile) {
+      args.push('-c', this.cookiesFile)
+    }
+    args.push(url)
+    const result = await this.runCommand('lux', args)
     if (result.exitCode !== 0) {
       throw new Error(`lux 退出码 ${result.exitCode}: ${result.stderr}`)
     }

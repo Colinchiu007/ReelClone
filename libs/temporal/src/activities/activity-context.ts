@@ -8,7 +8,13 @@
  * 使用方式：
  *   // Worker 启动时（bootstrapWorker，可访问 NestJS app）
  *   import { setActivityDependencies } from '@reelclone/temporal'
- *   setActivityDependencies({ seedanceProvider: app.get(SeedanceProvider) })
+ *   setActivityDependencies({
+ *     seedanceProvider: app.get(SeedanceProvider),
+ *     videoDownloader: app.get(VideoDownloaderService),
+ *     videoAnalyzer: app.get(VideoAnalyzerService),
+ *     ffmpegService: app.get(FfmpegService),
+ *     llmProvider: app.get(LlmProvider),
+ *   })
  *
  *   // Activity 内部（真实模式）
  *   const { seedanceProvider } = getActivityDependencies()
@@ -16,12 +22,26 @@
  *
  * 仅 Activity 真实模式会调用 getActivityDependencies()，Mock 模式不依赖此容器。
  */
-import type { SeedanceProvider } from '@reelclone/ai'
+import type {
+  FfmpegService,
+  LlmProvider,
+  SeedanceProvider,
+  VideoAnalyzerService,
+  VideoDownloaderService,
+} from '@reelclone/ai'
 
-/** Activity 依赖集合（由 Worker 启动时注入，后续可扩展其他 provider） */
+/** Activity 依赖集合（由 Worker 启动时注入） */
 export interface ActivityDependencies {
+  /** Seedance 视频生成 Provider */
   seedanceProvider: SeedanceProvider
-  // 后续可扩展：ffmpegService、videoAnalyzerService、ossService 等
+  /** 视频下载器（抖音/小红书/B 站等） */
+  videoDownloader: VideoDownloaderService
+  /** 视频分析器（场景/ASR/OCR/VLM 4 维度） */
+  videoAnalyzer: VideoAnalyzerService
+  /** FFmpeg 封装（转码/压缩/封面） */
+  ffmpegService: FfmpegService
+  /** LLM 大模型（用于对标解析汇总） */
+  llmProvider: LlmProvider
 }
 
 /** 当前注入的依赖（Worker 启动前为 null） */

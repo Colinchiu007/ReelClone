@@ -20,7 +20,76 @@ import {
   type StructuredReport,
   type VlmResult,
 } from '../types'
+import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockId, mockDelay } from './mock.util'
+
+// ============================================================
+// 类型映射：libs/ai AnalysisReport → libs/temporal AnalysisReport
+// ============================================================
+
+/**
+ * 将 libs/ai 的 AnalysisReport（含 shots/transcript/ocr/visualDescription）
+ * 映射为 libs/temporal 的 AnalysisReport（含 scenes/asr/ocr/vlm）。
+ *
+ * 两个类型结构等价但字段命名不同，此处集中转换避免散落。
+ */
+function mapAnalyzerReportToTemporal(
+  analyzerReport: import('@reelclone/ai').AnalysisReport,
+  analysisMs: number,
+): AnalysisReport {
+  const { shots, transcript, ocr, visualDescription } = analyzerReport
+
+  // 1. scenes
+  const scenes: SceneSegment[] = shots.map((s) => ({
+    index: s.index,
+    start: s.startTime,
+    end: s.endTime,
+    duration: s.duration,
+    keyframePath: s.keyframeUrl,
+    description: s.shotType,
+  }))
+
+  // 2. asr
+  const asr: AsrResult = {
+    transcript: transcript.map((t) => t.text).join(' '),
+    segments: transcript.map((t) => ({
+      start: t.startTime,
+      end: t.endTime,
+      text: t.text,
+    })),
+  }
+
+  // 3. ocr
+  const ocrResult: OcrResult = {
+    items: ocr.map((o) => ({
+      timestamp: o.time,
+      text: o.text,
+      confidence: o.confidence ?? 0,
+      box: o.bbox,
+    })),
+  }
+
+  // 4. vlm
+  const vlm: VlmResult = {
+    descriptions: visualDescription.map((v) => ({
+      timestamp: v.time,
+      description: v.description,
+      sellingPoints: v.tags,
+    })),
+  }
+
+  // 5. duration：取最后一个镜头的 endTime 作为视频总时长
+  const duration = shots.length > 0 ? shots[shots.length - 1].endTime : 0
+
+  return {
+    duration,
+    scenes,
+    asr,
+    ocr: ocrResult,
+    vlm,
+    analysisMs,
+  }
+}
 
 /**
  * 下载对标视频到本地
@@ -32,14 +101,19 @@ export async function downloadBenchmarkVideo(url: string): Promise<string> {
   ctx.log.info('[Analyzer] 下载对标视频', { url })
 
   if (isMockMode()) {
-    // TODO: 替换为真实下载适配器
-    //   import { downloadAdapter } from '@reelclone/ai'
-    //   return downloadAdapter.download(url, { dest: '/tmp/reelclone/benchmark' })
     await mockDelay(400)
     return `/tmp/reelclone/benchmark/${mockId('bench')}.mp4`
   }
 
-  throw new Error('[Analyzer] 真实模式尚未接入 libs/ai 下载适配器')
+  // ---- 真实模式：调用 VideoDownloaderService ----
+  const { videoDownloader } = getActivityDependencies()
+  const result = await videoDownloader.download(url)
+  ctx.log.info('[Analyzer] 对标视频已下载', {
+    platform: result.platform,
+    downloader: result.downloader,
+    videoPath: result.videoPath,
+  })
+  return result.videoPath
 }
 
 /**
@@ -60,16 +134,6 @@ export async function analyzeVideo(videoPath: string): Promise<AnalysisReport> {
   const startedAt = Date.now()
 
   if (isMockMode()) {
-    // TODO: 替换为真实分析器
-    //   import { storyAnalyzer } from '@reelclone/ai'
-    //   const [scenes, asr, ocr, vlm] = await Promise.all([
-    //     storyAnalyzer.detectScenes(videoPath),
-    //     storyAnalyzer.transcribe(videoPath),
-    //     storyAnalyzer.ocr(videoPath),
-    //     storyAnalyzer.describe(videoPath),
-    //   ])
-    await mockDelay(800)
-
     const scenes: SceneSegment[] = [
       { index: 0, start: 0, end: 3.5, duration: 3.5, description: '开场产品展示' },
       { index: 1, start: 3.5, end: 8.2, duration: 4.7, description: '使用场景演示' },
@@ -104,6 +168,7 @@ export async function analyzeVideo(videoPath: string): Promise<AnalysisReport> {
       ],
     }
 
+    await mockDelay(800)
     const report: AnalysisReport = {
       duration: 15.0,
       scenes,
@@ -116,7 +181,21 @@ export async function analyzeVideo(videoPath: string): Promise<AnalysisReport> {
     return report
   }
 
-  throw new Error('[Analyzer] 真实模式尚未接入 libs/ai 分析器')
+  // ---- 真实模式：调用 VideoAnalyzerService 4 维度分析 ----
+  const { videoAnalyzer } = getActivityDependencies()
+  const analyzerReport = await videoAnalyzer.analyze(videoPath)
+  const analysisMs = Date.now() - startedAt
+
+  ctx.log.info('[Analyzer] 4 维度分析完成', {
+    shots: analyzerReport.shots.length,
+    transcript: analyzerReport.transcript.length,
+    ocr: analyzerReport.ocr.length,
+    vlm: analyzerReport.visualDescription.length,
+    analysisMs,
+  })
+
+  // 将 libs/ai 的报告结构映射为 libs/temporal 的 AnalysisReport
+  return mapAnalyzerReportToTemporal(analyzerReport, analysisMs)
 }
 
 /**
@@ -129,13 +208,7 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
   const startedAt = Date.now()
 
   if (isMockMode()) {
-    // TODO: 替换为真实 LLM 调用
-    //   import { llmAdapter, promptEngine } from '@reelclone/ai'
-    //   const prompt = promptEngine.render('benchmark-summary', { report })
-    //   const text = await llmAdapter.chat({ messages: [{ role: 'user', content: prompt }] })
-    //   return JSON.parse(text)
     await mockDelay(500)
-
     const structured: StructuredReport = {
       style: '快节奏带货种草风，节奏紧凑，3 秒内抓住注意力',
       pacing: '15 秒短视频，4 个场景，平均镜头时长 3.75 秒，前 3 秒高密度信息输出',
@@ -159,7 +232,137 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
     return structured
   }
 
-  throw new Error('[Analyzer] 真实模式尚未接入 libs/ai LLM 适配器')
+  // ---- 真实模式：调用 LLM 输出 JSON 结构化报告 ----
+  const { llmProvider } = getActivityDependencies()
+
+  const prompt = buildSummaryPrompt(report)
+  const system =
+    '你是一位短视频内容策略分析师，擅长从镜头、口播、画面文字、视觉描述中提炼可复用的创作模板。' +
+    '请严格输出 JSON 格式（不要包含 ```json 代码块标记），字段包括：' +
+    'style(字符串), pacing(字符串), shotList(数组:sceneIndex,duration,visual,voiceover,onScreenText),' +
+    'copywriting(对象:hook,body,cta), sellingPoints(字符串数组), templateSuggestion(字符串)。'
+
+  const text = await llmProvider.complete(
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: prompt },
+    ],
+    { temperature: 0.5, maxTokens: 1024 },
+  )
+
+  // 解析 LLM 返回的 JSON（容错：去除可能的 ```json 代码块标记）
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+
+  let structured: Partial<StructuredReport>
+  try {
+    structured = JSON.parse(cleaned) as Partial<StructuredReport>
+  } catch (err) {
+    ctx.log.warn('[Analyzer] LLM 返回非 JSON，回退模板汇总', {
+      error: (err as Error).message,
+      preview: cleaned.slice(0, 120),
+    })
+    // 解析失败时回退到基于分析报告的模板汇总（保证流程不中断）
+    structured = buildFallbackStructuredReport(report)
+  }
+
+  const result: StructuredReport = {
+    style: structured.style ?? '快节奏带货种草风',
+    pacing: structured.pacing ?? `${report.duration}秒短视频，${report.scenes.length} 个场景`,
+    shotList:
+      structured.shotList ??
+      report.scenes.map((scene, idx) => ({
+        sceneIndex: idx,
+        duration: scene.duration,
+        visual: scene.description ?? '',
+        voiceover: report.asr.segments[idx]?.text ?? '',
+        onScreenText: report.ocr.items[idx]?.text ?? '',
+      })),
+    copywriting: structured.copywriting ?? {
+      hook: report.asr.segments[0]?.text ?? '',
+      body: report.asr.segments
+        .slice(1, -1)
+        .map((s) => s.text)
+        .join(' '),
+      cta: report.asr.segments[report.asr.segments.length - 1]?.text ?? '',
+    },
+    sellingPoints:
+      structured.sellingPoints ?? report.vlm.descriptions.flatMap((d) => d.sellingPoints ?? []),
+    templateSuggestion:
+      structured.templateSuggestion ?? '建议复用「痛点 hook + 演示 + 价格刺激 + CTA」结构',
+    summaryMs: Date.now() - startedAt,
+  }
+
+  ctx.log.info('[Analyzer] LLM 汇总完成', { summaryMs: result.summaryMs })
+  return result
+}
+
+// -------------------- 提示词构建 --------------------
+
+/** 构建结构化汇总提示词（要求 LLM 返回 JSON） */
+function buildSummaryPrompt(report: AnalysisReport): string {
+  const shotsText = report.scenes
+    .map(
+      (s) =>
+        `  ${s.index}. [${s.start.toFixed(1)}-${s.end.toFixed(1)}s] ${s.description ?? '未知镜头'}（${s.duration.toFixed(1)}s）`,
+    )
+    .join('\n')
+  const transcriptText = report.asr.segments
+    .map((t) => `  [${t.start.toFixed(1)}s] ${t.text}`)
+    .join('\n')
+  const ocrText = report.ocr.items.map((o) => `  ${o.text}`).join('\n')
+  const vlmText = report.vlm.descriptions.map((v) => `  ${v.description}`).join('\n')
+
+  return [
+    '以下是对标视频的多维度分析结果，请汇总为结构化报告：',
+    '',
+    '【镜头切分】',
+    shotsText || '  无',
+    '',
+    '【口播文案（ASR）】',
+    transcriptText || '  无',
+    '',
+    '【画面文字（OCR）】',
+    ocrText || '  无',
+    '',
+    '【画面描述（VLM）】',
+    vlmText || '  无',
+    '',
+    '请输出 JSON 格式报告，包含字段：',
+    '1. style: 视频整体风格判断（字符串）',
+    '2. pacing: 节奏与时长结构建议（字符串）',
+    '3. shotList: 可复用的镜头结构清单（数组，每项含 sceneIndex/duration/visual/voiceover/onScreenText）',
+    '4. copywriting: 文案拆解（对象，含 hook/body/cta）',
+    '5. sellingPoints: 核心卖点（字符串数组）',
+    '6. templateSuggestion: 一键复刻要点（字符串）',
+  ].join('\n')
+}
+
+/** LLM 解析失败时的兜底结构化报告（基于分析报告模板生成） */
+function buildFallbackStructuredReport(report: AnalysisReport): Partial<StructuredReport> {
+  return {
+    style: '快节奏带货种草风',
+    pacing: `${report.duration}秒短视频，${report.scenes.length} 个场景`,
+    shotList: report.scenes.map((scene, idx) => ({
+      sceneIndex: idx,
+      duration: scene.duration,
+      visual: scene.description ?? '',
+      voiceover: report.asr.segments[idx]?.text ?? '',
+      onScreenText: report.ocr.items[idx]?.text ?? '',
+    })),
+    copywriting: {
+      hook: report.asr.segments[0]?.text ?? '',
+      body: report.asr.segments
+        .slice(1, -1)
+        .map((s) => s.text)
+        .join(' '),
+      cta: report.asr.segments[report.asr.segments.length - 1]?.text ?? '',
+    },
+    sellingPoints: report.vlm.descriptions.flatMap((d) => d.sellingPoints ?? []),
+    templateSuggestion: '建议复用「痛点 hook + 演示 + 价格刺激 + CTA」结构',
+  }
 }
 
 /** 分析 Activity 实现集合 */

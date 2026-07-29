@@ -2,7 +2,7 @@
  * 媒体处理 Activity
  *
  * 负责视频下载、FFmpeg 后处理、封面生成、内容安全审核。
- * 真实模式下调用 libs/ai 的 FFmpeg 封装与内容安全服务；
+ * 真实模式下调用 libs/ai 的 VideoDownloaderService、FfmpegService、ModerationService；
  * Mock 模式下返回模拟的 OSS Key 与审核结果。
  */
 import { Context } from '@temporalio/activity'
@@ -12,6 +12,7 @@ import {
   type ModerationResult,
   type PostProcessConfig,
 } from '../types'
+import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockId, mockDelay } from './mock.util'
 
 /**
@@ -24,16 +25,21 @@ export async function downloadVideo(url: string): Promise<string> {
   ctx.log.info('[Media] 下载视频', { url })
 
   if (isMockMode()) {
-    // TODO: 替换为真实下载
-    //   import { downloadAdapter } from '@reelclone/ai'
-    //   return downloadAdapter.download(url, { dest: '/tmp/reelclone' })
     await mockDelay(300)
     const localPath = `/tmp/reelclone/${mockId('video')}.mp4`
     ctx.log.info('[Media][Mock] 视频已下载', { localPath })
     return localPath
   }
 
-  throw new Error('[Media] 真实模式尚未接入 libs/ai 下载适配器')
+  // ---- 真实模式：调用 VideoDownloaderService ----
+  const { videoDownloader } = getActivityDependencies()
+  const result = await videoDownloader.download(url)
+  ctx.log.info('[Media] 视频已下载', {
+    platform: result.platform,
+    downloader: result.downloader,
+    videoPath: result.videoPath,
+  })
+  return result.videoPath
 }
 
 /**
@@ -50,20 +56,33 @@ export async function postProcessVideo(
   ctx.log.info('[Media] FFmpeg 后处理', { videoUrl, config })
 
   if (isMockMode()) {
-    // TODO: 替换为真实 FFmpeg 调用
-    //   import { ffmpegWrapper } from '@reelclone/ai'
-    //   const localInput = await downloadVideo(videoUrl)
-    //   const localOutput = await ffmpegWrapper.transcode(localInput, config)
-    //   const ossKey = `works/${Date.now()}/output.mp4`
-    //   await uploadToOSS(localOutput, ossKey)
-    //   return ossKey
     await mockDelay(400)
     const ossKey = `works/${Date.now()}/${mockId('output')}.mp4`
     ctx.log.info('[Media][Mock] 后处理完成', { ossKey })
     return ossKey
   }
 
-  throw new Error('[Media] 真实模式尚未接入 libs/ai FFmpeg 封装')
+  // ---- 真实模式：FFmpeg 转码 + 上传 OSS ----
+  const { ffmpegService } = getActivityDependencies()
+
+  // 1. 将源视频下载到本地（若 videoUrl 是远程 URL）
+  const localInput = await downloadVideo(videoUrl)
+
+  // 2. FFmpeg 转码到本地临时输出文件
+  const timestamp = Date.now()
+  const localOutput = `/tmp/reelclone/processed-${timestamp}.mp4`
+  await ffmpegService.transcode(localInput, localOutput, {
+    videoCodec: config.codec,
+    resolution: config.resolution,
+    videoBitrate: config.bitrate,
+  })
+
+  // 3. 上传到 OSS 并返回 Key（复用 OSS Activity）
+  const { uploadToOSS } = await import('./oss.activities')
+  const ossKey = `works/${timestamp}/${mockId('output')}.mp4`
+  await uploadToOSS(localOutput, ossKey)
+  ctx.log.info('[Media] 后处理完成', { ossKey })
+  return ossKey
 }
 
 /**
@@ -76,18 +95,31 @@ export async function generateThumbnail(videoPath: string): Promise<string> {
   ctx.log.info('[Media] 生成封面', { videoPath })
 
   if (isMockMode()) {
-    // TODO: 替换为真实 FFmpeg 抽帧
-    //   import { ffmpegWrapper } from '@reelclone/ai'
-    //   const frame = await ffmpegWrapper.extractFrame(videoPath, { time: 1 })
-    //   const ossKey = `covers/${Date.now()}/cover.jpg`
-    //   await uploadToOSS(frame, ossKey)
-    //   return ossKey
     await mockDelay(200)
     const thumbnailKey = `covers/${Date.now()}/${mockId('cover')}.jpg`
     return thumbnailKey
   }
 
-  throw new Error('[Media] 真实模式尚未接入 libs/ai FFmpeg 封装')
+  // ---- 真实模式：FFmpeg 抽帧 + 上传 OSS ----
+  const { ffmpegService } = getActivityDependencies()
+
+  // 1. 若 videoPath 是远程 URL，先下载到本地
+  const localVideo =
+    videoPath.startsWith('http://') || videoPath.startsWith('https://')
+      ? await downloadVideo(videoPath)
+      : videoPath
+
+  // 2. FFmpeg 截取第 1 秒作为封面
+  const timestamp = Date.now()
+  const localThumbnail = `/tmp/reelclone/cover-${timestamp}.jpg`
+  await ffmpegService.generateThumbnail(localVideo, 1, localThumbnail)
+
+  // 3. 上传到 OSS 并返回 Key
+  const { uploadToOSS } = await import('./oss.activities')
+  const ossKey = `covers/${timestamp}/${mockId('cover')}.jpg`
+  await uploadToOSS(localThumbnail, ossKey)
+  ctx.log.info('[Media] 封面生成完成', { ossKey })
+  return ossKey
 }
 
 /**
@@ -133,10 +165,7 @@ export async function moderateContent(
     moderation.moderateText(thumbnailKey),
   ])
 
-  const allHits = [
-    ...(videoResult.hitKeywords ?? []),
-    ...(imageResult.hitKeywords ?? []),
-  ]
+  const allHits = [...(videoResult.hitKeywords ?? []), ...(imageResult.hitKeywords ?? [])]
 
   if (!videoResult.passed || !imageResult.passed) {
     const reason = videoResult.reason || imageResult.reason || '内容包含敏感词'

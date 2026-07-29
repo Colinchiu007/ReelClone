@@ -225,30 +225,167 @@ export class LlmProvider {
 
   // -------------------- Mock 模式 --------------------
 
-  /** Mock 同步补全：根据最后一条用户消息返回模板文案 */
+  /** Mock 同步补全：根据 system prompt 场景返回对应的模板文案 */
   private async mockComplete(messages: LlmMessage[]): Promise<string> {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
     const userText = lastUser?.content ?? ''
     this.logger.log(`[Mock] 同步补全，输入预览: ${userText.slice(0, 30)}`)
-    return this.buildMockText(userText)
+    return this.buildMockText(messages, userText)
   }
 
   /** Mock 流式补全：按字分片输出 */
   private async *mockStream(messages: LlmMessage[]): AsyncGenerator<string> {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
     const userText = lastUser?.content ?? ''
-    const fullText = this.buildMockText(userText)
+    const fullText = this.buildMockText(messages, userText)
     // 按字符切片模拟流式
     for (const char of fullText) {
       yield char
     }
   }
 
-  /** 构造 Mock 文本 */
-  private buildMockText(userText: string): string {
+  /**
+   * 构造 Mock 文本
+   *
+   * 根据 system prompt 中的关键词识别调用场景，返回与 PromptEngineService
+   * 各方法期望输出形态匹配的模板文本，使 Mock 模式下下游解析逻辑可联调。
+   *
+   * 场景识别优先级（先匹配更具体的）：
+   *  1. 复刻提示词工程师 → generateClonePrompt（返回可直接用的视频提示词）
+   *  2. 内容策略分析师  → summarizeAnalysis（返回结构化报告 JSON）
+   *  3. 营销文案专家    → generateCopy（返回标题+口播+卖点结构）
+   *  4. 提示词工程师    → polishPrompt（返回润色后的提示词）
+   *  5. 描述专家        → reversePrompt（返回画面描述提示词）
+   *  6. 默认            → 通用创作文案
+   */
+  private buildMockText(messages: LlmMessage[], userText: string): string {
+    const system = messages.find((m) => m.role === 'system')?.content ?? ''
+    const preview = userText.slice(0, 60) || '通用创作'
+
+    // 1. generateClonePrompt — 复刻提示词（返回可直接用于文生视频的提示词）
+    if (system.includes('复刻提示词工程师')) {
+      return [
+        '【Mock 复刻提示词】',
+        `基于对标分析"${preview}"，生成复刻提示词：`,
+        '',
+        '一位年轻女性在简约明亮的厨房中，手持新鲜食材，面带微笑向镜头展示烹饪过程。',
+        '镜头从中景缓缓推近至特写，突出食材质感与人物表情。暖色调灯光营造温馨氛围，',
+        '画面节奏轻快，每 2-3 秒切换一个镜头，配合轻柔背景音乐与口播解说。',
+        '结尾定格在成品菜肴特写，叠加品牌 logo 与行动号召文字。',
+      ].join('\n')
+    }
+
+    // 2. summarizeAnalysis — 结构化对标解析报告（返回 JSON，便于下游解析）
+    if (system.includes('内容策略分析师')) {
+      const report = {
+        style: '快节奏带货种草风，竖屏短视频',
+        pacing: '紧凑，平均镜头时长 2.5s，共 6 个镜头',
+        shotList: [
+          {
+            sceneIndex: 1,
+            duration: 2.5,
+            visual: '产品特写，暖色调',
+            voiceover: '开场吸引注意力',
+            onScreenText: '爆款限时',
+          },
+          {
+            sceneIndex: 2,
+            duration: 2.5,
+            visual: '使用场景演示',
+            voiceover: '痛点引入',
+            onScreenText: '',
+          },
+          {
+            sceneIndex: 3,
+            duration: 2.5,
+            visual: '效果对比',
+            voiceover: '卖点展示',
+            onScreenText: '对比前后',
+          },
+          {
+            sceneIndex: 4,
+            duration: 2.5,
+            visual: '用户评价',
+            voiceover: '信任背书',
+            onScreenText: '',
+          },
+          {
+            sceneIndex: 5,
+            duration: 2.5,
+            visual: '促销信息',
+            voiceover: '行动号召',
+            onScreenText: '立即下单',
+          },
+          {
+            sceneIndex: 6,
+            duration: 2.5,
+            visual: '品牌 logo',
+            voiceover: '结尾',
+            onScreenText: '关注我们',
+          },
+        ],
+        copywriting: {
+          hook: '还在为XX烦恼？',
+          body: '这款产品帮你轻松解决',
+          cta: '点击链接立即购买',
+        },
+        sellingPoints: ['高效解决核心痛点', '性价比高', '用户口碑好'],
+        templateSuggestion: '痛点-方案-背书-促单 四段式结构',
+        summaryMs: 1200,
+      }
+      return JSON.stringify(report, null, 2)
+    }
+
+    // 3. generateCopy — 营销文案（返回标题+口播+卖点结构）
+    if (system.includes('营销文案专家')) {
+      return [
+        '【Mock 营销文案】',
+        `针对"${preview}"生成文案：`,
+        '',
+        '【标题】3 秒抓住眼球，这款神器让你告别烦恼！',
+        '',
+        '【口播脚本】',
+        '还在为日常困扰发愁吗？今天给大家推荐一款宝藏产品。',
+        '它采用创新设计，轻松解决你的核心痛点，效果立竿见影。',
+        '限时优惠，点击下方链接立即带走！',
+        '',
+        '【核心卖点】',
+        '1. 高效解决核心痛点，效果看得见',
+        '2. 简约设计，操作零门槛',
+        '3. 超高性价比，物超所值',
+      ].join('\n')
+    }
+
+    // 4. polishPrompt — 提示词润色（返回润色后的提示词）
+    if (system.includes('提示词工程师')) {
+      return [
+        '【Mock 润色提示词】',
+        `基于原始提示词"${preview}"润色扩写：`,
+        '',
+        '一位年轻女性在自然光下的简约场景中，手持产品，面带自信微笑。',
+        '中景镜头，浅景深，背景虚化突出主体。暖色调画面，柔和光影。',
+        '镜头缓慢推进，节奏舒缓。人物动作自然，产品细节清晰可见。',
+        '整体风格清新治愈，适合生活方式类短视频创作。',
+      ].join('\n')
+    }
+
+    // 5. reversePrompt — 画面反推（返回画面描述提示词）
+    if (system.includes('描述专家')) {
+      return [
+        '【Mock 反推提示词】',
+        `基于图片"${preview}"生成画面描述：`,
+        '',
+        '画面主体：一位年轻女性，身着浅色休闲服饰，手持现代简约风格产品。',
+        '场景：明亮的室内空间，自然光从左侧窗户洒入，背景为简约家居布置。',
+        '光影：柔和的自然光，暖色调，低对比度，营造温馨舒适氛围。',
+        '镜头：中景构图，平视角度，浅景深虚化背景。',
+      ].join('\n')
+    }
+
+    // 6. 默认 — 通用创作文案（保留原有行为作为兜底）
     return [
       '【Mock 文案】',
-      `根据您的需求"${userText.slice(0, 40) || '通用创作'}"，为您生成如下内容：`,
+      `根据您的需求"${preview}"，为您生成如下内容：`,
       '',
       '🌟 亮点一：高质感画面呈现，精准还原产品细节，第一眼抓住用户眼球。',
       '🌟 亮点二：紧凑叙事节奏，5 秒内传递核心卖点，提升转化效率。',
