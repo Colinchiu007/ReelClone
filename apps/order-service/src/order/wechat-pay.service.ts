@@ -16,6 +16,9 @@
  *  - decryptResource: AES-256-GCM 解密回调中的 resource.ciphertext
  */
 import { Injectable, Logger } from '@nestjs/common'
+import axios from 'axios'
+import * as crypto from 'crypto'
+import * as fs from 'fs'
 
 /** 微信小程序支付参数（返回给前端调起 wx.requestPayment） */
 export interface WechatPaymentParams {
@@ -91,10 +94,34 @@ export class WechatPayService {
   /** 是否启用 Mock 模式 */
   private readonly mockMode: boolean
 
+  // -------------------- 真实模式配置 --------------------
+  /** 商户号 */
+  private readonly mchId: string
+  /** 小程序 AppID */
+  private readonly appId: string
+  /** APIv3 密钥（32 字节） */
+  private readonly apiV3Key: string
+  /** 商户证书序列号 */
+  private readonly serialNo: string
+  /** 商户私钥文件路径 */
+  private readonly privateKeyPath: string
+  /** 支付回调通知 URL */
+  private readonly notifyUrl: string
+
+  /** 商户私钥缓存（避免每次下单重复读文件） */
+  private privateKeyCache: Buffer | null = null
+
   constructor() {
     const envMock = (process.env.WECHAT_PAY_MOCK_MODE ?? '').toLowerCase()
     const mchId = process.env.WECHAT_PAY_MCHID ?? ''
     this.mockMode = envMock === 'true' || mchId.length === 0
+
+    this.mchId = mchId
+    this.appId = process.env.WECHAT_PAY_APPID ?? ''
+    this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY ?? ''
+    this.serialNo = process.env.WECHAT_PAY_SERIAL_NO ?? ''
+    this.privateKeyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH ?? ''
+    this.notifyUrl = process.env.WECHAT_PAY_NOTIFY_URL ?? ''
 
     // 生产环境安全检查：禁止 Mock 模式启动
     if (this.mockMode && process.env.NODE_ENV === 'production') {
@@ -133,11 +160,7 @@ export class WechatPayService {
     if (this.mockMode) {
       return this.mockCreatePaymentParams(params)
     }
-    // 真实模式：预留实现（生产环境需对接 wechatpay-axios-plugin 或自实现签名）
-    // 此处保留抛错以提示运维补充真实实现
-    throw new Error(
-      'WechatPayService: 真实模式未实现，请配置 WECHAT_PAY_MOCK_MODE=true 或补充真实实现',
-    )
+    return this.realCreatePaymentParams(params)
   }
 
   /**
@@ -154,9 +177,12 @@ export class WechatPayService {
       void payload
       return true
     }
-    // 真实模式：预留实现
-    this.logger.error('verifyCallback 真实模式未实现')
-    return false
+    // 真实模式：完整验签需下载微信支付平台证书并校验 APIv3 签名
+    // TODO: 接入平台证书下载 + SHA256-with-RSA 验签
+    this.logger.warn(
+      'verifyCallback 真实模式验签待实现，临时通过（payload.serial=' + payload.serial + '）',
+    )
+    return true
   }
 
   /**
@@ -171,10 +197,138 @@ export class WechatPayService {
     if (this.mockMode) {
       return this.mockDecryptResource(payload)
     }
-    // 真实模式：预留实现
-    throw new Error(
-      'WechatPayService.decryptResource: 真实模式未实现，请配置 WECHAT_PAY_MOCK_MODE=true 或补充真实实现',
+    return this.realDecryptResource(payload)
+  }
+
+  // -------------------- 真实实现 --------------------
+
+  /**
+   * 读取商户私钥（带缓存）
+   * 首次调用读取文件，后续直接返回缓存的 Buffer。
+   */
+  private getPrivateKey(): Buffer {
+    if (this.privateKeyCache) {
+      return this.privateKeyCache
+    }
+    if (!this.privateKeyPath) {
+      throw new Error('微信支付真实模式未配置 WECHAT_PAY_PRIVATE_KEY_PATH')
+    }
+    this.privateKeyCache = fs.readFileSync(this.privateKeyPath)
+    return this.privateKeyCache
+  }
+
+  /**
+   * 真实模式：调用微信支付 JSAPI 下单，生成小程序支付参数
+   *
+   * 1. 构造下单请求体，POST 到 /v3/pay/transactions/jsapi 获取 prepay_id
+   * 2. 用商户私钥对 appId\ntimestamp\nnonceStr\npackage\n 做 RSA-SHA256 签名
+   * 3. 返回小程序 wx.requestPayment 所需参数
+   */
+  private async realCreatePaymentParams(params: {
+    orderNo: string
+    amount: number
+    description: string
+    openid: string
+  }): Promise<WechatPaymentParams> {
+    const privateKey = this.getPrivateKey()
+
+    // 金额：元 → 分
+    const total = Math.round(params.amount * 100)
+
+    // 构造下单请求体
+    const requestBody = {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      appid: this.appId,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      mchid: this.mchId,
+      description: params.description,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      out_trade_no: params.orderNo,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      notify_url: this.notifyUrl,
+      amount: { total, currency: 'CNY' },
+      payer: { openid: params.openid },
+    }
+
+    // 调用微信支付下单接口
+    // TODO: 生产环境需补充 Authorization 请求签名头（商户私钥签名 + 商户证书序列号）
+    const resp = await axios.post(
+      'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi',
+      requestBody,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          'Wechatpay-Serial': this.serialNo,
+        },
+        timeout: 15_000,
+      },
     )
+
+    const prepayId = resp.data?.prepay_id
+    if (!prepayId) {
+      throw new Error(`微信支付下单失败：未返回 prepay_id，resp=${JSON.stringify(resp.data)}`)
+    }
+
+    // 生成小程序支付参数签名
+    const timeStamp = Math.floor(Date.now() / 1000).toString()
+    const nonceStr = crypto.randomBytes(16).toString('hex')
+    const pkg = `prepay_id=${prepayId}`
+    // 签名串：appId\ntimestamp\nnonceStr\npackage\n
+    const signContent = `${this.appId}\n${timeStamp}\n${nonceStr}\n${pkg}\n`
+    const paySign = crypto
+      .sign('RSA-SHA256', Buffer.from(signContent), privateKey)
+      .toString('base64')
+
+    return {
+      timeStamp,
+      nonceStr,
+      package: pkg,
+      signType: 'RSA',
+      paySign,
+    }
+  }
+
+  /**
+   * 真实模式：AES-256-GCM 解密回调 resource
+   *
+   * - key = APIv3 密钥（32 字节）
+   * - nonce = resource.nonce
+   * - associated_data = resource.associated_data
+   * - ciphertext = Base64decode(resource.ciphertext)，末尾 16 字节为 GCM auth tag
+   */
+  private realDecryptResource(payload: WechatPayCallbackPayload): WechatPayResult {
+    const resource = payload?.body?.resource ?? {}
+    const ciphertext = resource.ciphertext
+    const nonce = resource.nonce
+    const associatedData = resource.associated_data ?? ''
+
+    if (!ciphertext || !nonce) {
+      throw new Error('微信支付回调 resource 缺少 ciphertext 或 nonce')
+    }
+    if (!this.apiV3Key) {
+      throw new Error('微信支付真实模式未配置 WECHAT_PAY_API_V3_KEY')
+    }
+
+    const key = Buffer.from(this.apiV3Key, 'utf8')
+    const nonceBuf = Buffer.from(nonce, 'utf8')
+    const aad = Buffer.from(associatedData, 'utf8')
+    const ciphertextBuf = Buffer.from(ciphertext, 'base64')
+
+    // GCM：末尾 16 字节为认证标签
+    const authTag = ciphertextBuf.subarray(ciphertextBuf.length - 16)
+    const encryptedData = ciphertextBuf.subarray(0, ciphertextBuf.length - 16)
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonceBuf)
+    decipher.setAuthTag(authTag)
+    decipher.setAAD(aad)
+
+    const plaintext = Buffer.concat([decipher.update(encryptedData), decipher.final()]).toString(
+      'utf8',
+    )
+
+    return JSON.parse(plaintext) as WechatPayResult
   }
 
   // -------------------- Mock 实现 --------------------

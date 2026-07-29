@@ -1,12 +1,12 @@
-import { defineConfig, type UserConfigExport } from '@tarojs/cli';
-import path from 'path';
-import devConfig from './dev';
-import prodConfig from './prod';
+import { defineConfig, type UserConfigExport } from '@tarojs/cli'
+import path from 'path'
+import devConfig from './dev'
+import prodConfig from './prod'
 
 // ReelClone Taro 构建配置
 // 文档：https://docs.taro.zone/docs/next/config#defineconfig
-export default defineConfig<'webpack5'>(async (merge) => {
-  const baseConfig: UserConfigExport<'webpack5'> = {
+export default defineConfig(async (merge) => {
+  const baseConfig: UserConfigExport = {
     projectName: 'ReelClone',
     date: '2024-1-1',
     designWidth: 750,
@@ -66,9 +66,9 @@ export default defineConfig<'webpack5'>(async (merge) => {
           },
         },
       },
-      webpackChain(chain) {
+      webpackChain(chain: any) {
         // 兼容 RxJS / 旧版 CommonJS 依赖
-        chain.resolve.extensions.merge(['.ts', '.tsx', '.js', '.jsx', '.json']);
+        chain.resolve.extensions.merge(['.ts', '.tsx', '.js', '.jsx', '.json'])
       },
     },
     h5: {
@@ -101,10 +101,10 @@ export default defineConfig<'webpack5'>(async (merge) => {
         },
       },
     },
-  };
+  }
 
   if (process.env.NODE_ENV === 'development') {
-    return merge({}, baseConfig, devConfig);
+    return merge({}, baseConfig, devConfig)
   }
-  return merge({}, baseConfig, prodConfig);
-});
+  return merge({}, baseConfig, prodConfig)
+})

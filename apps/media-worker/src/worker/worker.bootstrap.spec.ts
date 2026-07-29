@@ -17,22 +17,34 @@ jest.mock('@reelclone/temporal', () => {
   return {
     startWorker: jest.fn().mockResolvedValue(undefined),
     stopWorker: jest.fn().mockResolvedValue(undefined),
-    seedanceActivities: { submitToSeedance: fn(), querySeedanceTask: fn(), cancelSeedanceTask: fn() },
+    setActivityDependencies: jest.fn(),
+    getActivityDependencies: jest.fn(),
+    seedanceActivities: {
+      submitToSeedance: fn(),
+      querySeedanceTask: fn(),
+      cancelSeedanceTask: fn(),
+    },
     billingActivities: { freezeCredits: fn(), settleCredits: fn(), releaseCredits: fn() },
-    mediaActivities: { downloadVideo: fn(), postProcessVideo: fn(), generateThumbnail: fn(), moderateContent: fn() },
+    mediaActivities: {
+      downloadVideo: fn(),
+      postProcessVideo: fn(),
+      generateThumbnail: fn(),
+      moderateContent: fn(),
+    },
     analyzerActivities: { downloadBenchmarkVideo: fn(), analyzeVideo: fn(), summarizeReport: fn() },
-    notificationActivities: { updateWorkStatus: fn(), updateBenchmarkStatus: fn(), notifyUser: fn(), sendSubscribeMessage: fn() },
+    notificationActivities: {
+      updateWorkStatus: fn(),
+      updateBenchmarkStatus: fn(),
+      notifyUser: fn(),
+      sendSubscribeMessage: fn(),
+    },
     ossActivities: { uploadToOSS: fn(), generateSignedUrl: fn() },
   }
 })
 
 // mock 后再导入，确保使用桩实现
 import { startWorker, stopWorker } from '@reelclone/temporal'
-import {
-  bootstrapWorker,
-  shutdownWorker,
-  getWorkerStatus,
-} from './worker.bootstrap'
+import { bootstrapWorker, shutdownWorker, getWorkerStatus } from './worker.bootstrap'
 
 describe('worker.bootstrap', () => {
   let mockConfigService: { get: jest.Mock }

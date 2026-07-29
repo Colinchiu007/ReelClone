@@ -1,4 +1,4 @@
-import type { UserConfigExport } from '@tarojs/cli';
+import type { UserConfigExport } from '@tarojs/cli'
 
 // 开发环境配置
 // 文档：https://docs.taro.zone/docs/next/config#dev
@@ -12,10 +12,10 @@ export default {
     miniCssExtractPluginOption: {
       ignoreOrder: true,
     },
-    webpackChain(chain) {
+    webpackChain(chain: any) {
       chain.merge({
         devtool: 'cheap-module-source-map',
-      });
+      })
     },
   },
   h5: {
@@ -25,4 +25,4 @@ export default {
       host: 'localhost',
     },
   },
-} satisfies UserConfigExport<'webpack5'>;
+} satisfies UserConfigExport

@@ -3,41 +3,24 @@
 // ============================================================
 
 // ---------------- 实体 ----------------
-export { User, UserStatus } from './entities/user.entity';
-export { Asset, AssetType, AssetStatus } from './entities/asset.entity';
-export {
-  AvatarGroup,
-  AuthorizationStatus,
-  AvatarGroupStatus,
-} from './entities/avatar-group.entity';
-export { Work, WorkType, WorkStatus } from './entities/work.entity';
+export { User, UserStatus } from './entities/user.entity'
+export { Asset, AssetType, AssetStatus } from './entities/asset.entity'
+export { AvatarGroup, AuthorizationStatus, AvatarGroupStatus } from './entities/avatar-group.entity'
+export { Work, WorkType, WorkStatus } from './entities/work.entity'
 export {
   GenerationTask,
   GenerationProvider,
   GenerationTaskStatus,
-} from './entities/generation-task.entity';
-export {
-  Benchmark,
-  BenchmarkPlatform,
-  BenchmarkStatus,
-} from './entities/benchmark.entity';
-export { Template, TemplateStatus } from './entities/template.entity';
-export { Favorite } from './entities/favorite.entity';
-export { Package, PackageType, PackageStatus } from './entities/package.entity';
-export {
-  UserPackage,
-  UserPackageStatus,
-} from './entities/user-package.entity';
-export { Order, OrderStatus, PaymentMethod } from './entities/order.entity';
-export {
-  PointTransaction,
-  PointTransactionType,
-} from './entities/point-transaction.entity';
-export { SmsCode, SmsCodePurpose } from './entities/sms-code.entity';
-export {
-  Notification,
-  NotificationType,
-} from './entities/notification.entity';
+} from './entities/generation-task.entity'
+export { Benchmark, BenchmarkPlatform, BenchmarkStatus } from './entities/benchmark.entity'
+export { Template, TemplateStatus } from './entities/template.entity'
+export { Favorite } from './entities/favorite.entity'
+export { Package, PackageType, PackageStatus } from './entities/package.entity'
+export { UserPackage, UserPackageStatus } from './entities/user-package.entity'
+export { Order, OrderStatus, PaymentMethod } from './entities/order.entity'
+export { PointTransaction, PointTransactionType } from './entities/point-transaction.entity'
+export { SmsCode, SmsCodePurpose } from './entities/sms-code.entity'
+export { Notification, NotificationType } from './entities/notification.entity'
 
 // ---------------- 模块 ----------------
 export {
@@ -48,14 +31,15 @@ export {
   BILLING_ENTITIES,
   TEMPLATE_ENTITIES,
   BENCHMARK_ENTITIES,
-} from './modules/database.module';
-export { RedisModule, REDIS_CLIENT, RedisModuleOptions } from './modules/redis.module';
-export { SnakeNamingStrategy } from './modules/snake-naming.strategy';
+} from './modules/database.module'
+export { RedisModule, REDIS_CLIENT, RedisModuleOptions } from './modules/redis.module'
+export { SnakeNamingStrategy } from './modules/snake-naming.strategy'
 
 // ---------------- 迁移 ----------------
 export {
   InitMain1700000000000,
   InitBilling1700000000001,
   InitTemplate1700000000002,
+  AddUgcFields1700000000003,
   InitBenchmark1700000000003,
-} from './migrations';
+} from './migrations'

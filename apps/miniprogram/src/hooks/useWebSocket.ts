@@ -15,142 +15,142 @@
  *     return () => unsubscribe('task:progress', handler)
  *   }, [])
  */
-import { useEffect, useRef, useState, useCallback } from 'react';
-import Taro from '@tarojs/taro';
-import { tokenStore } from '@/services/token';
+import { useEffect, useRef, useState, useCallback } from 'react'
+import Taro from '@tarojs/taro'
+import { tokenStore } from '@/services/token'
 
 /** WebSocket 推送事件类型 */
-type WsEvent = 'task:progress' | 'task:completed' | 'task:failed' | 'notification';
+type WsEvent = 'task:progress' | 'task:completed' | 'task:failed' | 'notification'
 
 /** 事件处理函数 */
-type EventHandler = (data: unknown) => void;
+type EventHandler = (data: unknown) => void
 
 /** WebSocket 服务地址（notification-service，端口 3008） */
-const WS_BASE_URL = 'ws://localhost:3008';
+const WS_BASE_URL = 'ws://localhost:3008'
 
 /** 心跳间隔（30s） */
-const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_INTERVAL = 30000
 
 /** 最大重连延迟（30s） */
-const MAX_RECONNECT_DELAY = 30000;
+const MAX_RECONNECT_DELAY = 30000
 
 export function useWebSocket() {
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<Taro.SocketTask | null>(null);
-  const reconnectCountRef = useRef(0);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const manualCloseRef = useRef(false);
-  const listenersRef = useRef<Map<WsEvent, Set<EventHandler>>>(new Map());
+  const [connected, setConnected] = useState(false)
+  const socketRef = useRef<Taro.SocketTask | null>(null)
+  const reconnectCountRef = useRef(0)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const manualCloseRef = useRef(false)
+  const listenersRef = useRef<Map<WsEvent, Set<EventHandler>>>(new Map())
 
   /** 启动心跳定时器 */
   const startHeartbeat = useCallback(() => {
     if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
+      clearInterval(heartbeatTimerRef.current)
     }
     heartbeatTimerRef.current = setInterval(() => {
-      const socket = socketRef.current;
+      const socket = socketRef.current
       if (socket) {
-        socket.send({ data: JSON.stringify({ event: 'ping', data: { ts: Date.now() } }) });
+        socket.send({ data: JSON.stringify({ event: 'ping', data: { ts: Date.now() } }) })
       }
-    }, HEARTBEAT_INTERVAL);
-  }, []);
+    }, HEARTBEAT_INTERVAL)
+  }, [])
 
   /** 停止心跳 */
   const stopHeartbeat = useCallback(() => {
     if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
-      heartbeatTimerRef.current = null;
+      clearInterval(heartbeatTimerRef.current)
+      heartbeatTimerRef.current = null
     }
-  }, []);
+  }, [])
 
   /** 建立连接 */
-  const connect = useCallback(() => {
-    const token = tokenStore.getAccessToken();
-    if (!token) return;
+  const connect = useCallback(async () => {
+    const token = tokenStore.getAccessToken()
+    if (!token) return
 
-    manualCloseRef.current = false;
+    manualCloseRef.current = false
 
-    const socket = Taro.connectSocket({
+    const socket = await Taro.connectSocket({
       url: `${WS_BASE_URL}/ws?token=${token}`,
       header: { 'content-type': 'application/json' },
-    });
-    socketRef.current = socket;
+    })
+    socketRef.current = socket
 
     socket.onOpen(() => {
-      setConnected(true);
-      reconnectCountRef.current = 0;
-      startHeartbeat();
-    });
+      setConnected(true)
+      reconnectCountRef.current = 0
+      startHeartbeat()
+    })
 
     socket.onMessage((res) => {
       try {
-        const parsed = JSON.parse(res.data as string) as { event?: WsEvent; data?: unknown };
+        const parsed = JSON.parse(res.data as string) as { event?: WsEvent; data?: unknown }
         if (parsed.event) {
-          const handlers = listenersRef.current.get(parsed.event);
+          const handlers = listenersRef.current.get(parsed.event)
           if (handlers) {
-            handlers.forEach((h) => h(parsed.data));
+            handlers.forEach((h) => h(parsed.data))
           }
         }
       } catch {
         // 非 JSON 消息（如 pong），忽略
       }
-    });
+    })
 
     socket.onClose(() => {
-      setConnected(false);
-      stopHeartbeat();
-      socketRef.current = null;
+      setConnected(false)
+      stopHeartbeat()
+      socketRef.current = null
       if (!manualCloseRef.current) {
-        scheduleReconnect();
+        scheduleReconnect()
       }
-    });
+    })
 
     socket.onError(() => {
-      setConnected(false);
-      stopHeartbeat();
-    });
-  }, [startHeartbeat, stopHeartbeat]);
+      setConnected(false)
+      stopHeartbeat()
+    })
+  }, [startHeartbeat, stopHeartbeat])
 
   /** 指数退避重连 */
   const scheduleReconnect = useCallback(() => {
-    if (manualCloseRef.current) return;
-    const delay = Math.min(1000 * 2 ** reconnectCountRef.current, MAX_RECONNECT_DELAY);
-    reconnectCountRef.current++;
+    if (manualCloseRef.current) return
+    const delay = Math.min(1000 * 2 ** reconnectCountRef.current, MAX_RECONNECT_DELAY)
+    reconnectCountRef.current++
     if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
+      clearTimeout(reconnectTimerRef.current)
     }
     reconnectTimerRef.current = setTimeout(() => {
-      connect();
-    }, delay);
-  }, [connect]);
+      connect()
+    }, delay)
+  }, [connect])
 
   /** 订阅事件 */
   const subscribe = useCallback((event: WsEvent, handler: EventHandler) => {
     if (!listenersRef.current.has(event)) {
-      listenersRef.current.set(event, new Set());
+      listenersRef.current.set(event, new Set())
     }
-    listenersRef.current.get(event)!.add(handler);
-  }, []);
+    listenersRef.current.get(event)!.add(handler)
+  }, [])
 
   /** 取消订阅事件 */
   const unsubscribe = useCallback((event: WsEvent, handler: EventHandler) => {
-    listenersRef.current.get(event)?.delete(handler);
-  }, []);
+    listenersRef.current.get(event)?.delete(handler)
+  }, [])
 
   // 组件挂载时连接，卸载时断开
   useEffect(() => {
-    connect();
+    connect()
     return () => {
-      manualCloseRef.current = true;
-      stopHeartbeat();
+      manualCloseRef.current = true
+      stopHeartbeat()
       if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
+        clearTimeout(reconnectTimerRef.current)
       }
-      socketRef.current?.close({});
-      socketRef.current = null;
-    };
-  }, [connect, stopHeartbeat]);
+      socketRef.current?.close({})
+      socketRef.current = null
+    }
+  }, [connect, stopHeartbeat])
 
-  return { connected, subscribe, unsubscribe };
+  return { connected, subscribe, unsubscribe }
 }

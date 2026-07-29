@@ -10,15 +10,62 @@
  * 用于工作流端到端联调，待 libs/ai 的 Seedance Provider 就绪后切换。
  */
 import { Context } from '@temporalio/activity'
-import {
-  SeedanceTaskStatus,
-  VideoGenParams,
-  type SeedanceActivities,
-} from '../types'
+import type {
+  GenerationType,
+  SeedanceTaskParams,
+  SeedanceTaskState,
+  VideoDuration,
+  VideoResolution,
+} from '@reelclone/ai'
+import { SeedanceTaskStatus, VideoGenParams, WorkType, type SeedanceActivities } from '../types'
+import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockId, mockDelay } from './mock.util'
 
 /** Mock 模式下模拟的任务状态机（按调用次数推进） */
 const mockStateMap = new Map<string, { calls: number; videoUrl?: string }>()
+
+// ============================================================
+// 真实模式：VideoGenParams → SeedanceTaskParams / 状态映射
+// ============================================================
+
+/** 将工作流 WorkType 映射为 Seedance GenerationType */
+function mapWorkTypeToGenType(workType: WorkType): GenerationType {
+  switch (workType) {
+    case WorkType.TEXT_TO_VIDEO:
+      return 'TEXT_TO_VIDEO' as GenerationType
+    case WorkType.IMAGE_TO_VIDEO:
+      return 'IMAGE_TO_VIDEO_FIRST_FRAME' as GenerationType
+    case WorkType.IMAGE_TO_VIDEO_WITH_TAIL:
+      return 'IMAGE_TO_VIDEO_FIRST_LAST_FRAME' as GenerationType
+    case WorkType.EDIT_VIDEO:
+      return 'EDIT_VIDEO' as GenerationType
+    case WorkType.EXTEND_VIDEO:
+      return 'EXTEND_VIDEO' as GenerationType
+    case WorkType.REFERENCE_TO_VIDEO:
+      // Seedance 无原生"参考生视频"，回退为首帧图生视频
+      return 'IMAGE_TO_VIDEO_FIRST_FRAME' as GenerationType
+    default:
+      return 'TEXT_TO_VIDEO' as GenerationType
+  }
+}
+
+/** 将 Seedance Provider 任务状态映射为 Temporal SeedanceTaskStatus */
+function mapSeedanceState(state: SeedanceTaskState): SeedanceTaskStatus {
+  switch (state) {
+    case 'PENDING':
+      return SeedanceTaskStatus.SUBMITTED
+    case 'PROCESSING':
+      return SeedanceTaskStatus.RUNNING
+    case 'SUCCEEDED':
+      return SeedanceTaskStatus.COMPLETED
+    case 'FAILED':
+      return SeedanceTaskStatus.FAILED
+    case 'CANCELED':
+      return SeedanceTaskStatus.CANCELED
+    default:
+      return SeedanceTaskStatus.UNKNOWN
+  }
+}
 
 /** 提交任务到 Seedance，返回 Provider 任务 ID */
 export async function submitToSeedance(params: VideoGenParams): Promise<string> {
@@ -41,17 +88,22 @@ export async function submitToSeedance(params: VideoGenParams): Promise<string> 
     return taskId
   }
 
-  // ---- 真实模式（占位，待接入 libs/ai） ----
-  // const { seedanceProvider } = await import('@reelclone/ai')
-  // return seedanceProvider.submit({
-  //   prompt: params.prompt,
-  //   modelId: params.modelConfig.modelId,
-  //   duration: params.modelConfig.duration,
-  //   resolution: params.modelConfig.resolution,
-  //   firstFrameUrl: params.modelConfig.firstFrameUrl,
-  //   lastFrameUrl: params.modelConfig.lastFrameUrl,
-  // })
-  throw new Error('[Seedance] 真实模式尚未接入 libs/ai，请设置 TEMPORAL_MOCK_MODE=true')
+  // ---- 真实模式：通过 Activity 依赖容器调用 SeedanceProvider ----
+  const { seedanceProvider } = getActivityDependencies()
+  const taskParams: SeedanceTaskParams = {
+    type: mapWorkTypeToGenType(params.workType),
+    prompt: params.prompt,
+    firstFrameUrl: params.modelConfig.firstFrameUrl ?? params.modelConfig.referenceUrl,
+    lastFrameUrl: params.modelConfig.lastFrameUrl,
+    resolution: params.modelConfig.resolution as VideoResolution | undefined,
+    duration: params.modelConfig.duration as VideoDuration | undefined,
+    seed: params.modelConfig.seed,
+    watermark: false,
+    idempotentKey: params.idempotencyKey,
+  }
+  const result = await seedanceProvider.submitTask(taskParams)
+  ctx.log.info('[Seedance] 任务已提交', { taskId: result.taskId, keyIndex: result.keyIndex })
+  return result.taskId
 }
 
 /** 查询 Seedance 任务状态 */
@@ -80,10 +132,26 @@ export async function querySeedanceTask(taskId: string): Promise<{
     return { status: SeedanceTaskStatus.COMPLETED, videoUrl }
   }
 
-  // ---- 真实模式（占位） ----
-  // const { seedanceProvider } = await import('@reelclone/ai')
-  // return seedanceProvider.query(taskId)
-  throw new Error('[Seedance] 真实模式尚未接入 libs/ai')
+  // ---- 真实模式：查询 Provider 任务状态并映射 ----
+  const { seedanceProvider } = getActivityDependencies()
+  const task = await seedanceProvider.queryTask(taskId)
+  const status = mapSeedanceState(task.status)
+  const result: { status: SeedanceTaskStatus; videoUrl?: string; errorMessage?: string } = {
+    status,
+  }
+  if (task.result?.videoUrl) {
+    result.videoUrl = task.result.videoUrl
+  }
+  if (task.error) {
+    result.errorMessage = task.error
+  }
+  ctx.log.info('[Seedance] 查询任务状态完成', {
+    taskId,
+    providerStatus: task.status,
+    temporalStatus: status,
+    progress: task.progress,
+  })
+  return result
 }
 
 /** 取消 Seedance 任务 */
@@ -98,9 +166,11 @@ export async function cancelSeedanceTask(taskId: string): Promise<boolean> {
     return true
   }
 
-  // const { seedanceProvider } = await import('@reelclone/ai')
-  // return seedanceProvider.cancel(taskId)
-  throw new Error('[Seedance] 真实模式尚未接入 libs/ai')
+  // ---- 真实模式：调用 Provider 取消任务 ----
+  const { seedanceProvider } = getActivityDependencies()
+  const ok = await seedanceProvider.cancelTask(taskId)
+  ctx.log.info('[Seedance] 取消任务完成', { taskId, success: ok })
+  return ok
 }
 
 /** Seedance Activity 实现集合（供 Worker 注册使用） */

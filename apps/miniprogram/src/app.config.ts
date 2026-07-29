@@ -1,10 +1,5 @@
 export default {
-  pages: [
-    'pages/home/index',
-    'pages/recommend/index',
-    'pages/benchmark/index',
-    'pages/mine/index',
-  ],
+  pages: ['pages/home/index', 'pages/recommend/index', 'pages/benchmark/index', 'pages/mine/index'],
   subPackages: [
     {
       root: 'pages/workbench',
@@ -18,6 +13,7 @@ export default {
         'video-extend/index',
         'works/index',
         'work-detail/index',
+        'publish-template/index',
       ],
     },
     {
@@ -99,4 +95,4 @@ export default {
       desc: '用于完善您的账户资料与展示头像昵称',
     },
   },
-};
+}

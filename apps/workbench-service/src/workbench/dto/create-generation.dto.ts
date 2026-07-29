@@ -1,12 +1,4 @@
-import {
-  IsArray,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
 /**
  * 生成类型枚举
@@ -56,63 +48,68 @@ export enum AspectRatio {
 export class CreateGenerationDto {
   /** 生成类型 */
   @IsEnum(GenerationType)
-  generationType!: GenerationType;
+  generationType!: GenerationType
 
   /** 提示词 */
   @IsString()
   @MaxLength(2000)
-  prompt!: string;
+  prompt!: string
 
   /** 模型 ID（默认 seedance2-pro） */
   @IsOptional()
   @IsString()
-  model?: string;
+  model?: string
 
   /** 分辨率（视频类） */
   @IsOptional()
   @IsEnum(Resolution)
-  resolution?: Resolution;
+  resolution?: Resolution
 
   /** 宽高比 */
   @IsOptional()
   @IsEnum(AspectRatio)
-  aspectRatio?: AspectRatio;
+  aspectRatio?: AspectRatio
 
   /** 时长（秒，视频类） */
   @IsOptional()
   @IsInt()
   @Min(1)
-  duration?: 5 | 10;
+  duration?: 5 | 10
 
   /** 参考图 asset key 数组 */
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  referenceImages?: string[];
+  referenceImages?: string[]
 
   /** 参考视频 asset key */
   @IsOptional()
   @IsString()
-  referenceVideo?: string;
+  referenceVideo?: string
 
   /** 参考音频 asset key */
   @IsOptional()
   @IsString()
-  referenceAudio?: string;
+  referenceAudio?: string
 
   /** 首帧图 asset key */
   @IsOptional()
   @IsString()
-  firstFrame?: string;
+  firstFrame?: string
 
   /** 尾帧图 asset key */
   @IsOptional()
   @IsString()
-  lastFrame?: string;
+  lastFrame?: string
 
   /** 幂等键（重复请求返回已有 work） */
   @IsOptional()
   @IsString()
   @MaxLength(128)
-  idempotencyKey?: string;
+  idempotencyKey?: string
+
+  /** 来源模板 ID（基于模板创作时传入，用于模板使用次数 +1） */
+  @IsOptional()
+  @IsString()
+  templateId?: string
 }

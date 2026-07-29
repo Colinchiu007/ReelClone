@@ -12,7 +12,8 @@
  */
 import { type INestApplication, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { startWorker, stopWorker } from '@reelclone/temporal'
+import { SeedanceProvider } from '@reelclone/ai'
+import { setActivityDependencies, startWorker, stopWorker } from '@reelclone/temporal'
 import { buildActivities } from './activities.container'
 
 /** 默认任务队列名 */
@@ -58,6 +59,13 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
   // 装配所有 Activity（当前由 libs/temporal 内置实现，Mock 模式下走 Mock 路径）
   const activities = buildActivities()
   logger.log(`已装配 Activity 数量: ${Object.keys(activities).length}`)
+
+  // 注入 Activity 依赖：从 NestJS DI 容器取出 SeedanceProvider 实例，
+  // 供真实模式 Activity 通过 getActivityDependencies() 访问。
+  // （Activity 运行在 Worker 进程，无法直接注入 NestJS Service，故用全局容器传递）
+  const seedanceProvider = app.get(SeedanceProvider)
+  setActivityDependencies({ seedanceProvider })
+  logger.log('已注入 Activity 依赖: SeedanceProvider')
 
   logger.log(
     `启动 Temporal Worker address=${address} namespace=${namespace} taskQueue=${currentTaskQueue}`,

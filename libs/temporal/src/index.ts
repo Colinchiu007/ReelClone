@@ -38,6 +38,15 @@ export { startWorker, stopWorker, allActivities } from './worker/temporal.worker
 export type { TemporalWorkerConfig } from './worker/temporal.worker'
 
 // ============================================================
+// Activity 依赖容器（Worker 启动时注入 NestJS Provider 实例）
+// ============================================================
+export {
+  setActivityDependencies,
+  getActivityDependencies,
+  type ActivityDependencies,
+} from './activities/activity-context'
+
+// ============================================================
 // 工作流定义（供 Worker 注册与外部引用）
 // ============================================================
 export { videoGenerationWorkflow } from './workflows/video-generation.workflow'

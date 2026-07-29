@@ -10,21 +10,22 @@
  *  - GET    /works                 作品列表（分页）
  *  - GET    /works/:id             作品详情
  *  - DELETE /works/:id             删除作品
+ *  - POST   /works/:id/publish-template 作品转模板（发布到模板广场）
  */
-import { request } from '../request';
+import { request } from '../request'
 import type {
   CreateGenerationParams,
   GenerationTask,
   PaginatedResponse,
   PaginationParams,
   Work,
-} from '@/types';
+} from '@/types'
 
 /** 提交生成任务 */
 export function createGeneration(
   data: CreateGenerationParams,
 ): Promise<{ workId: string; taskId: string }> {
-  return request.post<{ workId: string; taskId: string }>('/generations', data);
+  return request.post<{ workId: string; taskId: string }>('/generations', data)
 }
 
 /** 生成任务列表（分页 + 筛选） */
@@ -34,37 +35,52 @@ export function listGenerations(
   return request.get<PaginatedResponse<GenerationTask>>(
     '/generations',
     params as Record<string, unknown>,
-  );
+  )
 }
 
 /** 生成任务详情 */
 export function getGeneration(id: string): Promise<GenerationTask> {
-  return request.get<GenerationTask>(`/generations/${id}`);
+  return request.get<GenerationTask>(`/generations/${id}`)
 }
 
 /** 取消生成任务 */
 export function cancelGeneration(id: string): Promise<void> {
-  return request.post<void>(`/generations/${id}/cancel`);
+  return request.post<void>(`/generations/${id}/cancel`)
 }
 
 /** 重试生成任务 */
 export function retryGeneration(id: string): Promise<{ taskId: string }> {
-  return request.post<{ taskId: string }>(`/generations/${id}/retry`);
+  return request.post<{ taskId: string }>(`/generations/${id}/retry`)
 }
 
 /** 作品列表（分页 + 筛选） */
 export function listWorks(
   params?: { status?: string; workType?: string } & PaginationParams,
 ): Promise<PaginatedResponse<Work>> {
-  return request.get<PaginatedResponse<Work>>('/works', params as Record<string, unknown>);
+  return request.get<PaginatedResponse<Work>>('/works', params as Record<string, unknown>)
 }
 
 /** 作品详情 */
 export function getWork(id: string): Promise<Work> {
-  return request.get<Work>(`/works/${id}`);
+  return request.get<Work>(`/works/${id}`)
 }
 
 /** 删除作品（软删除） */
 export function deleteWork(id: string): Promise<void> {
-  return request.delete<void>(`/works/${id}`);
+  return request.delete<void>(`/works/${id}`)
+}
+
+/** 作品转模板（发布到模板广场） */
+export function publishWorkAsTemplate(
+  workId: string,
+  params: {
+    title: string
+    description?: string
+    category?: string
+    industry?: string
+    platform?: string
+    tags?: string[]
+  },
+): Promise<{ templateId: string }> {
+  return request.post<{ templateId: string }>(`/works/${workId}/publish-template`, params)
 }

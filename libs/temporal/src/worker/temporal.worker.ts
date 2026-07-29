@@ -11,6 +11,7 @@
 import { Worker, NativeConnection, type WorkerOptions } from '@temporalio/worker'
 import path from 'path'
 import { TASK_QUEUE } from '../types'
+import { setActivityDependencies, type ActivityDependencies } from '../activities/activity-context'
 
 // 导入 Activity 实现
 import { seedanceActivities } from '../activities/seedance.activities'
@@ -42,6 +43,14 @@ export interface TemporalWorkerConfig {
   maxConcurrentActivityTaskExecutions?: number
   /** 最大并发工作流数 */
   maxConcurrentWorkflowTaskExecutions?: number
+  /**
+   * Activity 依赖集合（可选）
+   *
+   * 传入时，Worker 启动前会调用 setActivityDependencies 注入，
+   * 供真实模式 Activity 通过 getActivityDependencies() 访问 NestJS Provider 实例。
+   * 未传入时，需由调用方在 startWorker 之前手动调用 setActivityDependencies。
+   */
+  dependencies?: ActivityDependencies
 }
 
 /** Worker 单例 */
@@ -59,6 +68,12 @@ export async function startWorker(config?: TemporalWorkerConfig): Promise<Worker
   if (workerInstance) {
     console.warn('[Temporal Worker] Worker 已在运行')
     return workerInstance
+  }
+
+  // 注入 Activity 依赖（真实模式 Activity 通过 getActivityDependencies() 取用）
+  if (config?.dependencies) {
+    setActivityDependencies(config.dependencies)
+    console.info('[Temporal Worker] 已注入 Activity 依赖')
   }
 
   const address = config?.address || process.env.TEMPORAL_ADDRESS || 'localhost:7233'
