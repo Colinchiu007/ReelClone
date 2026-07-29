@@ -9,6 +9,7 @@
  *   - 生产环境：编译后 `node libs/temporal/dist/worker/temporal.worker.js`
  */
 import { Worker, NativeConnection, type WorkerOptions } from '@temporalio/worker'
+import path from 'path'
 import { TASK_QUEUE } from '../types'
 
 // 导入 Activity 实现
@@ -71,7 +72,7 @@ export async function startWorker(config?: TemporalWorkerConfig): Promise<Worker
 
   const workerOptions: WorkerOptions = {
     // 指向工作流注册入口，Worker 会自动 bundle 此文件
-    workflowsPath: require('path').join(__dirname, '..', 'workflows', 'index'),
+    workflowsPath: path.join(__dirname, '..', 'workflows', 'index'),
     activities: allActivities,
     connection: workerConnection,
     taskQueue,
