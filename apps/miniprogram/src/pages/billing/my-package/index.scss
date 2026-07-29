@@ -1,0 +1,201 @@
+// 我的套餐页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.my-pkg {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  &__scroll {
+    flex: 1;
+    height: 100vh;
+    padding: $spacing-md;
+    padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  // -------------------- 当前套餐卡片 --------------------
+  &__current {
+    @include flex-column;
+    padding: $spacing-lg;
+    background: $brand-gradient;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-glow;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__current-head {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__current-label {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__current-title {
+    font-size: $font-md;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+  }
+
+  &__current-status {
+    padding: 2px $spacing-sm;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: $text-primary;
+    font-size: $font-xs;
+    border-radius: $radius-full;
+  }
+
+  &__current-name {
+    font-size: $font-sm;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  &__points-grid {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__points-item {
+    @include flex-column;
+    align-items: center;
+    flex: 1;
+    gap: $spacing-xs;
+  }
+
+  &__points-val {
+    font-size: $font-xl;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.2;
+  }
+
+  &__points-key {
+    font-size: $font-xs;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__points-divider {
+    width: 1px;
+    height: 40px;
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  // -------------------- 进度条 --------------------
+  &__progress {
+    @include flex-column;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+  }
+
+  &__progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: $radius-full;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background-color: $text-primary;
+    border-radius: $radius-full;
+    transition: width 0.3s ease;
+  }
+
+  &__progress-text {
+    @include flex-between;
+    font-size: $font-xs;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  &__expire {
+    font-size: $font-xs;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+  }
+
+  // -------------------- 空状态 --------------------
+  &__empty-current {
+    @include flex-column;
+    align-items: center;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__go-subscribe {
+    @include flex-center;
+    margin-top: $spacing-md;
+    padding: $spacing-sm $spacing-xl;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-sm;
+    font-weight: 600;
+    border-radius: $radius-full;
+    box-shadow: $shadow-glow;
+  }
+
+  // -------------------- 历史套餐区 --------------------
+  &__section {
+    @include flex-column;
+    gap: $spacing-md;
+  }
+
+  &__section-title {
+    font-size: $font-md;
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  &__empty-history {
+    @include flex-center;
+    @include card;
+    padding: $spacing-2xl $spacing-lg;
+    color: $text-tertiary;
+    font-size: $font-sm;
+  }
+
+  &__history-list {
+    @include flex-column;
+    gap: $spacing-sm;
+  }
+
+  &__history-item {
+    @include flex-between;
+    @include card;
+    padding: $spacing-md;
+  }
+
+  &__history-info {
+    @include flex-column;
+    flex: 1;
+    gap: $spacing-xs;
+  }
+
+  &__history-name {
+    font-size: $font-sm;
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  &__history-date {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+
+  &__history-amount {
+    font-size: $font-md;
+    color: $text-secondary;
+    margin-right: $spacing-md;
+  }
+
+  &__history-status {
+    padding: 2px $spacing-sm;
+    background-color: $bg-tertiary;
+    color: $text-tertiary;
+    font-size: $font-xs;
+    border-radius: $radius-full;
+  }
+}

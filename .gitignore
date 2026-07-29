@@ -1,12 +1,81 @@
-# OS
+# ==================== 操作系统 ====================
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
 
-# Editor
+# ==================== 编辑器/IDE ====================
 .vscode/
 .idea/
+*.iml
+*.sublime-workspace
+*.sublime-project
+.history/
 
-# Temp
+# ==================== Node.js ====================
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.nyc_output/
+
+# ==================== 构建产物 ====================
+dist/
+build/
+out/
+*.tsbuildinfo
+.cache/
+.tmp/
+tmp/
+
+# ==================== 测试与覆盖率 ====================
+coverage/
+*.lcov
+.nyc_output/
+
+# ==================== 环境变量（敏感信息） ====================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# ==================== Taro 构建产物 ====================
+.taro-cache/
+# Taro 各端编译产物
+dist-taro/
+# Taro H5 产物
+h5/
+# Taro 微信小程序产物（Taro 编译输出目录）
+.weapp/
+# Taro 编译缓存
+taro-build/
+# Taro 微信小程序开发者工具上传产物
+project.private.config.json
+project.config.json
+
+# ==================== Nx 缓存 ====================
+.nx/cache/
+.nx/workspace-data/
+
+# ==================== TypeScript 缓存 ====================
+*.tsbuildinfo
+
+# ==================== 临时文件 ====================
 __pycache__/
 _tmp_*
 *.tmp
+
+# ==================== 其他 ====================
+.eslintcache
+.stylelintcache
+.parcel-cache/

@@ -1,0 +1,196 @@
+// UploadModal 上传素材弹窗样式
+// variables/mixins 由 sass.resource 自动注入
+
+.upload-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: $z-index-modal;
+  background-color: rgba($bg-primary, 0.6);
+  @include flex-end;
+  align-items: flex-end;
+}
+
+.upload-modal__card {
+  width: 100%;
+  max-height: 85vh;
+  background-color: $bg-secondary;
+  border-radius: $radius-xl $radius-xl 0 0;
+  @include flex-column;
+  animation: upload-modal-slide-up 0.25s ease;
+}
+
+@keyframes upload-modal-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.upload-modal__header {
+  @include flex-between;
+  padding: $spacing-md $spacing-lg;
+  @include hairline-bottom;
+}
+
+.upload-modal__title {
+  font-size: $font-lg;
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.upload-modal__close {
+  font-size: 40px;
+  color: $text-tertiary;
+  padding: $spacing-xs $spacing-sm;
+  line-height: 1;
+}
+
+.upload-modal__body {
+  flex: 1;
+  padding: $spacing-md $spacing-lg;
+  @include flex-column;
+  gap: $spacing-lg;
+  max-height: 60vh;
+}
+
+.upload-modal__section {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.upload-modal__label {
+  font-size: $font-sm;
+  color: $text-secondary;
+  font-weight: 500;
+}
+
+.upload-modal__hint {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.upload-modal__type-row {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.upload-modal__type-chip {
+  flex: 1;
+  padding: $spacing-sm 0;
+  text-align: center;
+  background-color: $bg-tertiary;
+  border: 1px solid $border-primary;
+  border-radius: $radius-md;
+  font-size: $font-sm;
+  color: $text-secondary;
+  transition: all 0.18s ease;
+
+  &--on {
+    background: $brand-gradient;
+    border-color: transparent;
+    color: $text-primary;
+    font-weight: 600;
+    box-shadow: $shadow-glow;
+  }
+}
+
+.upload-modal__tag-input {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.upload-modal__input {
+  flex: 1;
+  height: 72px;
+  padding: 0 $spacing-md;
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  font-size: $font-sm;
+  color: $text-primary;
+}
+
+.upload-modal__tag-add {
+  padding: $spacing-sm $spacing-md;
+  background-color: $bg-elevated;
+  border-radius: $radius-md;
+  font-size: $font-sm;
+  color: $text-secondary;
+}
+
+.upload-modal__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+}
+
+.upload-modal__tag {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  background-color: $bg-elevated;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  color: $text-secondary;
+}
+
+.upload-modal__tag-del {
+  font-size: 24px;
+  color: $text-tertiary;
+  line-height: 1;
+}
+
+.upload-modal__footer {
+  padding: $spacing-md $spacing-lg;
+  @include safe-area-bottom;
+  @include hairline-top;
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.upload-modal__progress {
+  position: relative;
+  height: 40px;
+  background-color: $bg-tertiary;
+  border-radius: $radius-full;
+  overflow: hidden;
+  @include flex-center;
+}
+
+.upload-modal__progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: $brand-gradient;
+  transition: width 0.2s ease;
+}
+
+.upload-modal__progress-text {
+  position: relative;
+  font-size: $font-xs;
+  color: $text-primary;
+  z-index: 1;
+}
+
+.upload-modal__submit {
+  height: 88px;
+  @include flex-center;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+  transition: opacity 0.18s ease;
+
+  &--disabled {
+    @include disabled;
+  }
+}

@@ -1,0 +1,140 @@
+// 消费记录页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.tx-page {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  // -------------------- 筛选 Tab --------------------
+  &__tabs {
+    @include flex-start;
+    background-color: $bg-secondary;
+    padding: $spacing-xs;
+    gap: $spacing-xs;
+    overflow-x: auto;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: $z-index-sticky;
+  }
+
+  &__tab {
+    flex-shrink: 0;
+    padding: $spacing-xs $spacing-md;
+    font-size: $font-sm;
+    color: $text-secondary;
+    border-radius: $radius-full;
+    transition: all 0.2s ease;
+
+    &--on {
+      background: $brand-gradient;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-sm;
+    }
+  }
+
+  &__scroll {
+    flex: 1;
+    height: calc(100vh - 56px);
+    padding: $spacing-md;
+    box-sizing: border-box;
+  }
+
+  &__footer {
+    @include flex-center;
+    padding: $spacing-lg 0;
+    color: $text-tertiary;
+  }
+
+  &__footer-text {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+}
+
+// -------------------- 流水条目 --------------------
+.tx-item {
+  @include flex-start;
+  @include card;
+  padding: $spacing-md;
+  margin-bottom: $spacing-sm;
+  gap: $spacing-md;
+}
+
+.tx-item__icon {
+  @include flex-center;
+  width: 56px;
+  height: 56px;
+  border-radius: $radius-full;
+  font-size: 28px;
+  flex-shrink: 0;
+  background-color: $bg-tertiary;
+
+  &--in {
+    background-color: rgba(16, 185, 129, 0.12);
+  }
+
+  &--out {
+    background-color: rgba(239, 68, 68, 0.12);
+  }
+}
+
+.tx-item__main {
+  @include flex-column;
+  flex: 1;
+  min-width: 0;
+  gap: $spacing-xs;
+}
+
+.tx-item__head {
+  @include flex-start;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
+.tx-item__label {
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tx-item__desc {
+  font-size: $font-sm;
+  color: $text-secondary;
+  @include ellipsis(1);
+  min-width: 0;
+}
+
+.tx-item__time {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.tx-item__right {
+  @include flex-column;
+  align-items: flex-end;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.tx-item__amount {
+  font-size: $font-md;
+  font-weight: 700;
+
+  &--in {
+    color: $success;
+  }
+
+  &--out {
+    color: $error;
+  }
+}
+
+.tx-item__balance {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}

@@ -1,0 +1,199 @@
+// 订阅计划页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.subscribe-page {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+  box-sizing: border-box;
+
+  &__scroll {
+    flex: 1;
+    height: 100vh;
+    padding: $spacing-md;
+    padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  // -------------------- 顶部余额区 --------------------
+  &__balance {
+    @include flex-column;
+    align-items: center;
+    padding: $spacing-xl $spacing-md;
+    margin-bottom: $spacing-md;
+    background: $brand-gradient;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-glow;
+    position: relative;
+  }
+
+  &__balance-label {
+    font-size: $font-sm;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: $spacing-sm;
+  }
+
+  &__balance-num {
+    font-size: 72px;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.1;
+    letter-spacing: 1px;
+  }
+
+  &__balance-badge {
+    margin-top: $spacing-md;
+    opacity: 0.95;
+  }
+
+  // -------------------- 套餐列表 --------------------
+  &__list {
+    @include flex-column;
+    gap: $spacing-md;
+  }
+}
+
+// -------------------- 套餐卡片 --------------------
+.pkg-card {
+  @include flex-column;
+  position: relative;
+  padding: $spacing-lg;
+  border-radius: $radius-xl;
+  background-color: $bg-secondary;
+  border: 1px solid $border-primary;
+  box-shadow: $shadow-md;
+  overflow: hidden;
+
+  // 推荐套餐：渐变背景
+  &--hot {
+    border-color: transparent;
+    color: $text-primary;
+    box-shadow: $shadow-lg;
+
+    .pkg-card__name,
+    .pkg-card__points-num,
+    .pkg-card__price {
+      color: $text-primary;
+    }
+
+    .pkg-card__duration,
+    .pkg-card__bonus,
+    .pkg-card__desc,
+    .pkg-card__points-unit,
+    .pkg-card__origin {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .pkg-card__origin {
+      text-decoration-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .pkg-card__buy {
+      background-color: rgba(255, 255, 255, 0.95);
+      color: $brand-primary;
+      box-shadow: $shadow-sm;
+    }
+  }
+
+  &__tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: $spacing-xs $spacing-md;
+    background-color: rgba(0, 0, 0, 0.25);
+    color: $text-primary;
+    font-size: $font-xs;
+    font-weight: 600;
+    border-radius: 0 $radius-xl 0 $radius-md;
+  }
+
+  &__head {
+    @include flex-between;
+    margin-bottom: $spacing-md;
+  }
+
+  &__name {
+    font-size: $font-lg;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__duration {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+
+  &__points {
+    @include flex-start;
+    align-items: baseline;
+    gap: $spacing-xs;
+    margin-bottom: $spacing-xs;
+  }
+
+  &__points-num {
+    font-size: $font-2xl;
+    font-weight: 700;
+    color: $brand-secondary;
+    line-height: 1.1;
+  }
+
+  &__points-unit {
+    font-size: $font-sm;
+    color: $text-tertiary;
+  }
+
+  &__bonus {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    margin-bottom: $spacing-sm;
+  }
+
+  &__desc {
+    font-size: $font-sm;
+    color: $text-secondary;
+    line-height: 1.5;
+    margin-bottom: $spacing-md;
+    @include ellipsis(2);
+  }
+
+  &__footer {
+    @include flex-between;
+    margin-top: auto;
+  }
+
+  &__price-wrap {
+    @include flex-start;
+    align-items: baseline;
+    gap: $spacing-sm;
+  }
+
+  &__price {
+    font-size: $font-xl;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__origin {
+    font-size: $font-sm;
+    color: $text-tertiary;
+    text-decoration: line-through;
+  }
+
+  &__buy {
+    @include flex-center;
+    padding: $spacing-sm $spacing-lg;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-sm;
+    font-weight: 600;
+    border-radius: $radius-full;
+    box-shadow: $shadow-glow;
+    transition: opacity 0.2s ease;
+
+    &--disabled {
+      @include disabled;
+      box-shadow: none;
+    }
+  }
+}

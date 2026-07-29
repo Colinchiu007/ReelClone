@@ -1,0 +1,48 @@
+// 隐私协议页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.privacy-page {
+  height: 100vh;
+  padding: $spacing-md $spacing-lg;
+  padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  background-color: $bg-primary;
+
+  &__content {
+    @include card;
+    display: block;
+    padding: $spacing-lg;
+    color: $text-secondary;
+    line-height: 1.8;
+    font-size: $font-md;
+
+    // RichText 内部标签样式覆盖
+    // 由于小程序 RichText 渲染为原生组件，部分样式需通过类选择器作用域
+    /deep/ {
+      h1 {
+        font-size: $font-xl;
+        font-weight: 700;
+        color: $text-primary;
+        text-align: center;
+        margin-bottom: $spacing-lg;
+        line-height: 1.4;
+      }
+
+      h2 {
+        font-size: $font-lg;
+        font-weight: 600;
+        color: $text-primary;
+        margin-top: $spacing-lg;
+        margin-bottom: $spacing-sm;
+        line-height: 1.4;
+      }
+
+      p {
+        font-size: $font-sm;
+        color: $text-secondary;
+        margin-bottom: $spacing-sm;
+        line-height: 1.8;
+      }
+    }
+  }
+}

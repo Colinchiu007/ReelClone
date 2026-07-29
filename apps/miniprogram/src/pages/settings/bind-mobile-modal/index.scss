@@ -1,0 +1,139 @@
+// 绑定手机号弹窗样式
+// variables/mixins 由 sass.resource 自动注入
+
+.bind-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: $z-index-modal;
+  @include flex-center;
+  background-color: rgba(0, 0, 0, 0.6);
+
+  &__panel {
+    width: 86%;
+    max-width: 600px;
+    background-color: $bg-secondary;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-lg;
+    overflow: hidden;
+  }
+
+  &__head {
+    @include flex-between;
+    padding: $spacing-md $spacing-lg;
+    @include hairline-bottom;
+  }
+
+  &__title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__close {
+    font-size: 36px;
+    color: $text-tertiary;
+    line-height: 1;
+    padding: 0 $spacing-xs;
+  }
+
+  &__body {
+    @include flex-column;
+    padding: $spacing-lg;
+    gap: $spacing-md;
+  }
+
+  &__field {
+    @include flex-column;
+    gap: $spacing-xs;
+  }
+
+  &__label {
+    font-size: $font-sm;
+    color: $text-secondary;
+    font-weight: 600;
+  }
+
+  &__input {
+    width: 100%;
+    height: 80px;
+    padding: 0 $spacing-md;
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-md;
+    font-size: $font-md;
+    color: $text-primary;
+    box-sizing: border-box;
+
+    &--code {
+      flex: 1;
+      width: auto;
+    }
+  }
+
+  &__code-wrap {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__code-btn {
+    @include flex-center;
+    flex-shrink: 0;
+    height: 80px;
+    padding: 0 $spacing-md;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-sm;
+    font-weight: 600;
+    border-radius: $radius-md;
+    white-space: nowrap;
+    box-shadow: $shadow-sm;
+
+    &--disabled {
+      @include disabled;
+      background: $bg-elevated;
+      box-shadow: none;
+    }
+  }
+
+  &__error {
+    font-size: $font-xs;
+    color: $error;
+  }
+
+  &__footer {
+    @include flex-start;
+    padding: $spacing-md $spacing-lg;
+    gap: $spacing-md;
+    @include hairline-top;
+  }
+
+  &__btn {
+    @include flex-center;
+    flex: 1;
+    height: 80px;
+    font-size: $font-md;
+    font-weight: 600;
+    border-radius: $radius-md;
+    transition: opacity 0.2s ease;
+
+    &--primary {
+      background: $brand-gradient;
+      color: $text-primary;
+      box-shadow: $shadow-glow;
+    }
+
+    &--ghost {
+      background-color: $bg-tertiary;
+      color: $text-secondary;
+      border: 1px solid $border-secondary;
+    }
+
+    &--disabled {
+      @include disabled;
+      box-shadow: none;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Husky pre-commit 钩子
+# 在提交前运行 lint-staged 对暂存区文件执行 lint/format
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged

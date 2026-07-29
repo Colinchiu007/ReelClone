@@ -1,0 +1,50 @@
+// IndustryPicker 行业选择器样式
+// variables/mixins 由 sass.resource 自动注入
+
+.industry-picker {
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+.industry-picker__header {
+  @include flex-start;
+}
+
+.industry-picker__hint {
+  font-size: $font-sm;
+  color: $text-secondary;
+}
+
+.industry-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  // 3 列布局：每行 3 个，间距通过 gap 控制
+  // 计算每个 cell 宽度：(100% - 2 * gap) / 3
+}
+
+.industry-picker__item {
+  width: calc((100% - 24px) / 3);
+  margin-right: 12px;
+  margin-bottom: 12px;
+  padding: $spacing-sm 0;
+  text-align: center;
+  background-color: $bg-secondary;
+  border: 1px solid $border-primary;
+  border-radius: $radius-md;
+  font-size: $font-sm;
+  color: $text-secondary;
+  box-sizing: border-box;
+  transition: all 0.18s ease;
+
+  &:nth-child(3n) {
+    margin-right: 0;
+  }
+
+  &--on {
+    background: $brand-gradient;
+    border-color: transparent;
+    color: $text-primary;
+    font-weight: 600;
+    box-shadow: $shadow-glow;
+  }
+}

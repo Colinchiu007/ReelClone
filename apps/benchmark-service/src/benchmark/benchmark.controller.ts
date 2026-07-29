@@ -1,0 +1,76 @@
+/**
+ * BenchmarkController — 对标解析 API
+ *
+ * 路由前缀：api/v1/benchmarks（由 main.ts 的全局前缀 + Controller 前缀叠加）
+ *
+ * 端点：
+ *  - POST /api/v1/benchmarks           提交对标解析任务（需 JWT）
+ *  - GET  /api/v1/benchmarks           解析历史（需 JWT，分页）
+ *  - GET  /api/v1/benchmarks/:id       解析详情（需 JWT，校验所有权）
+ *  - POST /api/v1/benchmarks/:id/cancel 取消解析（需 JWT）
+ */
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { CurrentUser } from '@reelclone/common';
+import { BenchmarkService } from './benchmark.service';
+import { CreateBenchmarkDto } from './dto/create-benchmark.dto';
+import { ListBenchmarksDto } from './dto/list-benchmarks.dto';
+
+@Controller('benchmarks')
+export class BenchmarkController {
+  constructor(private readonly benchmarkService: BenchmarkService) {}
+
+  /**
+   * POST /api/v1/benchmarks
+   * 提交对标解析任务
+   *
+   * 请求体: { sourceUrl: string, idempotencyKey?: string }
+   * 响应: { benchmarkId: string, status: 'PENDING', estimatedPoints: number }
+   */
+  @Post()
+  async create(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: CreateBenchmarkDto,
+  ) {
+    return this.benchmarkService.create(userId, dto);
+  }
+
+  /**
+   * GET /api/v1/benchmarks
+   * 解析历史（分页 + 筛选）
+   *
+   * Query: page, pageSize, platform?, status?
+   */
+  @Get()
+  async findAll(
+    @CurrentUser('userId') userId: string,
+    @Query() dto: ListBenchmarksDto,
+  ) {
+    return this.benchmarkService.findAll(userId, dto);
+  }
+
+  /**
+   * GET /api/v1/benchmarks/:id
+   * 解析详情（校验所有权）
+   */
+  @Get(':id')
+  async findOne(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.benchmarkService.findOne(userId, id);
+  }
+
+  /**
+   * POST /api/v1/benchmarks/:id/cancel
+   * 取消解析任务
+   *
+   * 响应: { benchmarkId: string, status: 'CANCELLED' }
+   */
+  @Post(':id/cancel')
+  async cancel(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.benchmarkService.cancel(userId, id);
+  }
+}

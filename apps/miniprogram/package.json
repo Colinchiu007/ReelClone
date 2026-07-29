@@ -1,0 +1,43 @@
+{
+  "name": "@reelclone/miniprogram",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone 微信小程序：Taro 3.x + React 18 + TypeScript 复刻 WouwouAI 前端",
+  "main": "./src/app.ts",
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:weapp": "taro build --type weapp",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tarojs/components": "3.6.27",
+    "@tarojs/helper": "3.6.27",
+    "@tarojs/plugin-framework-react": "3.6.27",
+    "@tarojs/plugin-platform-weapp": "3.6.27",
+    "@tarojs/react": "3.6.27",
+    "@tarojs/runtime": "3.6.27",
+    "@tarojs/shared": "3.6.27",
+    "@tarojs/taro": "3.6.27",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@tarojs/cli": "3.6.27",
+    "@tarojs/test-utils-react": "0.1.1",
+    "@tarojs/webpack5-runner": "3.6.27",
+    "@types/react": "^18.3.3",
+    "@types/webpack-env": "^1.18.4",
+    "babel-preset-taro": "3.6.27",
+    "eslint": "^8.57.0",
+    "eslint-config-taro": "3.6.27",
+    "react-refresh": "^0.14.0",
+    "sass": "^1.77.6",
+    "sass-loader": "^14.2.1",
+    "stylelint": "^14.16.1",
+    "typescript": "^5.5.4",
+    "webpack": "^5.91.0"
+  }
+}

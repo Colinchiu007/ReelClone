@@ -1,0 +1,77 @@
+// 我的模板页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.my-tpl {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+  padding-bottom: calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+
+  // -------------------- Tab --------------------
+  &__tabs {
+    position: sticky;
+    top: 0;
+    z-index: $z-index-sticky;
+    @include flex-start;
+    background-color: $bg-primary;
+    border-bottom: 1px solid $border-primary;
+  }
+
+  &__tab {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-md 0;
+    font-size: $font-md;
+    color: $text-secondary;
+    position: relative;
+    transition: color 0.18s ease;
+
+    &--on {
+      color: $text-primary;
+      font-weight: 600;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 48px;
+        height: 4px;
+        background: $brand-gradient;
+        border-radius: $radius-full;
+        transform: translateX(-50%);
+      }
+    }
+  }
+
+  // -------------------- 列表 --------------------
+  &__list {
+    flex: 1;
+    padding: $spacing-sm $spacing-md;
+  }
+
+  &__waterfall {
+    @include flex-start;
+    align-items: flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__col {
+    flex: 1;
+    min-width: 0;
+    @include flex-column;
+    gap: $spacing-sm;
+  }
+
+  &__item {
+    width: 100%;
+  }
+
+  &__status {
+    @include flex-center;
+    padding: $spacing-md 0;
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+}

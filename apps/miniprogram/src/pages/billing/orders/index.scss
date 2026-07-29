@@ -1,0 +1,162 @@
+// 我的订单页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.orders-page {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  // -------------------- 筛选 Tab --------------------
+  &__tabs {
+    @include flex-start;
+    background-color: $bg-secondary;
+    padding: $spacing-xs;
+    gap: $spacing-xs;
+    position: sticky;
+    top: 0;
+    z-index: $z-index-sticky;
+  }
+
+  &__tab {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-sm;
+    color: $text-secondary;
+    border-radius: $radius-full;
+    transition: all 0.2s ease;
+
+    &--on {
+      background: $brand-gradient;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-sm;
+    }
+  }
+
+  &__scroll {
+    flex: 1;
+    height: calc(100vh - 56px);
+    padding: $spacing-md;
+    box-sizing: border-box;
+  }
+
+  &__footer {
+    @include flex-center;
+    padding: $spacing-lg 0;
+  }
+
+  &__footer-text {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+}
+
+// -------------------- 订单卡片 --------------------
+.order-card {
+  @include card;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+
+  &__head {
+    @include flex-between;
+    padding-bottom: $spacing-sm;
+    @include hairline-bottom;
+  }
+
+  &__no {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    @include ellipsis(1);
+    flex: 1;
+    margin-right: $spacing-sm;
+  }
+
+  &__status {
+    font-size: $font-xs;
+    padding: 2px $spacing-sm;
+    border-radius: $radius-full;
+    flex-shrink: 0;
+
+    &--pending {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: $warning;
+    }
+
+    &--paid {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: $success;
+    }
+
+    &--cancelled {
+      background-color: rgba(102, 102, 128, 0.2);
+      color: $text-tertiary;
+    }
+
+    &--refunded {
+      background-color: rgba(59, 130, 246, 0.15);
+      color: $info;
+    }
+  }
+
+  &__body {
+    @include flex-column;
+    padding: $spacing-md 0;
+    gap: $spacing-sm;
+  }
+
+  &__row {
+    @include flex-between;
+  }
+
+  &__label {
+    font-size: $font-sm;
+    color: $text-tertiary;
+  }
+
+  &__value {
+    font-size: $font-sm;
+    color: $text-primary;
+
+    &--price {
+      font-size: $font-md;
+      font-weight: 700;
+      color: $brand-secondary;
+    }
+  }
+
+  // -------------------- 操作按钮 --------------------
+  &__actions {
+    @include flex-end;
+    gap: $spacing-sm;
+    padding-top: $spacing-sm;
+    @include hairline-top;
+  }
+
+  &__btn {
+    @include flex-center;
+    padding: $spacing-xs $spacing-lg;
+    font-size: $font-sm;
+    border-radius: $radius-full;
+    transition: opacity 0.2s ease;
+    min-width: 120px;
+
+    &--primary {
+      background: $brand-gradient;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-sm;
+    }
+
+    &--ghost {
+      background-color: $bg-tertiary;
+      color: $text-secondary;
+      border: 1px solid $border-secondary;
+    }
+
+    &--disabled {
+      @include disabled;
+    }
+  }
+}

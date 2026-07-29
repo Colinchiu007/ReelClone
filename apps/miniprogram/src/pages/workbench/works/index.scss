@@ -1,0 +1,53 @@
+// 我的作品列表样式
+// variables/mixins 由 sass.resource 自动注入
+
+.works-list {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding: $spacing-md;
+  padding-bottom: calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+
+  &__tabs {
+    @include flex-start;
+    background-color: $bg-secondary;
+    border-radius: $radius-full;
+    padding: $spacing-xs;
+    margin-bottom: $spacing-md;
+  }
+
+  &__tab {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-sm 0;
+    font-size: $font-sm;
+    color: $text-secondary;
+    border-radius: $radius-full;
+    transition: all 0.2s ease;
+
+    &--on {
+      background: $brand-gradient;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-sm;
+    }
+  }
+
+  &__content {
+    @include flex-column;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-md;
+  }
+
+  &__loading-more,
+  &__no-more {
+    @include flex-center;
+    padding: $spacing-lg 0;
+    font-size: $font-sm;
+    color: $text-tertiary;
+  }
+}

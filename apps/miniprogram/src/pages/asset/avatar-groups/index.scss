@@ -1,0 +1,239 @@
+// 真人形象组列表页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.avatar-page {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  @include flex-column;
+  padding-bottom: $spacing-xl;
+}
+
+// -------------------- 顶部导航 --------------------
+
+.avatar-page__header {
+  @include flex-between;
+  padding: $spacing-md $spacing-lg;
+  background-color: $bg-secondary;
+  @include hairline-bottom;
+}
+
+.avatar-page__back {
+  width: 56px;
+  height: 56px;
+  @include flex-center;
+  font-size: $font-lg;
+  color: $text-primary;
+}
+
+.avatar-page__title {
+  font-size: $font-lg;
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.avatar-page__create-btn {
+  padding: $spacing-xs $spacing-md;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  font-size: $font-sm;
+  color: $text-primary;
+  font-weight: 500;
+}
+
+// -------------------- 列表 --------------------
+
+.avatar-page__list {
+  flex: 1;
+  padding: $spacing-md $spacing-lg;
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+// -------------------- 形象组卡片 --------------------
+
+.avatar-card {
+  @include card($radius-lg);
+  overflow: hidden;
+}
+
+.avatar-card__main {
+  display: flex;
+  padding: $spacing-md;
+  gap: $spacing-md;
+}
+
+.avatar-card__thumbs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.avatar-card__thumb-slot {
+  position: relative;
+  background-color: $bg-tertiary;
+  overflow: hidden;
+}
+
+.avatar-card__thumb-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  font-size: 32px;
+}
+
+.avatar-card__thumb-empty {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  background-color: $bg-elevated;
+  font-size: $font-lg;
+  color: $text-tertiary;
+  font-weight: 600;
+}
+
+.avatar-card__thumb-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.avatar-card__info {
+  flex: 1;
+  @include flex-column;
+  justify-content: space-between;
+  padding: $spacing-xs 0;
+  min-width: 0;
+}
+
+.avatar-card__info-top {
+  @include flex-between;
+  gap: $spacing-sm;
+}
+
+.avatar-card__name {
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+  @include ellipsis(1);
+  flex: 1;
+}
+
+.avatar-card__badge {
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  color: $text-primary;
+  flex-shrink: 0;
+
+  &--pending {
+    background-color: rgba($warning, 0.85);
+  }
+
+  &--approved {
+    background-color: rgba($success, 0.85);
+  }
+
+  &--rejected {
+    background-color: rgba($error, 0.85);
+  }
+}
+
+.avatar-card__desc {
+  font-size: $font-sm;
+  color: $text-secondary;
+  @include ellipsis(2);
+  margin: $spacing-xs 0;
+  line-height: 1.4;
+}
+
+.avatar-card__meta {
+  @include flex-between;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.avatar-card__count {
+  color: $text-secondary;
+}
+
+.avatar-card__expand {
+  color: $brand-secondary;
+}
+
+// -------------------- 展开资产列表 --------------------
+
+.avatar-card__assets {
+  padding: $spacing-md;
+  @include hairline-top;
+}
+
+.avatar-card__assets-empty {
+  text-align: center;
+  font-size: $font-sm;
+  color: $text-tertiary;
+  padding: $spacing-md 0;
+}
+
+.avatar-card__assets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.avatar-card__asset-item {
+  width: calc((100% - 16px) / 3);
+  @include flex-column;
+}
+
+.avatar-card__asset-thumb {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.avatar-card__asset-name {
+  margin-top: $spacing-xs;
+  font-size: $font-xs;
+  color: $text-secondary;
+  @include ellipsis(1);
+  text-align: center;
+}
+
+// -------------------- 空状态新建按钮 --------------------
+
+.avatar-page__fab {
+  position: fixed;
+  left: $spacing-lg;
+  right: $spacing-lg;
+  bottom: calc(48px + constant(safe-area-inset-bottom));
+  bottom: calc(48px + env(safe-area-inset-bottom));
+  height: 88px;
+  @include flex-center;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  box-shadow: $shadow-lg;
+  z-index: $z-index-sticky;
+}
+
+.avatar-page__fab-text {
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+}

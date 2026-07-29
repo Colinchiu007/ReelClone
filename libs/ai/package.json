@@ -1,0 +1,29 @@
+{
+  "name": "@reelclone/ai",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone AI 能力库：Seedance 视频 AI、LLM 适配、Key 轮询、提示词管理",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/config": "^3.2.0",
+    "axios": "^1.7.0",
+    "execa": "^9.3.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "optionalDependencies": {
+    "fluent-ffmpeg": "^2.1.3"
+  },
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "@types/node": "^20.14.0"
+  }
+}

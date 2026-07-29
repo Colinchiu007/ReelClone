@@ -1,0 +1,136 @@
+// 图生视频-首帧 工作台样式
+// variables/mixins 由 sass.resource 自动注入
+
+.video-img-first-wb {
+  &__body {
+    flex: 1;
+    @include flex-column;
+    padding-bottom: 120px;
+  }
+
+  &__select {
+    @include flex-between;
+    padding: $spacing-md;
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-lg;
+    font-size: $font-md;
+    color: $text-primary;
+  }
+
+  &__select-arrow {
+    color: $text-tertiary;
+    font-size: $font-lg;
+    transform: rotate(90deg);
+  }
+
+  &__duration {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__duration-item {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-sm 0;
+    background-color: $bg-secondary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-md;
+    font-size: $font-sm;
+    color: $text-secondary;
+
+    &--on {
+      background: $brand-gradient;
+      border-color: transparent;
+      color: $text-primary;
+      font-weight: 600;
+    }
+  }
+
+  &__estimate {
+    @include flex-between;
+    padding: $spacing-md;
+    background-color: $bg-secondary;
+    border-radius: $radius-lg;
+    margin-bottom: $spacing-md;
+    border: 1px solid rgba($brand-secondary, 0.3);
+  }
+
+  &__estimate-label {
+    font-size: $font-sm;
+    color: $text-secondary;
+  }
+
+  &__estimate-value {
+    font-size: $font-lg;
+    font-weight: 700;
+    color: $brand-secondary;
+  }
+
+  &__footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: $spacing-md $spacing-md calc(#{$spacing-sm} + env(safe-area-inset-bottom));
+    background-color: rgba($bg-primary, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid $border-primary;
+  }
+}
+
+// -------------------- ActionSheet 共用样式 --------------------
+.action-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: $z-index-modal;
+  @include flex-end;
+  flex-direction: column;
+
+  &__panel {
+    width: 100%;
+    background-color: $bg-secondary;
+    border-radius: $radius-xl $radius-xl 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    @include flex-column;
+  }
+
+  &__header {
+    text-align: center;
+    padding: $spacing-md;
+    font-size: $font-md;
+    color: $text-secondary;
+    border-bottom: 1px solid $border-primary;
+  }
+
+  &__item {
+    @include flex-between;
+    padding: $spacing-md;
+    font-size: $font-md;
+    color: $text-primary;
+    border-bottom: 1px solid $border-primary;
+
+    &--on {
+      color: $brand-secondary;
+      font-weight: 600;
+    }
+  }
+
+  &__check {
+    color: $brand-secondary;
+    font-weight: 700;
+  }
+
+  &__cancel {
+    text-align: center;
+    padding: $spacing-md;
+    margin-top: $spacing-sm;
+    font-size: $font-md;
+    color: $text-secondary;
+    background-color: $bg-tertiary;
+  }
+}

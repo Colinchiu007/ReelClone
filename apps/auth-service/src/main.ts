@@ -1,0 +1,55 @@
+/**
+ * Auth Service 启动入口
+ *
+ * - 全局前缀：api/v1
+ * - 全局过滤器：AllExceptionsFilter
+ * - 全局拦截器：ResponseInterceptor
+ * - 全局 Pipe：ValidationPipe（带 class-validator）
+ * - 默认监听端口：3001
+ */
+import { NestFactory } from '@nestjs/core'
+import { Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { AppModule } from './app.module'
+import {
+  AllExceptionsFilter,
+  ResponseInterceptor,
+  createValidationPipe,
+} from '@reelclone/common'
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  })
+
+  // 全局前缀
+  app.setGlobalPrefix('api/v1')
+
+  // 全局 Pipe / 过滤器 / 拦截器
+  app.useGlobalPipes(createValidationPipe())
+  app.useGlobalFilters(new AllExceptionsFilter())
+  app.useGlobalInterceptors(new ResponseInterceptor())
+
+  // 启用 CORS（小程序开发工具/前端联调）
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  })
+
+  const configService = app.get(ConfigService)
+  const port = Number(configService.get<number>('PORT', 3001))
+
+  await app.listen(port)
+
+  const logger = new Logger('Bootstrap')
+  logger.log(`🚀 auth-service is running on http://localhost:${port}`)
+  logger.log(`  → POST /api/v1/auth/wechat-login`)
+  logger.log(`  → POST /api/v1/auth/refresh-token`)
+  logger.log(`  → POST /api/v1/auth/logout`)
+}
+
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('❌ auth-service bootstrap failed:', err)
+  process.exit(1)
+})

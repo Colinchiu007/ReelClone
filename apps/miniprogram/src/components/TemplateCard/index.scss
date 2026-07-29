@@ -1,0 +1,114 @@
+// TemplateCard 模板卡片样式
+// variables/mixins 由 sass.resource 自动注入
+
+.template-card {
+  @include card($radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-card__cover {
+  position: relative;
+  width: 100%;
+  padding-top: 133.33%;
+  background-color: $bg-tertiary;
+}
+
+.template-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.template-card__placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  color: $text-tertiary;
+  font-size: $font-md;
+}
+
+.template-card__platform {
+  position: absolute;
+  top: $spacing-sm;
+  left: $spacing-sm;
+  padding: $spacing-xs $spacing-sm;
+  background-color: rgba($bg-primary, 0.7);
+  border-radius: $radius-sm;
+  font-size: $font-xs;
+  color: $text-primary;
+}
+
+.template-card__fav {
+  position: absolute;
+  top: $spacing-sm;
+  right: $spacing-sm;
+  width: 32px;
+  height: 32px;
+  @include flex-center;
+  font-size: 22px;
+  color: $text-primary;
+  background-color: rgba($bg-primary, 0.5);
+  border-radius: $radius-full;
+
+  &--on {
+    color: #ff4d6d;
+    background-color: rgba($bg-primary, 0.7);
+  }
+}
+
+.template-card__body {
+  padding: $spacing-sm $spacing-md $spacing-md;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-card__title {
+  font-size: $font-sm;
+  color: $text-primary;
+  @include ellipsis(1);
+  margin-bottom: $spacing-xs;
+}
+
+.template-card__meta {
+  @include flex-between;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.template-card__author {
+  @include ellipsis(1);
+  flex: 1;
+  margin-right: $spacing-sm;
+}
+
+.template-card__plays {
+  flex-shrink: 0;
+}
+
+.template-card__iq {
+  margin-top: $spacing-sm;
+  @include flex-start;
+  gap: $spacing-xs;
+}
+
+.template-card__iq-label {
+  padding: 2px $spacing-xs;
+  background: $brand-gradient;
+  border-radius: $radius-sm;
+  color: $text-primary;
+  font-size: $font-xs;
+  font-weight: 600;
+}
+
+.template-card__iq-value {
+  font-size: $font-xs;
+  color: $brand-secondary;
+  font-weight: 600;
+}

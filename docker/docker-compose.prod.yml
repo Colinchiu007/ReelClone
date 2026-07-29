@@ -1,0 +1,545 @@
+# ============================================================
+# ReelClone 生产环境 Docker Compose 配置
+# ============================================================
+# 使用方式：
+#   cd docker
+#   cp .env.production.example .env.production
+#   # 编辑 .env.production 填写真实凭证
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# 设计要点：
+#   1. 网络隔离：backend（内网）+ frontend（nginx 外网）
+#   2. 所有业务服务通过 env_file 加载 .env.production
+#   3. 所有服务配置 healthcheck + restart: unless-stopped
+#   4. 所有服务 depends_on postgres + redis 的 healthy 状态
+#   5. 资源限制：memory + cpus limits
+#   6. 日志驱动：json-file + max-size 10m + max-file 3
+#   7. 后端服务不暴露端口，仅 nginx 暴露 80/443
+# ============================================================
+
+# ============================================================
+# 公共配置片段（YAML Anchor，避免重复）
+# ============================================================
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  env_file:
+    - .env.production
+  logging: *default-logging
+  networks:
+    - backend
+
+x-deps-infra: &deps-infra
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+# ============================================================
+# 服务定义
+# ============================================================
+services:
+  # ============================================================
+  # PostgreSQL 16 - 主数据库
+  # 持有 4 个业务库 + temporal / temporal_visibility
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: reelclone-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+
+  # ============================================================
+  # Redis 7 - 缓存 / 限流 / Pub/Sub
+  # 开启 AOF 持久化 + 密码鉴权
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: reelclone-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    logging: *default-logging
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # Temporal Server - 工作流引擎
+  # 共享 PostgreSQL 实例（temporal / temporal_visibility 库）
+  # ============================================================
+  temporal:
+    image: temporalio/auto-setup:1.22
+    container_name: reelclone-temporal
+    restart: unless-stopped
+    environment:
+      DBPLUGIN: postgres
+      DB_PORT: 5432
+      POSTGRES_USER: ${TEMPORAL_DB_USER:-temporal}
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:-temporal}
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      LOG_LEVEL: error
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+
+  # ============================================================
+  # Temporal UI - 工作流可视化（可选，仅内网访问）
+  # ============================================================
+  temporal-ui:
+    image: temporalio/ui:2.10.0
+    container_name: reelclone-temporal-ui
+    restart: unless-stopped
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8080
+    depends_on:
+      temporal:
+        condition: service_started
+    logging: *default-logging
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  # ============================================================
+  # 微服务：auth-service（端口 3001）
+  # 微信小程序登录、JWT 签发与刷新
+  # ============================================================
+  auth-service:
+    <<: *service-defaults
+    image: reelclone/auth-service:latest
+    container_name: reelclone-auth-service
+    build:
+      context: ..
+      dockerfile: apps/auth-service/Dockerfile
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/auth/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：user-service（端口 3002）
+  # 用户资料、绑定手机号、短信验证码
+  # ============================================================
+  user-service:
+    <<: *service-defaults
+    image: reelclone/user-service:latest
+    container_name: reelclone-user-service
+    build:
+      context: ..
+      dockerfile: apps/user-service/Dockerfile
+    environment:
+      PORT: 3002
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/api/v1/users/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：asset-service（端口 3003）
+  # 资产素材库、真人形象组、OSS STS 签发
+  # ============================================================
+  asset-service:
+    <<: *service-defaults
+    image: reelclone/asset-service:latest
+    container_name: reelclone-asset-service
+    build:
+      context: ..
+      dockerfile: apps/asset-service/Dockerfile
+    environment:
+      PORT: 3003
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/api/v1/assets/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：benchmark-service（端口 3004）
+  # 竞品对标解析、Temporal Workflow 触发
+  # ============================================================
+  benchmark-service:
+    <<: *service-defaults
+    image: reelclone/benchmark-service:latest
+    container_name: reelclone-benchmark-service
+    build:
+      context: ..
+      dockerfile: apps/benchmark-service/Dockerfile
+    environment:
+      PORT: 3004
+      NODE_ENV: production
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on:
+      <<: *deps-infra
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3004/api/v1/benchmarks/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：template-service（端口 3005）
+  # 模板/推荐、行业偏好、收藏
+  # ============================================================
+  template-service:
+    <<: *service-defaults
+    image: reelclone/template-service:latest
+    container_name: reelclone-template-service
+    build:
+      context: ..
+      dockerfile: apps/template-service/Dockerfile
+    environment:
+      PORT: 3005
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3005/api/v1/templates/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：billing-service（端口 3006）
+  # 积分账本、冻结/释放/结算（内部 API Key 鉴权）
+  # ============================================================
+  billing-service:
+    <<: *service-defaults
+    image: reelclone/billing-service:latest
+    container_name: reelclone-billing-service
+    build:
+      context: ..
+      dockerfile: apps/billing-service/Dockerfile
+    environment:
+      PORT: 3006
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3006/api/v1/points/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：workbench-service（端口 3007）
+  # 创作 / 生成任务 / 作品管理、Temporal Workflow 触发
+  # ============================================================
+  workbench-service:
+    <<: *service-defaults
+    image: reelclone/workbench-service:latest
+    container_name: reelclone-workbench-service
+    build:
+      context: ..
+      dockerfile: apps/workbench-service/Dockerfile
+    environment:
+      PORT: 3007
+      NODE_ENV: production
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on:
+      <<: *deps-infra
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3007/api/v1/generations/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: "0.75"
+        reservations:
+          memory: 192M
+
+  # ============================================================
+  # 微服务：notification-service（端口 3008）
+  # 通知中心、WebSocket 推送、微信订阅消息
+  # ============================================================
+  notification-service:
+    <<: *service-defaults
+    image: reelclone/notification-service:latest
+    container_name: reelclone-notification-service
+    build:
+      context: ..
+      dockerfile: apps/notification-service/Dockerfile
+    environment:
+      PORT: 3008
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3008/api/v1/notifications/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # 微服务：order-service（端口 3009）
+  # 套餐订单、微信支付、支付回调 Webhook
+  # ============================================================
+  order-service:
+    <<: *service-defaults
+    image: reelclone/order-service:latest
+    container_name: reelclone-order-service
+    build:
+      context: ..
+      dockerfile: apps/order-service/Dockerfile
+    environment:
+      PORT: 3009
+      NODE_ENV: production
+    depends_on: *deps-infra
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3009/api/v1/orders/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+  # ============================================================
+  # media-worker - Temporal Worker（无业务端口，仅 /health）
+  # 执行视频生成、对标解析、媒体处理 Activities
+  # ============================================================
+  media-worker:
+    <<: *service-defaults
+    image: reelclone/media-worker:latest
+    container_name: reelclone-media-worker
+    build:
+      context: ..
+      dockerfile: apps/media-worker/Dockerfile
+    environment:
+      NODE_ENV: production
+      TEMPORAL_ADDRESS: temporal:7233
+      MEDIA_WORKER_PORT: 3010
+    depends_on:
+      <<: *deps-infra
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3010/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+
+  # ============================================================
+  # Nginx - 反向代理 + SSL 终止
+  # 唯一暴露端口的服务（80 / 443）
+  # ============================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: reelclone-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      asset-service:
+        condition: service_healthy
+      benchmark-service:
+        condition: service_healthy
+      template-service:
+        condition: service_healthy
+      billing-service:
+        condition: service_healthy
+      workbench-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+# ============================================================
+# 数据卷
+# ============================================================
+volumes:
+  pgdata:
+    name: reelclone-pgdata
+  redisdata:
+    name: reelclone-redisdata
+  nginx-logs:
+    name: reelclone-nginx-logs
+
+# ============================================================
+# 网络隔离
+# ============================================================
+networks:
+  # 内网：后端服务 + 数据库 + redis + temporal 互通
+  backend:
+    name: reelclone-backend
+    driver: bridge
+    internal: false
+  # 外网：仅 nginx 使用，对外暴露 80/443
+  frontend:
+    name: reelclone-frontend
+    driver: bridge

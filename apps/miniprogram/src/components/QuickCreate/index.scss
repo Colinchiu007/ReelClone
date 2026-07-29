@@ -1,0 +1,86 @@
+// QuickCreate 快捷创作浮层样式
+// variables/mixins 由 sass.resource 自动注入
+
+.quick-create {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: $z-index-modal;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  animation: quick-create-fade-in 0.22s ease;
+}
+
+.quick-create__card {
+  width: 100%;
+  background-color: $bg-secondary;
+  border-top-left-radius: $radius-xl;
+  border-top-right-radius: $radius-xl;
+  padding: $spacing-md $spacing-md $spacing-lg;
+  @include safe-area-bottom;
+  animation: quick-create-slide-up 0.26s cubic-bezier(0.21, 1.02, 0.73, 1);
+  box-shadow: $shadow-lg;
+}
+
+.quick-create__header {
+  @include flex-between;
+  margin-bottom: $spacing-md;
+}
+
+.quick-create__title {
+  font-size: $font-lg;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.quick-create__close {
+  width: 32px;
+  height: 32px;
+  @include flex-center;
+  font-size: 24px;
+  color: $text-secondary;
+  background-color: $bg-elevated;
+  border-radius: $radius-full;
+  line-height: 1;
+}
+
+.quick-create__grid {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  // 4 列布局：每行 4 个，共 2 行（8 入口）
+}
+
+.quick-create__item {
+  width: 25%;
+  padding: $spacing-sm 0;
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.quick-create__label {
+  font-size: $font-xs;
+  color: $text-secondary;
+}
+
+@keyframes quick-create-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes quick-create-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

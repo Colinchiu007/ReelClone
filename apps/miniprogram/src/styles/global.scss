@@ -1,0 +1,86 @@
+// ============================================================
+// ReelClone 全局样式重置
+// variables.scss 与 mixins.scss 由 sass.resource 自动注入
+// ============================================================
+
+// 页面默认样式：深色主题
+page {
+  background-color: $bg-primary;
+  color: $text-primary;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue',
+    'Microsoft YaHei', sans-serif;
+  font-size: $font-md;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+// 所有组件默认 box-sizing
+view,
+text,
+image,
+input,
+textarea,
+button,
+scroll-view,
+swiper,
+swiper-item,
+navigator,
+video,
+camera,
+canvas,
+slider,
+switch,
+picker,
+label,
+form,
+icon,
+progress,
+rich-text {
+  box-sizing: border-box;
+}
+
+// 移除 button 默认样式
+button {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  line-height: normal;
+
+  &::after {
+    border: none;
+  }
+}
+
+// 图片默认 display block，避免底部空白
+image {
+  display: block;
+}
+
+// input/textarea 占位符颜色
+input,
+textarea {
+  color: $text-primary;
+
+  &::placeholder {
+    color: $text-tertiary;
+  }
+}
+
+// 隐藏滚动条（小程序与 H5 通用）
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
+}
+
+// 通用页面容器（占位页面使用）
+.page {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+  @include flex-center;
+  flex-direction: column;
+}

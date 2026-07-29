@@ -1,0 +1,101 @@
+// 设置主页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.settings-page {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  &__scroll {
+    flex: 1;
+    height: 100vh;
+    padding: $spacing-md;
+    padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  // -------------------- 分组 --------------------
+  &__group {
+    @include flex-column;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__group-title {
+    font-size: $font-sm;
+    color: $text-tertiary;
+    margin-bottom: $spacing-sm;
+    padding-left: $spacing-xs;
+  }
+
+  &__group-body {
+    @include card;
+    overflow: hidden;
+  }
+
+  // -------------------- 设置项 --------------------
+  &__item {
+    @include flex-between;
+    padding: $spacing-md;
+    min-height: 56px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+
+    &:active {
+      background-color: $bg-tertiary;
+    }
+
+    &--border {
+      @include hairline-bottom;
+    }
+  }
+
+  &__item-label {
+    font-size: $font-md;
+    color: $text-primary;
+  }
+
+  &__item-right {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__item-value {
+    font-size: $font-sm;
+    color: $text-tertiary;
+    @include ellipsis(1);
+    max-width: 360px;
+  }
+
+  &__item-action {
+    font-size: $font-xs;
+    color: $brand-secondary;
+    padding: 2px $spacing-sm;
+    background-color: rgba(124, 58, 237, 0.12);
+    border-radius: $radius-full;
+  }
+
+  &__item-arrow {
+    font-size: $font-lg;
+    color: $text-tertiary;
+    line-height: 1;
+  }
+
+  // -------------------- 底部信息 --------------------
+  &__footer {
+    @include flex-column;
+    align-items: center;
+    padding: $spacing-xl 0 $spacing-lg;
+    gap: $spacing-xs;
+  }
+
+  &__footer-icp {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+
+  &__footer-version {
+    font-size: $font-xs;
+    color: $text-disabled;
+  }
+}

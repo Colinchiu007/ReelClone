@@ -1,0 +1,27 @@
+// 编辑视频工作台样式
+// variables/mixins 由 sass.resource 自动注入
+
+.video-edit-wb {
+  &__cost {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    margin-left: $spacing-sm;
+  }
+
+  &__body {
+    flex: 1;
+    @include flex-column;
+    padding-bottom: 120px;
+  }
+
+  &__footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: $spacing-md $spacing-md calc(#{$spacing-sm} + env(safe-area-inset-bottom));
+    background-color: rgba($bg-primary, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid $border-primary;
+  }
+}

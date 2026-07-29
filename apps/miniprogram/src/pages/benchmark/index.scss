@@ -1,0 +1,202 @@
+// 对标解析页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.benchmark {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding: 0 $spacing-md $spacing-2xl;
+  @include safe-area-top;
+}
+
+// -------------------- 顶部标题 --------------------
+.benchmark__header {
+  @include flex-between;
+  padding: $spacing-md 0;
+}
+
+.benchmark__title {
+  font-size: $font-2xl;
+  font-weight: 700;
+  @include gradient-text;
+}
+
+// -------------------- 输入区 --------------------
+.benchmark__input-section {
+  @include card($radius-lg);
+  padding: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.benchmark__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.benchmark__input {
+  flex: 1;
+  height: 80px;
+  padding: 0 $spacing-md;
+  padding-right: 120px;
+  font-size: $font-sm;
+  color: $text-primary;
+  box-sizing: border-box;
+}
+
+.benchmark__paste {
+  position: absolute;
+  right: $spacing-sm;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: $spacing-xs $spacing-md;
+  background: $brand-gradient;
+  border-radius: $radius-sm;
+  font-size: $font-xs;
+  color: $text-primary;
+  font-weight: 600;
+  z-index: 1;
+}
+
+.benchmark__submit {
+  margin-top: $spacing-md;
+  @include flex-center;
+  height: 88px;
+  background: $brand-gradient;
+  border-radius: $radius-md;
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+  box-shadow: $shadow-glow;
+  transition: transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &--loading {
+    @include disabled;
+  }
+}
+
+.benchmark__hint {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-xs;
+  color: $text-tertiary;
+  line-height: 1.5;
+}
+
+// -------------------- 历史记录 --------------------
+.benchmark__history {
+  margin-top: $spacing-sm;
+}
+
+.benchmark__history-header {
+  @include flex-between;
+  margin-bottom: $spacing-md;
+}
+
+.benchmark__history-title {
+  font-size: $font-lg;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.benchmark__history-refresh {
+  font-size: $font-sm;
+  color: $brand-secondary;
+}
+
+.benchmark__list {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+// -------------------- 历史记录卡片 --------------------
+.benchmark__item {
+  @include card($radius-md);
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  gap: $spacing-md;
+  transition: transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.benchmark__item-icon {
+  width: 72px;
+  height: 72px;
+  @include flex-center;
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  font-size: 36px;
+  flex-shrink: 0;
+}
+
+.benchmark__item-body {
+  flex: 1;
+  min-width: 0;
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.benchmark__item-url {
+  font-size: $font-sm;
+  color: $text-primary;
+  @include ellipsis(1);
+}
+
+.benchmark__item-meta {
+  display: flex;
+  gap: $spacing-md;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.benchmark__item-platform {
+  color: $brand-secondary;
+}
+
+.benchmark__item-time {
+  color: $text-tertiary;
+}
+
+// -------------------- 状态标签 --------------------
+.benchmark__status {
+  flex-shrink: 0;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  font-weight: 600;
+
+  &--pending {
+    background-color: rgba($warning, 0.15);
+    color: $warning;
+  }
+
+  &--processing {
+    background-color: rgba($info, 0.15);
+    color: $info;
+  }
+
+  &--completed {
+    background-color: rgba($success, 0.15);
+    color: $success;
+  }
+
+  &--failed {
+    background-color: rgba($error, 0.15);
+    color: $error;
+  }
+
+  &--cancelled {
+    background-color: rgba($text-tertiary, 0.15);
+    color: $text-tertiary;
+  }
+}

@@ -1,0 +1,27 @@
+// GradientIcon 渐变图标样式
+// variables/mixins 由 sass.resource 自动注入
+
+.gradient-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-full;
+  flex-shrink: 0;
+  background-size: 100% 100%;
+  box-shadow: $shadow-sm;
+
+  &--v1 { background-image: $gradient-1; }
+  &--v2 { background-image: $gradient-2; }
+  &--v3 { background-image: $gradient-3; }
+  &--v4 { background-image: $gradient-4; }
+  &--v5 { background-image: $gradient-5; }
+  &--v6 { background-image: $gradient-6; }
+  &--v7 { background-image: $gradient-7; }
+  &--v8 { background-image: $gradient-8; }
+}
+
+.gradient-icon__symbol {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}

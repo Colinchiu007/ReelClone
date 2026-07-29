@@ -1,0 +1,72 @@
+/**
+ * 应用根模块
+ *
+ * 组合：ConfigModule + DatabaseModule + RedisModule + JwtModule + PassportModule + UserModule
+ * 全局守卫（JwtAuthGuard + RateLimitGuard）在 main.ts 中通过 useGlobalGuards 注册。
+ */
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+} from '@reelclone/database';
+import {
+  RateLimitGuard,
+  REDIS_CLIENT as COMMON_REDIS_CLIENT,
+  configuration,
+  databaseConfig,
+  jwtConfig,
+  redisConfig,
+} from '@reelclone/common';
+import { JwtStrategy } from './auth/jwt.strategy';
+import { UserModule } from './user/user.module';
+
+@Module({
+  imports: [
+    // 配置加载
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration, databaseConfig, redisConfig, jwtConfig],
+    }),
+
+    // 数据库（4 连接）
+    DatabaseModule.forRoot(),
+
+    // Redis
+    RedisModule.forRoot(),
+
+    // Passport JWT
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+
+    // JWT 模块（异步注册，从环境变量读取配置）
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('jwt.secret'),
+        signOptions: {
+          expiresIn: config.get<string>('jwt.expiresIn'),
+          issuer: config.get<string>('jwt.issuer'),
+          audience: config.get<string>('jwt.audience'),
+        },
+      }),
+    }),
+
+    // 业务模块
+    UserModule,
+  ],
+  providers: [
+    JwtStrategy,
+    // RateLimitGuard 需注入 common 的 REDIS_CLIENT
+    RateLimitGuard,
+    // 桥接：将 database 的 REDIS_CLIENT 暴露为 common 的 REDIS_CLIENT
+    // （两个库各自用 Symbol() 定义了 REDIS_CLIENT，Symbol 是唯一的，需手动桥接）
+    {
+      provide: COMMON_REDIS_CLIENT,
+      useExisting: DB_REDIS_CLIENT,
+    },
+  ],
+})
+export class AppModule {}

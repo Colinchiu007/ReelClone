@@ -1,0 +1,39 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "miniprogram",
+  "projectType": "application",
+  "sourceRoot": "apps/miniprogram/src",
+  "prefix": "reelclone",
+  "tags": ["scope:miniprogram", "type:app", "platform:wechat"],
+  "targets": {
+    "dev:weapp": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "taro build --type weapp --watch",
+        "cwd": "{workspaceRoot}/apps/miniprogram"
+      }
+    },
+    "build:weapp": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "taro build --type weapp",
+        "cwd": "{workspaceRoot}/apps/miniprogram"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint apps/miniprogram/src --ext .ts,.tsx",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p apps/miniprogram/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}
