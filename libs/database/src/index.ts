@@ -22,6 +22,7 @@ export { PointTransaction, PointTransactionType } from './entities/point-transac
 export { SmsCode, SmsCodePurpose } from './entities/sms-code.entity'
 export { Notification, NotificationType } from './entities/notification.entity'
 export { SystemConfig } from './entities/system-config.entity'
+export { AuditLog } from './entities/audit-log.entity'
 
 // ---------------- 模块 ----------------
 export {

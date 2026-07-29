@@ -19,6 +19,7 @@ import { Template } from '../entities/template.entity'
 import { Favorite } from '../entities/favorite.entity'
 import { Benchmark } from '../entities/benchmark.entity'
 import { SystemConfig } from '../entities/system-config.entity'
+import { AuditLog } from '../entities/audit-log.entity'
 
 /** 实体构造器类型（避免直接使用 Function 字面量） */
 export type EntityConstructor = new (...args: unknown[]) => unknown
@@ -47,6 +48,7 @@ export const MAIN_ENTITIES: EntityConstructor[] = [
   SmsCode,
   Notification,
   SystemConfig,
+  AuditLog,
 ]
 
 /** billing 库实体清单 */

@@ -37,4 +37,15 @@ export interface IConfigStore {
    * @returns Key 数组（去空后）
    */
   getApiKeys(provider: string): Promise<string[]>
+
+  /**
+   * 注册 Key 更新回调（热刷新主动触发）
+   *
+   * 当 ConfigStore 收到 Redis Pub/Sub 通知指定 provider 的 Key 已更新时，
+   * 主动调用已注册的回调，让 Provider 调用 reloadKeys() 刷新内存中的 Key。
+   *
+   * @param provider 服务名（如 seedance / llm）
+   * @param callback 回调函数（通常为 () => provider.reloadKeys()）
+   */
+  onKeyUpdate(provider: string, callback: () => void | Promise<void>): void
 }

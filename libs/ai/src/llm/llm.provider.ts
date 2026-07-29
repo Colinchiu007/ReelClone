@@ -52,6 +52,11 @@ export class LlmProvider {
           `从 ConfigStore 初始加载 Key 失败，回退到环境变量: ${(err as Error).message}`,
         )
       })
+      // 注册 Key 更新回调：当 admin-service 更新 Key 后，ConfigStore 通过 Pub/Sub
+      // 通知本实例主动调用 reloadKeys() 刷新内存中的 Key
+      this.configStore.onKeyUpdate('llm', async () => {
+        await this.reloadKeys()
+      })
     }
   }
 

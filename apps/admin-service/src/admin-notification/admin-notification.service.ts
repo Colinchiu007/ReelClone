@@ -50,6 +50,9 @@ interface ApiResponse<T> {
 /** 广播时活跃用户判定窗口（最近 7 天） */
 const ACTIVE_WINDOW_DAYS = 7
 
+/** 广播并发批量大小（每批 50 个用户并发推送） */
+const BROADCAST_CONCURRENCY = 50
+
 @Injectable()
 export class AdminNotificationService {
   private readonly logger = new Logger(AdminNotificationService.name)
@@ -98,13 +101,27 @@ export class AdminNotificationService {
 
     let success = 0
     let failed = 0
-    for (const userId of userIds) {
-      try {
-        await this.pushNotification(userId, dto.title, dto.content)
-        success++
-      } catch (err) {
-        failed++
-        this.logger.warn(`广播推送失败 userId=${userId} error=${(err as Error).message}`)
+
+    // 并发批处理推送（每批 BROADCAST_CONCURRENCY 个用户并发）
+    // 替代原来的 for 循环逐个 await，10w 用户场景下性能提升 ~50 倍
+    for (let i = 0; i < userIds.length; i += BROADCAST_CONCURRENCY) {
+      const batch = userIds.slice(i, i + BROADCAST_CONCURRENCY)
+      const results = await Promise.allSettled(
+        batch.map((userId) => this.pushNotification(userId, dto.title, dto.content)),
+      )
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          success++
+        } else {
+          failed++
+        }
+      }
+      // 批次级失败日志（避免逐条日志淹没）
+      const batchFailed = results.filter((r) => r.status === 'rejected').length
+      if (batchFailed > 0) {
+        this.logger.warn(
+          `广播批次 ${i / BROADCAST_CONCURRENCY + 1} 推送失败 ${batchFailed}/${batch.length}`,
+        )
       }
     }
 

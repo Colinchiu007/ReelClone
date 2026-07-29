@@ -47,3 +47,7 @@ export * from './config/jwt.config'
 export * from './config/config-store.interface'
 export { ConfigStoreService } from './config/config-store.service'
 export { ConfigStoreModule } from './config/config-store.module'
+
+// -------------------- 审计日志 --------------------
+export { AuditLogService, AuditLogModule } from './audit/audit-log.module'
+export type { AuditLogInput, PaginatedAuditLog } from './audit/audit-log.service'
