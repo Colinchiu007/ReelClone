@@ -24,7 +24,7 @@ export type OSSObjectType =
   | 'audio'
   | 'document'
   | 'cover'
-  | (string & {});
+  | (string & Record<string, never>);
 
 /**
  * 安全化字符串：去除首尾空白，剥离路径分隔符，防止越权拼接
