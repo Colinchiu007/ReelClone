@@ -13,15 +13,15 @@
  * 注意：本辅助仅在需要直连 DB 验证时使用。绝大多数断言应通过 API 完成，
  * 仅在需要验证「数据库副作用」或「幂等性落地」时才直连 DB。
  */
-import { DataSource } from 'typeorm';
+import { DataSource } from 'typeorm'
 
 /** 数据库连接配置 */
 export interface DbConfig {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  database: string;
+  host: string
+  port: number
+  username: string
+  password: string
+  database: string
 }
 
 /** 从环境变量读取数据库配置 */
@@ -32,7 +32,7 @@ export function getDbConfig(): DbConfig {
     username: process.env.DATABASE_USER ?? 'reelclone',
     password: process.env.DATABASE_PASSWORD ?? 'reelclone_dev',
     database: process.env.DATABASE_NAME ?? 'reelclone_main',
-  };
+  }
 }
 
 /** main 库涉及的核心表（按清理顺序，先清理依赖方） */
@@ -50,7 +50,7 @@ const MAIN_TABLES = [
   'sms_code',
   'user',
   'package',
-];
+]
 
 /**
  * 创建并返回一个 TypeORM DataSource（不初始化）
@@ -69,7 +69,7 @@ export function createDataSource(config: DbConfig = getDbConfig()): DataSource {
     schema: 'public',
     synchronize: false,
     logging: false,
-  });
+  })
 }
 
 /**
@@ -80,17 +80,14 @@ export function createDataSource(config: DbConfig = getDbConfig()): DataSource {
  *   return ds.query('SELECT id FROM package WHERE status=$1 LIMIT 1', ['ACTIVE']);
  * });
  */
-export async function withDb<T>(
-  fn: (ds: DataSource) => Promise<T>,
-  config?: DbConfig,
-): Promise<T> {
-  const ds = createDataSource(config);
+export async function withDb<T>(fn: (ds: DataSource) => Promise<T>, config?: DbConfig): Promise<T> {
+  const ds = createDataSource(config)
   try {
-    await ds.initialize();
-    return await fn(ds);
+    await ds.initialize()
+    return await fn(ds)
   } finally {
     if (ds.isInitialized) {
-      await ds.destroy();
+      await ds.destroy()
     }
   }
 }
@@ -104,19 +101,22 @@ export async function withDb<T>(
 export async function cleanupUser(userId: string): Promise<void> {
   await withDb(async (ds) => {
     // 按外键依赖顺序删除
-    await ds.query('DELETE FROM point_transaction WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM generation_task WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM work WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM notification WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM user_package WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM "order" WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM asset WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM avatar_group WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM benchmark WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM favorite WHERE user_id = $1', [userId]);
-    await ds.query('DELETE FROM sms_code WHERE mobile IN (SELECT mobile FROM "user" WHERE id = $1)', [userId]);
-    await ds.query('DELETE FROM "user" WHERE id = $1', [userId]);
-  });
+    await ds.query('DELETE FROM point_transaction WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM generation_task WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM work WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM notification WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM user_package WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM "order" WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM asset WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM avatar_group WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM benchmark WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM favorite WHERE user_id = $1', [userId])
+    await ds.query(
+      'DELETE FROM sms_code WHERE mobile IN (SELECT mobile FROM "user" WHERE id = $1)',
+      [userId],
+    )
+    await ds.query('DELETE FROM "user" WHERE id = $1', [userId])
+  })
 }
 
 /**
@@ -124,14 +124,13 @@ export async function cleanupUser(userId: string): Promise<void> {
  */
 export async function cleanupUserByOpenId(openId: string): Promise<void> {
   const userId = await withDb(async (ds) => {
-    const rows = (await ds.query(
-      'SELECT id FROM "user" WHERE open_id = $1',
-      [openId],
-    )) as Array<{ id: string }>;
-    return rows[0]?.id;
-  });
+    const rows = (await ds.query('SELECT id FROM "user" WHERE open_id = $1', [openId])) as Array<{
+      id: string
+    }>
+    return rows[0]?.id
+  })
   if (userId) {
-    await cleanupUser(userId);
+    await cleanupUser(userId)
   }
 }
 
@@ -144,31 +143,30 @@ export async function cleanupUserByOpenId(openId: string): Promise<void> {
 export async function cleanupAllTables(): Promise<void> {
   await withDb(async (ds) => {
     for (const table of MAIN_TABLES) {
-      if (table === 'package') continue;
-      await ds.query(`DELETE FROM ${table}`);
+      if (table === 'package') continue
+      await ds.query(`DELETE FROM ${table}`)
     }
     // 重置序列
-    await ds.query(
-      `SELECT setval(pg_get_serial_sequence('"' || $1 || '"', 'id'), 1, false)`,
-      ['user'],
-    ).catch(() => {
-      // 序列重置失败不影响测试（部分表可能用 uuid 无序列）
-    });
-  });
+    await ds
+      .query(`SELECT setval(pg_get_serial_sequence('"' || $1 || '"', 'id'), 1, false)`, ['user'])
+      .catch(() => {
+        // 序列重置失败不影响测试（部分表可能用 uuid 无序列）
+      })
+  })
 }
 
 // -------------------- 种子数据 --------------------
 
 /** 种子套餐定义 */
 export interface SeedPackage {
-  id?: string;
-  name: string;
-  price: number;
-  points: number;
-  bonusPoints: number;
-  duration: number; // 天
-  status: string;
-  sort: number;
+  id?: string
+  name: string
+  price: number
+  points: number
+  bonusPoints: number
+  duration: number // 天
+  status: string
+  sort: number
 }
 
 /**
@@ -201,7 +199,7 @@ export async function seedPackages(): Promise<SeedPackage[]> {
       status: 'ACTIVE',
       sort: 2,
     },
-  ];
+  ]
 
   await withDb(async (ds) => {
     for (const pkg of packages) {
@@ -226,33 +224,32 @@ export async function seedPackages(): Promise<SeedPackage[]> {
           pkg.status,
           pkg.sort,
         ],
-      );
+      )
     }
-  });
+  })
 
-  return packages;
+  return packages
 }
 
 /**
  * 直接查询用户积分（绕过 API，验证数据库落地）
  */
 export async function getUserPoints(userId: string): Promise<{
-  currentPoints: number;
-  totalPoints: number;
+  currentPoints: number
+  totalPoints: number
 }> {
   return withDb(async (ds) => {
-    const rows = (await ds.query(
-      'SELECT current_points, total_points FROM "user" WHERE id = $1',
-      [userId],
-    )) as Array<{ current_points: string; total_points: string }>;
+    const rows = (await ds.query('SELECT current_points, total_points FROM "users" WHERE id = $1', [
+      userId,
+    ])) as Array<{ current_points: string; total_points: string }>
     if (!rows[0]) {
-      throw new Error(`用户不存在: ${userId}`);
+      throw new Error(`用户不存在: ${userId}`)
     }
     return {
       currentPoints: Number(rows[0].current_points),
       totalPoints: Number(rows[0].total_points),
-    };
-  });
+    }
+  })
 }
 
 /**
@@ -262,12 +259,9 @@ export async function getOrderStatus(
   orderNo: string,
 ): Promise<{ status: string; transactionId: string | null } | null> {
   return withDb(async (ds) => {
-    const rows = (await ds.query(
-      'SELECT status, transaction_id FROM "order" WHERE order_no = $1',
-      [orderNo],
-    )) as Array<{ status: string; transaction_id: string | null }>;
-    return rows[0]
-      ? { status: rows[0].status, transactionId: rows[0].transaction_id }
-      : null;
-  });
+    const rows = (await ds.query('SELECT status, transaction_id FROM "order" WHERE order_no = $1', [
+      orderNo,
+    ])) as Array<{ status: string; transaction_id: string | null }>
+    return rows[0] ? { status: rows[0].status, transactionId: rows[0].transaction_id } : null
+  })
 }
