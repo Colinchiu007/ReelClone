@@ -19,7 +19,7 @@
     "rxjs": "^7.8.1"
   },
   "peerDependencies": {
-    "@reelclone/common": "workspace:*"
+    "@reelclone/common": "*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
