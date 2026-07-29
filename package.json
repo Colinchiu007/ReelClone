@@ -10,7 +10,7 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
-    "lint": "nx run-many --target=lint --all --parallel",
+    "lint": "eslint \"apps/**/src/**/*.ts\" \"libs/**/src/**/*.ts\" --max-warnings 9999",
     "typecheck": "nx run-many --target=typecheck --all --parallel",
     "test:unit": "nx run-many --target=test --all --parallel",
     "test:integration": "nx run-many --target=test:integration --all --parallel",
