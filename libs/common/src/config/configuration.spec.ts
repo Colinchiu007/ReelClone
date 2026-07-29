@@ -36,6 +36,7 @@ describe('configuration', () => {
 
     it('设置 NODE_ENV=production 时应识别为生产环境', () => {
       process.env.NODE_ENV = 'production'
+      process.env.JWT_SECRET = 'production-secret-at-least-32-chars-long!!'
       const config = configuration()
       expect(config.env.isProduction).toBe(true)
       expect(config.env.isDevelopment).toBe(false)
@@ -79,6 +80,7 @@ describe('configuration', () => {
 
     it('生产环境应关闭 synchronize 和 logging', () => {
       process.env.NODE_ENV = 'production'
+      process.env.JWT_SECRET = 'production-secret-at-least-32-chars-long!!'
       const config = configuration()
       expect(config.database.main.synchronize).toBe(false)
       expect(config.database.main.logging).toBe(false)
@@ -115,11 +117,11 @@ describe('configuration', () => {
 
   describe('jwt', () => {
     it('应从环境变量读取 JWT 配置', () => {
-      process.env.JWT_SECRET = 'my-super-secret-key-32chars!!'
+      process.env.JWT_SECRET = 'my-super-secret-key-32chars-long!!!'
       process.env.JWT_EXPIRES_IN = '2h'
       process.env.JWT_REFRESH_EXPIRES_IN = '14d'
       const config = configuration()
-      expect(config.jwt.secret).toBe('my-super-secret-key-32chars!!')
+      expect(config.jwt.secret).toBe('my-super-secret-key-32chars-long!!!')
       expect(config.jwt.expiresIn).toBe('2h')
       expect(config.jwt.refreshExpiresIn).toBe('14d')
     })

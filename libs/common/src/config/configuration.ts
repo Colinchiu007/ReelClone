@@ -62,7 +62,9 @@ export interface AppConfig {
 }
 
 /** 是否为生产环境 */
-const isProduction = process.env.NODE_ENV === 'production'
+function getIsProduction(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
 
 /**
  * 从环境变量加载完整配置
@@ -71,8 +73,8 @@ export function configuration(): AppConfig {
   return {
     env: {
       nodeEnv: process.env.NODE_ENV ?? 'development',
-      isProduction,
-      isDevelopment: process.env.NODE_ENV === 'development',
+      isProduction: getIsProduction(),
+      isDevelopment: (process.env.NODE_ENV ?? 'development') === 'development',
       isTest: process.env.NODE_ENV === 'test',
     },
     database: {
@@ -83,8 +85,8 @@ export function configuration(): AppConfig {
         password: process.env.DATABASE_PASSWORD ?? '',
         database: process.env.DATABASE_NAME ?? 'reelclone_main',
         schema: process.env.DATABASE_SCHEMA ?? 'public',
-        synchronize: !isProduction,
-        logging: !isProduction,
+        synchronize: !getIsProduction(),
+        logging: !getIsProduction(),
       },
       billing: {
         host: process.env.DATABASE_HOST ?? 'localhost',
@@ -93,8 +95,8 @@ export function configuration(): AppConfig {
         password: process.env.DATABASE_PASSWORD ?? '',
         database: process.env.DATABASE_BILLING_NAME ?? 'reelclone_billing',
         schema: process.env.DATABASE_SCHEMA ?? 'public',
-        synchronize: !isProduction,
-        logging: !isProduction,
+        synchronize: !getIsProduction(),
+        logging: !getIsProduction(),
       },
       template: {
         host: process.env.DATABASE_HOST ?? 'localhost',
@@ -103,8 +105,8 @@ export function configuration(): AppConfig {
         password: process.env.DATABASE_PASSWORD ?? '',
         database: process.env.DATABASE_TEMPLATE_NAME ?? 'reelclone_template',
         schema: process.env.DATABASE_SCHEMA ?? 'public',
-        synchronize: !isProduction,
-        logging: !isProduction,
+        synchronize: !getIsProduction(),
+        logging: !getIsProduction(),
       },
       benchmark: {
         host: process.env.DATABASE_HOST ?? 'localhost',
@@ -113,8 +115,8 @@ export function configuration(): AppConfig {
         password: process.env.DATABASE_PASSWORD ?? '',
         database: process.env.DATABASE_BENCHMARK_NAME ?? 'reelclone_benchmark',
         schema: process.env.DATABASE_SCHEMA ?? 'public',
-        synchronize: !isProduction,
-        logging: !isProduction,
+        synchronize: !getIsProduction(),
+        logging: !getIsProduction(),
       },
     },
     redis: {

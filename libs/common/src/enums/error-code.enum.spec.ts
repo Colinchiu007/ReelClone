@@ -39,9 +39,9 @@ describe('error-code.enum', () => {
     it('应为每个错误码提供默认提示信息', () => {
       const codes = Object.values(ErrorCode).filter((v): v is number => typeof v === 'number')
       for (const code of codes) {
-        expect(ErrorCodeMessages[code]).toBeDefined()
-        expect(typeof ErrorCodeMessages[code]).toBe('string')
-        expect(ErrorCodeMessages[code].length).toBeGreaterThan(0)
+        expect(ErrorCodeMessages[code as ErrorCode]).toBeDefined()
+        expect(typeof ErrorCodeMessages[code as ErrorCode]).toBe('string')
+        expect(ErrorCodeMessages[code as ErrorCode].length).toBeGreaterThan(0)
       }
     })
 
