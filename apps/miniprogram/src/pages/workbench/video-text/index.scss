@@ -8,6 +8,22 @@
     padding-bottom: 120px;
   }
 
+  &__replicate-banner {
+    @include flex-start;
+    padding: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-md;
+    background: $brand-gradient;
+    border-radius: $radius-md;
+    box-shadow: 0 2px 8px rgba($brand-secondary, 0.25);
+  }
+
+  &__replicate-text {
+    font-size: $font-sm;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
   &__select {
     @include flex-between;
     padding: $spacing-md;

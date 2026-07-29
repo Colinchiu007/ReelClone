@@ -1,7 +1,7 @@
 /** @type {import('jest').Config} */
 module.exports = {
   displayName: 'ai',
-  preset: '../../jest.preset.js',
+  preset: 'ts-jest',
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'js'],
   roots: ['<rootDir>/src'],
@@ -11,4 +11,7 @@ module.exports = {
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/index.ts', '!src/**/*.spec.ts'],
   coverageDirectory: '<rootDir>/../../coverage/libs/ai',
-};
+  moduleNameMapper: {
+    '^@reelclone/temporal(|/.*)$': '<rootDir>/../temporal/src/$1',
+  },
+}

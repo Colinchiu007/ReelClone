@@ -112,4 +112,9 @@ export class CreateGenerationDto {
   @IsOptional()
   @IsString()
   templateId?: string
+
+  /** 对标解析 ID（可选，从对标解析一键复刻时传入，用于溯源） */
+  @IsOptional()
+  @IsString()
+  benchmarkId?: string
 }

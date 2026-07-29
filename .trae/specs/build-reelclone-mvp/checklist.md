@@ -1,6 +1,7 @@
 # Checklist
 
 ## 阶段一：项目基础设施
+
 - [ ] Nx Monorepo 工作区可运行 `npx nx run-many --target=lint` 通过
 - [ ] Docker Compose 启动 PostgreSQL + Redis 后 `psql` 可连接 4 个数据库（main/billing/template/benchmark）
 - [ ] `npm run bootstrap` 脚本可一键启动本地环境
@@ -8,6 +9,7 @@
 - [ ] `.env.example` 包含所有必需环境变量（数据库、Redis、OSS、微信、Seedance 等）
 
 ## 阶段二：后端共享库
+
 - [ ] `libs/common` 提供统一响应格式 `ApiResponse<T>` 和 `PaginatedResponse<T>`
 - [ ] `libs/common` 提供错误码枚举 `ErrorCode`（至少包含 spec 中列出的 11 个错误码）
 - [ ] `libs/common` 提供 HTTP 拦截器自动包装响应并注入 `traceId`
@@ -27,6 +29,7 @@
 - [ ] `libs/oss` 可签发 STS Token 并上传文件
 
 ## 阶段三：后端微服务
+
 - [ ] auth-service: `POST /api/v1/auth/wechat-login` 可完成微信登录并返回 JWT
 - [ ] auth-service: `POST /api/v1/auth/refresh-token` 可刷新过期 Token
 - [ ] auth-service: `POST /api/v1/auth/logout` 将 JWT 加入黑名单
@@ -52,6 +55,10 @@
 - [ ] template-service: `POST /api/v1/templates/:id/favorite` 收藏模板
 - [ ] template-service: `GET /api/v1/templates/favorites` 返回我的收藏
 - [ ] template-service: `POST /api/v1/users/industry-preferences` 绑定行业偏好
+- [ ] template-service: `POST /api/v1/templates/internal/publish` 作品转模板（内部 API）
+- [ ] template-service: `POST /api/v1/templates/:id/increment-use` 模板使用计数 +1
+- [ ] template-service: `POST /api/v1/templates/:id/review` 审核模板
+- [ ] template-service: `GET /api/v1/templates/my-published` 我发布的模板
 - [ ] billing-service: `GET /api/v1/points/balance` 返回积分余额
 - [ ] billing-service: `GET /api/v1/points/transactions` 返回积分流水
 - [ ] billing-service: 积分冻结/结算/释放操作幂等（同一 workId 仅操作一次）
@@ -69,6 +76,7 @@
 - [ ] 所有微服务提供 `/health` 健康检查端点
 
 ## 阶段四：微信小程序前端
+
 - [ ] `npm run dev:weapp` 可在微信开发者工具运行无报错
 - [ ] `app.config.ts` 配置 4 个 TabBar + 4 个分包 + 预加载规则
 - [ ] SCSS 全局变量包含深色主题色板 + 8 种渐变色 + 间距/圆角/字号规范
@@ -95,6 +103,8 @@
 - [ ] 编辑视频工作台（subpackages/workbench/video-gen/edit-video）完整
 - [ ] 延长视频工作台（subpackages/workbench/video-gen/extend-video）完整
 - [ ] 作品详情页进度条 + WebSocket 实时更新
+- [ ] 作品详情页"发布为模板"按钮（根据作品状态显示/隐藏）
+- [ ] 发布模板表单页（标题/描述/适用平台/分类/行业/标签）
 - [ ] 我的作品列表页（subpackages/workbench/work-list）完整
 - [ ] 普通资产列表页（subpackages/asset/asset-list）完整
 - [ ] 真人形象组列表页（subpackages/asset/avatar-group）完整
@@ -114,6 +124,7 @@
 - [ ] 我的模板页空状态 + 收藏列表
 
 ## 阶段五：集成与测试
+
 - [ ] E2E 流程：微信登录 → 浏览首页 → 提交生成 → 查看作品 全流程跑通
 - [ ] E2E 流程：素材上传 → 生成视频 → 下载作品 全流程跑通
 - [ ] E2E 流程：对标解析 → 基于拆解生成新视频 全流程跑通
@@ -136,6 +147,7 @@
 - [ ] 前端类型从 OpenAPI 自动生成
 
 ## 阶段六：质量保障
+
 - [x] 6 大专项检查无 CRITICAL 问题（异常处理/权限边界/事务一致性/边界值/代码风格/硬编码）— 2026-07-29 验证通过：9 项问题全部修复
 - [x] 无 API Key 硬编码（所有密钥走环境变量）— 2026-07-29 验证通过：全项目扫描无硬编码 API Key
 - [x] 无 SQL 注入风险（TypeORM 参数化查询）— 2026-07-29 验证通过：生产代码全用参数化查询
@@ -153,6 +165,7 @@
 - [x] 架构文档与实现一致 — `01-docs/10-代码审查报告.md` + `01-docs/11-小程序审核准备文档.md`
 
 ## Spec 核心场景验证
+
 - [ ] **微信登录流**: 首次微信登录创建用户并签发 JWT
 - [ ] **Token 刷新**: 401 时自动刷新并重试
 - [ ] **生成任务成功**: 提交→冻结→Temporal→完成→结算→WebSocket 推送

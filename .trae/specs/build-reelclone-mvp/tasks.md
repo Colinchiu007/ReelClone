@@ -109,7 +109,9 @@
   - [ ] SubTask 12.9: `DELETE /api/v1/works/:id` 删除作品
   - [ ] SubTask 12.10: 积分冻结集成（调用 billing-service）
   - [ ] SubTask 12.11: Temporal 工作流启动
-  - **验收**: 提交任务→冻结积分→启动工作流→完成结算全流程
+  - [x] SubTask 12.12: `POST /api/v1/works/:id/publish-as-template` 作品发布为模板 ✅
+  - [x] SubTask 12.13: TemplateClient 调用 template-service 内部 API ✅
+  - **验收**: 提交任务→冻结积分→启动工作流→完成结算全流程 + 作品转模板
 
 - [x] Task 13: benchmark-service（对标解析服务） ✅（2026-07-29 验证通过：18 个文件创建，23 个单测全部通过，tsc 编译无错误）
   - [x] SubTask 13.1: 服务脚手架（main.ts / app.module.ts / Dockerfile / project.json / tsconfig / jest.config / .env.example）
@@ -128,7 +130,13 @@
   - [ ] SubTask 14.6: `GET /api/v1/templates/favorites` 我的收藏
   - [ ] SubTask 14.7: `POST /api/v1/users/industry-preferences` 行业偏好
   - [ ] SubTask 14.8: 热门排序算法（MVP 阶段）
-  - **验收**: 灵感广场浏览 + 收藏流程
+  - [x] SubTask 14.9: `POST /api/v1/templates/internal/publish` 作品转模板（内部 API）✅
+  - [x] SubTask 14.10: `POST /api/v1/templates/:id/increment-use` 模板使用计数 +1 ✅
+  - [x] SubTask 14.11: `POST /api/v1/templates/:id/review` 审核模板 ✅
+  - [x] SubTask 14.12: `GET /api/v1/templates/my-published` 我发布的模板 ✅
+  - [x] SubTask 14.13: Template 实体扩展（userId/sourceWorkId/authorName/reviewNote/reviewedAt + PENDING_REVIEW/REJECTED 枚举）✅
+  - [x] SubTask 14.14: DB 迁移 0002_add_ugc_fields ✅
+  - **验收**: 灵感广场浏览 + 收藏流程 + 作品转模板 + 审核流程
 
 - [ ] Task 15: billing-service（计费服务）
   - [ ] SubTask 15.1: 服务脚手架
@@ -220,7 +228,9 @@
   - [ ] SubTask 23.7: 延长视频工作台
   - [ ] SubTask 23.8: 作品详情页（进度推送 + 结果展示）
   - [ ] SubTask 23.9: 我的作品列表页
-  - **验收**: 提交任务→进度推送→结果展示全流程
+  - [ ] SubTask 23.10: 作品详情页"发布为模板"按钮（根据作品状态显示/隐藏，点击跳转发布模板表单页）
+  - [ ] SubTask 23.11: 发布模板表单页（标题/描述/适用平台/分类/行业/标签表单，提交调用 publishWorkAsTemplate）
+  - **验收**: 提交任务→进度推送→结果展示全流程 + 作品发布为模板流程
 
 - [ ] Task 24: asset 分包（资产管理）
   - [ ] SubTask 24.1: 普通资产列表页
@@ -381,9 +391,10 @@ Task 1 (Monorepo) ─┬─→ Task 2 (Docker) ─┬─→ Task 3 (CI/CD)
 **Wave 1（串行）**: Task 1 → Task 2,3
 **Wave 2（并行）**: Task 4, 5, 6, 7, 8（共享库独立开发）
 **Wave 3（并行）**: Task 9-18（微服务，依赖共享库）
-  - Task 9, 10, 14, 17 可并行（无依赖）
-  - Task 15 需先完成，Task 12, 16 依赖 billing
-  - Task 18 依赖 Task 6, 7
-**Wave 4（并行）**: Task 19, 20, 21（前端基础）
-**Wave 5（并行）**: Task 22-27（前端页面，依赖基础）
-**Wave 6（串行）**: Task 28-36（集成测试与交付）
+
+- Task 9, 10, 14, 17 可并行（无依赖）
+- Task 15 需先完成，Task 12, 16 依赖 billing
+- Task 18 依赖 Task 6, 7
+  **Wave 4（并行）**: Task 19, 20, 21（前端基础）
+  **Wave 5（并行）**: Task 22-27（前端页面，依赖基础）
+  **Wave 6（串行）**: Task 28-36（集成测试与交付）

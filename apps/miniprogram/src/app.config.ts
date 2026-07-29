@@ -1,5 +1,11 @@
 export default {
-  pages: ['pages/home/index', 'pages/recommend/index', 'pages/benchmark/index', 'pages/mine/index'],
+  pages: [
+    'pages/home/index',
+    'pages/recommend/index',
+    'pages/benchmark/index',
+    'pages/benchmark/detail/index',
+    'pages/mine/index',
+  ],
   subPackages: [
     {
       root: 'pages/workbench',

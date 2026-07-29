@@ -9,14 +9,14 @@
  */
 
 // AI 模块
-export { AiModule } from './ai.module';
+export { AiModule } from './ai.module'
 
 // Seedance
 export {
   SeedanceProvider,
   SeedanceValidationError,
   SeedanceNoAvailableKeyError,
-} from './seedance/seedance.provider';
+} from './seedance/seedance.provider'
 export {
   GenerationType,
   type SeedanceTaskParams,
@@ -26,29 +26,30 @@ export {
   type SeedanceSubmitResult,
   type VideoResolution,
   type VideoDuration,
-} from './seedance/seedance.types';
+} from './seedance/seedance.types'
 
 // LLM
-export { LlmProvider } from './llm/llm.provider';
-export { PromptEngineService } from './llm/prompt-engine.service';
+export { LlmProvider } from './llm/llm.provider'
+export { PromptEngineService } from './llm/prompt-engine.service'
+export { type CloneSuggestion, type StructuredReport } from './llm/prompt-engine.service'
 export {
   LlmProvider as LlmProviderEnum,
   type LlmMessage,
   type LlmRole,
   type LlmCompleteOptions,
   type CopyGenerationParams,
-} from './llm/llm.types';
+} from './llm/llm.types'
 
 // 视频下载器
-export { VideoDownloaderService } from './downloader/video-downloader.service';
+export { VideoDownloaderService } from './downloader/video-downloader.service'
 export {
   VideoPlatform,
   type DownloadResult,
   type VideoMetadata,
-} from './downloader/downloader.types';
+} from './downloader/downloader.types'
 
 // 视频分析器
-export { VideoAnalyzerService } from './analyzer/video-analyzer.service';
+export { VideoAnalyzerService } from './analyzer/video-analyzer.service'
 export {
   type AnalysisReport,
   type AnalysisInputs,
@@ -57,18 +58,15 @@ export {
   type OcrItem,
   type VisualDescriptionItem,
   type CloneableElements,
-} from './analyzer/analyzer.types';
+} from './analyzer/analyzer.types'
 
 // FFmpeg
-export { FfmpegService } from './ffmpeg/ffmpeg.service';
+export { FfmpegService } from './ffmpeg/ffmpeg.service'
 export {
   type TranscodeOptions,
   type VideoMetaInfo,
   type CompressionQuality,
-} from './ffmpeg/ffmpeg.types';
+} from './ffmpeg/ffmpeg.types'
 
 // 内容安全审核
-export {
-  ModerationService,
-  type ModerationResult,
-} from './moderation/moderation.service';
+export { ModerationService, type ModerationResult } from './moderation/moderation.service'

@@ -8,12 +8,13 @@
  *  - GET  /api/v1/benchmarks           解析历史（需 JWT，分页）
  *  - GET  /api/v1/benchmarks/:id       解析详情（需 JWT，校验所有权）
  *  - POST /api/v1/benchmarks/:id/cancel 取消解析（需 JWT）
+ *  - POST /api/v1/benchmarks/:id/clone  生成一键复刻建议（需 JWT）
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { CurrentUser } from '@reelclone/common';
-import { BenchmarkService } from './benchmark.service';
-import { CreateBenchmarkDto } from './dto/create-benchmark.dto';
-import { ListBenchmarksDto } from './dto/list-benchmarks.dto';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { CurrentUser } from '@reelclone/common'
+import { BenchmarkService } from './benchmark.service'
+import { CreateBenchmarkDto } from './dto/create-benchmark.dto'
+import { ListBenchmarksDto } from './dto/list-benchmarks.dto'
 
 @Controller('benchmarks')
 export class BenchmarkController {
@@ -27,11 +28,8 @@ export class BenchmarkController {
    * 响应: { benchmarkId: string, status: 'PENDING', estimatedPoints: number }
    */
   @Post()
-  async create(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CreateBenchmarkDto,
-  ) {
-    return this.benchmarkService.create(userId, dto);
+  async create(@CurrentUser('userId') userId: string, @Body() dto: CreateBenchmarkDto) {
+    return this.benchmarkService.create(userId, dto)
   }
 
   /**
@@ -41,11 +39,8 @@ export class BenchmarkController {
    * Query: page, pageSize, platform?, status?
    */
   @Get()
-  async findAll(
-    @CurrentUser('userId') userId: string,
-    @Query() dto: ListBenchmarksDto,
-  ) {
-    return this.benchmarkService.findAll(userId, dto);
+  async findAll(@CurrentUser('userId') userId: string, @Query() dto: ListBenchmarksDto) {
+    return this.benchmarkService.findAll(userId, dto)
   }
 
   /**
@@ -53,11 +48,8 @@ export class BenchmarkController {
    * 解析详情（校验所有权）
    */
   @Get(':id')
-  async findOne(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.benchmarkService.findOne(userId, id);
+  async findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.benchmarkService.findOne(userId, id)
   }
 
   /**
@@ -67,10 +59,18 @@ export class BenchmarkController {
    * 响应: { benchmarkId: string, status: 'CANCELLED' }
    */
   @Post(':id/cancel')
-  async cancel(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.benchmarkService.cancel(userId, id);
+  async cancel(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.benchmarkService.cancel(userId, id)
+  }
+
+  /**
+   * POST /api/v1/benchmarks/:id/clone
+   * 基于对标解析结果生成一键复刻建议参数
+   *
+   * 响应: { benchmarkId, prompt, model, resolution, aspectRatio, duration }
+   */
+  @Post(':id/clone')
+  async clone(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.benchmarkService.clone(userId, id)
   }
 }

@@ -227,6 +227,51 @@ describe('GenerationService', () => {
       expect(billingClient.freeze).not.toHaveBeenCalled()
       expect(taskRepo.save).not.toHaveBeenCalled()
     })
+
+    // -------------------- benchmarkId 透传 --------------------
+
+    it('携带 benchmarkId 时，Work 记录和 VideoGenParams 正确赋值', async () => {
+      // 关闭 Mock 模式，使 startWorkflow 走真实 Temporal 路径以校验 VideoGenParams
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+
+      const benchmarkId = 'bench-uuid-1'
+      const dto = makeDto({ benchmarkId })
+
+      await service.create('user-1', dto)
+
+      // Work 记录应包含 benchmarkId
+      expect(workRepo.create).toHaveBeenCalledWith(expect.objectContaining({ benchmarkId }))
+
+      // VideoGenParams 应包含 benchmarkId
+      expect(temporalService.startVideoGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ benchmarkId }),
+      )
+    })
+
+    it('不携带 benchmarkId 时，Work 记录和 VideoGenParams 中 benchmarkId 为 undefined（向后兼容）', async () => {
+      // 关闭 Mock 模式，使 startWorkflow 走真实 Temporal 路径以校验 VideoGenParams
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+
+      const dto = makeDto() // 不传 benchmarkId
+
+      await service.create('user-1', dto)
+
+      // Work 记录的 benchmarkId 应为 null（dto.benchmarkId ?? null）
+      const createCallArg = workRepo.create.mock.calls[0][0] as { benchmarkId: unknown }
+      expect(createCallArg.benchmarkId).toBeNull()
+
+      // VideoGenParams 中 benchmarkId 应为 undefined
+      const paramsArg = temporalService.startVideoGeneration.mock.calls[0][0] as {
+        benchmarkId: unknown
+      }
+      expect(paramsArg.benchmarkId).toBeUndefined()
+    })
   })
 
   // -------------------- findAll --------------------

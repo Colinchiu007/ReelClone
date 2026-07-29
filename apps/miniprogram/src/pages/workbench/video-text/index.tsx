@@ -8,7 +8,7 @@
  * - 时长：5秒 / 10秒
  * - 提示词：maxLength=2000
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { CreditBadge, PromptInput } from '@/components'
@@ -43,13 +43,26 @@ const POINTS_TABLE: Record<string, number> = {
 }
 
 export default function VideoTextWorkbench() {
+  // 读取 URL 预填参数（来自对标解析"一键复刻"跳转）
+  const instance = Taro.getCurrentInstance()
+  const urlParams = instance.router?.params || {}
+  const prefillPrompt = urlParams.prompt ? decodeURIComponent(urlParams.prompt) : ''
+  const benchmarkId = urlParams.benchmarkId || ''
+
   const [model, setModel] = useState(MODELS[0].value)
   const [resolution, setResolution] = useState('720p')
   const [aspectRatio, setAspectRatio] = useState('9:16')
   const [duration, setDuration] = useState(5)
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState(prefillPrompt)
   const [submitting, setSubmitting] = useState(false)
   const [showModelSheet, setShowModelSheet] = useState(false)
+
+  // URL 参数变化时同步预填（防止页面缓存时 prefillPrompt 未生效）
+  useEffect(() => {
+    if (prefillPrompt) {
+      setPrompt(prefillPrompt)
+    }
+  }, [prefillPrompt])
 
   const { balance } = useCredits()
   const consume = usePointsStore((s) => s.consume)
@@ -79,6 +92,7 @@ export default function VideoTextWorkbench() {
         resolution,
         aspectRatio,
         duration: duration as 5 | 10,
+        ...(benchmarkId ? { benchmarkId } : {}),
       })
       consume(estimatedPoints)
       Taro.showToast({ title: '生成任务已提交', icon: 'success' })
@@ -92,7 +106,17 @@ export default function VideoTextWorkbench() {
     } finally {
       setSubmitting(false)
     }
-  }, [prompt, balance, estimatedPoints, model, resolution, aspectRatio, duration, consume])
+  }, [
+    prompt,
+    balance,
+    estimatedPoints,
+    model,
+    resolution,
+    aspectRatio,
+    duration,
+    consume,
+    benchmarkId,
+  ])
 
   /** 选择模型 */
   const handleSelectModel = useCallback((value: string) => {
@@ -113,6 +137,13 @@ export default function VideoTextWorkbench() {
       </View>
 
       <View className="video-text-wb__body">
+        {/* 复刻模式提示条 */}
+        {benchmarkId ? (
+          <View className="video-text-wb__replicate-banner">
+            <Text className="video-text-wb__replicate-text">✦ 基于对标解析创作</Text>
+          </View>
+        ) : null}
+
         {/* 模型选择 */}
         <View className="page-wrap__section">
           <Text className="page-wrap__label">模型</Text>

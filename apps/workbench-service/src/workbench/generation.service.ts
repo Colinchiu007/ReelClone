@@ -176,6 +176,7 @@ export class GenerationService {
       cost: points,
       modelConfig,
       templateId: dto.templateId ?? null,
+      benchmarkId: dto.benchmarkId ?? null,
     })
     await workRepo.save(work)
 
@@ -472,6 +473,7 @@ export class GenerationService {
       idempotencyKey,
       // 默认启用内容安全审核：审核不通过将自动退款并标记任务失败
       enableModeration: true,
+      benchmarkId: dto.benchmarkId,
     }
 
     try {
@@ -542,6 +544,7 @@ export class GenerationService {
       firstFrame: cfg.firstFrame as string | undefined,
       lastFrame: cfg.lastFrame as string | undefined,
       templateId: work.templateId ?? undefined,
+      benchmarkId: work.benchmarkId ?? undefined,
     }
   }
 
