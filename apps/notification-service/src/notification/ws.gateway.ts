@@ -17,6 +17,7 @@
  */
 import { Logger } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
+import { Inject } from '@nestjs/common'
 import {
   MessageBody,
   OnGatewayConnection,
@@ -28,13 +29,11 @@ import {
 } from '@nestjs/websockets'
 import { Server, Socket } from 'socket.io'
 import type { CurrentUserPayload } from '@reelclone/common'
+import type { Redis } from 'ioredis'
+import { REDIS_CLIENT } from '@reelclone/database'
 
 /** WebSocket 推送事件名 */
-export type WsPushEvent =
-  | 'task:progress'
-  | 'task:completed'
-  | 'task:failed'
-  | 'notification'
+export type WsPushEvent = 'task:progress' | 'task:completed' | 'task:failed' | 'notification'
 
 /** WebSocket 路径 */
 export const WS_PATH = '/ws'
@@ -69,7 +68,10 @@ export class NotificationGateway
   @WebSocketServer()
   private readonly server!: Server
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+  ) {}
 
   // -------------------- 生命周期 --------------------
 
@@ -85,7 +87,7 @@ export class NotificationGateway
    * 3. 验证通过：socket.join(user:{userId})，并把 userId 挂到 socket.data
    * 4. 验证失败：socket.emit('error', ...) + disconnect
    */
-  handleConnection(client: Socket): void {
+  async handleConnection(client: Socket): Promise<void> {
     const token = this.extractToken(client)
     if (!token) {
       this.logger.warn(`连接拒绝：缺少 token socket=${client.id}`)
@@ -101,6 +103,22 @@ export class NotificationGateway
       if (!userId) {
         throw new Error('token payload 缺少 userId')
       }
+
+      // 检查 jti 黑名单（与 JwtStrategy 保持一致）
+      const jti = decoded.jti as string | undefined
+      if (jti) {
+        const isBlacklisted = await this.redis.exists(`auth:blacklist:${jti}`)
+        if (isBlacklisted) {
+          throw new Error('token 已被加入黑名单')
+        }
+      }
+
+      // 检查改密踢下线标记
+      const passwordChanged = await this.redis.exists(`user:password-changed:${userId}`)
+      if (passwordChanged) {
+        throw new Error('密码已修改，请重新登录')
+      }
+
       payload = {
         userId,
         openid: decoded.openid as string | undefined,
@@ -108,9 +126,7 @@ export class NotificationGateway
         role: decoded.role as string | undefined,
       }
     } catch (err) {
-      this.logger.warn(
-        `连接拒绝：token 校验失败 socket=${client.id} err=${(err as Error).message}`,
-      )
+      this.logger.warn(`连接拒绝：token 校验失败 socket=${client.id} err=${(err as Error).message}`)
       client.emit('error', { message: '未授权：token 无效或已过期' })
       client.disconnect(true)
       return
@@ -137,9 +153,10 @@ export class NotificationGateway
    * 客户端：socket.emit('ping', { ts: Date.now() })
    */
   @SubscribeMessage('ping')
-  handlePing(
-    @MessageBody() payload: { ts?: number } | undefined,
-  ): { event: 'pong'; data: { ts: number; clientTs?: number } } {
+  handlePing(@MessageBody() payload: { ts?: number } | undefined): {
+    event: 'pong'
+    data: { ts: number; clientTs?: number }
+  } {
     return {
       event: 'pong',
       data: {
@@ -181,7 +198,7 @@ export class NotificationGateway
     if (query?.token) {
       // query 中所有值都是 string | string[] | undefined
       const t = query.token
-      return Array.isArray(t) ? t[0] ?? null : (t as string) ?? null
+      return Array.isArray(t) ? (t[0] ?? null) : ((t as string) ?? null)
     }
     // 兼容 socket.io v4 auth 字段
     const auth = (client.handshake as { auth?: Record<string, unknown> }).auth

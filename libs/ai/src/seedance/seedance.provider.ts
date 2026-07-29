@@ -1,21 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import axios, { AxiosInstance, AxiosError } from 'axios'
 import {
   GenerationType,
   SeedanceSubmitResult,
   SeedanceTaskParams,
   SeedanceTaskStatus,
   SeedanceTaskState,
-} from './seedance.types';
+} from './seedance.types'
 
 /**
  * Seedance 任务参数校验错误
  */
 export class SeedanceValidationError extends Error {
   constructor(message: string) {
-    super(message);
-    this.name = 'SeedanceValidationError';
+    super(message)
+    this.name = 'SeedanceValidationError'
   }
 }
 
@@ -24,8 +24,8 @@ export class SeedanceValidationError extends Error {
  */
 export class SeedanceNoAvailableKeyError extends Error {
   constructor(message = '所有 Seedance API Key 均不可用') {
-    super(message);
-    this.name = 'SeedanceNoAvailableKeyError';
+    super(message)
+    this.name = 'SeedanceNoAvailableKeyError'
   }
 }
 
@@ -45,39 +45,38 @@ export class SeedanceNoAvailableKeyError extends Error {
  */
 @Injectable()
 export class SeedanceProvider {
-  private readonly logger = new Logger(SeedanceProvider.name);
+  private readonly logger = new Logger(SeedanceProvider.name)
   /** API Key 列表（去空后保留） */
-  private readonly apiKeys: string[] = [];
+  private readonly apiKeys: string[] = []
   /** 当前使用的 Key 序号 */
-  private currentKeyIndex = 0;
+  private currentKeyIndex = 0
   /** Seedance 服务地址 */
-  private readonly baseUrl: string;
+  private readonly baseUrl: string
   /** Mock 任务内存存储（仅 Mock 模式使用） */
-  private readonly mockTasks = new Map<string, SeedanceTaskStatus>();
+  private readonly mockTasks = new Map<string, SeedanceTaskStatus>()
   /** Mock 任务的提交时间记录，用于推进状态 */
-  private readonly mockSubmitTime = new Map<string, number>();
+  private readonly mockSubmitTime = new Map<string, number>()
 
   constructor(private readonly config: ConfigService) {
-    const rawKeys = this.config.get<string>('SEEDANCE_API_KEYS') ?? '';
+    const rawKeys = this.config.get<string>('SEEDANCE_API_KEYS') ?? ''
     this.apiKeys = rawKeys
       .split(',')
       .map((k) => k.trim())
-      .filter((k) => k.length > 0);
+      .filter((k) => k.length > 0)
 
     this.baseUrl =
-      this.config.get<string>('SEEDANCE_BASE_URL') ??
-      'https://ark.cn-beijing.volces.com/api/v3';
+      this.config.get<string>('SEEDANCE_BASE_URL') ?? 'https://ark.cn-beijing.volces.com/api/v3'
 
     if (this.isMockMode()) {
-      this.logger.warn('Seedance 处于 Mock 模式：未配置 SEEDANCE_API_KEYS，将返回模拟数据');
+      this.logger.warn('Seedance 处于 Mock 模式：未配置 SEEDANCE_API_KEYS，将返回模拟数据')
     } else {
-      this.logger.log(`Seedance 已加载 ${this.apiKeys.length} 个 API Key，启用真实模式`);
+      this.logger.log(`Seedance 已加载 ${this.apiKeys.length} 个 API Key，启用真实模式`)
     }
   }
 
   /** 是否为 Mock 模式 */
   isMockMode(): boolean {
-    return this.apiKeys.length === 0;
+    return this.apiKeys.length === 0
   }
 
   /**
@@ -86,14 +85,14 @@ export class SeedanceProvider {
    * @returns 任务 ID 与使用的 Key 序号
    */
   async submitTask(params: SeedanceTaskParams): Promise<SeedanceSubmitResult> {
-    this.validateParams(params);
+    this.validateParams(params)
 
     if (this.isMockMode()) {
-      return this.submitMockTask(params);
+      return this.submitMockTask(params)
     }
 
     // 真实模式：多 Key 故障切换
-    return this.submitWithFailover(params);
+    return this.submitWithFailover(params)
   }
 
   /**
@@ -101,18 +100,18 @@ export class SeedanceProvider {
    */
   async queryTask(taskId: string): Promise<SeedanceTaskStatus> {
     if (this.isMockMode()) {
-      return this.queryMockTask(taskId);
+      return this.queryMockTask(taskId)
     }
 
-    const client = this.createClient(this.currentKeyIndex);
+    const client = this.createClient(this.currentKeyIndex)
     try {
-      const resp = await client.get(`/contents/generations/tasks/${taskId}`);
-      return this.mapTaskStatus(resp.data);
+      const resp = await client.get(`/contents/generations/tasks/${taskId}`)
+      return this.mapTaskStatus(resp.data)
     } catch (err) {
       this.logger.error(
         `查询任务失败 taskId=${taskId} keyIndex=${this.currentKeyIndex}: ${this.formatError(err)}`,
-      );
-      throw err;
+      )
+      throw err
     }
   }
 
@@ -121,28 +120,26 @@ export class SeedanceProvider {
    */
   async cancelTask(taskId: string): Promise<boolean> {
     if (this.isMockMode()) {
-      const task = this.mockTasks.get(taskId);
+      const task = this.mockTasks.get(taskId)
       if (!task) {
-        return false;
+        return false
       }
       if (task.status === 'SUCCEEDED' || task.status === 'FAILED') {
-        return false;
+        return false
       }
-      task.status = 'CANCELED';
-      task.completedAt = Date.now();
-      this.mockTasks.set(taskId, task);
-      return true;
+      task.status = 'CANCELED'
+      task.completedAt = Date.now()
+      this.mockTasks.set(taskId, task)
+      return true
     }
 
-    const client = this.createClient(this.currentKeyIndex);
+    const client = this.createClient(this.currentKeyIndex)
     try {
-      await client.post(`/contents/generations/tasks/${taskId}/cancel`);
-      return true;
+      await client.post(`/contents/generations/tasks/${taskId}/cancel`)
+      return true
     } catch (err) {
-      this.logger.error(
-        `取消任务失败 taskId=${taskId}: ${this.formatError(err)}`,
-      );
-      return false;
+      this.logger.error(`取消任务失败 taskId=${taskId}: ${this.formatError(err)}`)
+      return false
     }
   }
 
@@ -151,38 +148,38 @@ export class SeedanceProvider {
   /** 校验任务参数，不合法抛出 SeedanceValidationError */
   private validateParams(params: SeedanceTaskParams): void {
     if (!params || !params.type) {
-      throw new SeedanceValidationError('生成类型 type 不能为空');
+      throw new SeedanceValidationError('生成类型 type 不能为空')
     }
     switch (params.type) {
       case GenerationType.TEXT_TO_VIDEO:
         if (!params.prompt?.trim()) {
-          throw new SeedanceValidationError('文生视频必须提供 prompt');
+          throw new SeedanceValidationError('文生视频必须提供 prompt')
         }
-        break;
+        break
       case GenerationType.IMAGE_TO_VIDEO_FIRST_FRAME:
         if (!params.firstFrameUrl?.trim()) {
-          throw new SeedanceValidationError('图生视频（首帧）必须提供 firstFrameUrl');
+          throw new SeedanceValidationError('图生视频（首帧）必须提供 firstFrameUrl')
         }
-        break;
+        break
       case GenerationType.IMAGE_TO_VIDEO_FIRST_LAST_FRAME:
         if (!params.firstFrameUrl?.trim() || !params.lastFrameUrl?.trim()) {
           throw new SeedanceValidationError(
             '图生视频（首尾帧）必须提供 firstFrameUrl 与 lastFrameUrl',
-          );
+          )
         }
-        break;
+        break
       case GenerationType.EDIT_VIDEO:
         if (!params.videoUrl?.trim()) {
-          throw new SeedanceValidationError('编辑视频必须提供 videoUrl');
+          throw new SeedanceValidationError('编辑视频必须提供 videoUrl')
         }
-        break;
+        break
       case GenerationType.EXTEND_VIDEO:
         if (!params.sourceVideoUrl?.trim()) {
-          throw new SeedanceValidationError('延长视频必须提供 sourceVideoUrl');
+          throw new SeedanceValidationError('延长视频必须提供 sourceVideoUrl')
         }
-        break;
+        break
       default:
-        throw new SeedanceValidationError(`不支持的生成类型: ${params.type as string}`);
+        throw new SeedanceValidationError(`不支持的生成类型: ${params.type as string}`)
     }
   }
 
@@ -191,67 +188,71 @@ export class SeedanceProvider {
   /**
    * 多 Key 故障切换提交：从当前 Key 开始尝试，失败自动切换下一个，直到全部 Key 耗尽
    */
-  private async submitWithFailover(
-    params: SeedanceTaskParams,
-  ): Promise<SeedanceSubmitResult> {
-    const total = this.apiKeys.length;
-    let lastError: unknown;
+  private async submitWithFailover(params: SeedanceTaskParams): Promise<SeedanceSubmitResult> {
+    const total = this.apiKeys.length
+    let lastError: unknown
 
     for (let attempt = 0; attempt < total; attempt++) {
-      const keyIndex = (this.currentKeyIndex + attempt) % total;
+      const keyIndex = (this.currentKeyIndex + attempt) % total
       try {
-        const client = this.createClient(keyIndex);
-        const body = this.buildRequestBody(params);
-        const resp = await client.post('/contents/generations/tasks', body);
-        const taskId = this.extractTaskId(resp.data);
+        const client = this.createClient(keyIndex)
+        const body = this.buildRequestBody(params)
+        const resp = await client.post('/contents/generations/tasks', body)
+        const taskId = this.extractTaskId(resp.data)
         // 成功：推进当前 Key 指针到下一个（轮询负载均衡）
-        this.currentKeyIndex = (keyIndex + 1) % total;
-        this.logger.log(`任务提交成功 taskId=${taskId} 使用 keyIndex=${keyIndex}`);
-        return { taskId, keyIndex };
+        this.currentKeyIndex = (keyIndex + 1) % total
+        this.logger.log(`任务提交成功 taskId=${taskId} 使用 keyIndex=${keyIndex}`)
+        return { taskId, keyIndex }
       } catch (err) {
-        lastError = err;
-        this.logger.warn(
-          `Key[${keyIndex}] 提交失败，切换下一个: ${this.formatError(err)}`,
-        );
+        lastError = err
         if (this.isKeyInvalid(err)) {
-          // Key 失效（鉴权失败）则继续切换；其他错误（如限流）也尝试下一个
-          continue;
+          // Key 失效（401/403）：切换到下一个 Key
+          this.logger.warn(`Key[${keyIndex}] 鉴权失败，切换下一个 Key`)
+          continue
         }
-        continue;
+        // 其他错误（429 限流 / 5xx 服务异常）：短暂等待后也切换 Key
+        const status = err instanceof AxiosError ? err.response?.status : undefined
+        if (status === 429) {
+          this.logger.warn(`Key[${keyIndex}] 被限流，切换下一个 Key`)
+        } else {
+          this.logger.warn(
+            `Key[${keyIndex}] 提交失败 (HTTP ${status ?? 'N/A'})，切换下一个: ${this.formatError(err)}`,
+          )
+        }
+        continue
       }
     }
 
     throw new SeedanceNoAvailableKeyError(
       `所有 ${total} 个 Key 均提交失败，最后错误: ${this.formatError(lastError)}`,
-    );
+    )
   }
 
   /** 判断是否为 Key 失效错误（401/403） */
   private isKeyInvalid(err: unknown): boolean {
-    if (!(err instanceof AxiosError)) return false;
-    return err.response?.status === 401 || err.response?.status === 403;
+    if (!(err instanceof AxiosError)) return false
+    return err.response?.status === 401 || err.response?.status === 403
   }
 
   // -------------------- 真实请求构造 --------------------
 
   /** 构造 Seedance 请求体 */
   private buildRequestBody(params: SeedanceTaskParams): Record<string, unknown> {
-    const model =
-      this.config.get<string>('SEEDANCE_MODEL') ?? 'doubao-seedance-1-0';
+    const model = this.config.get<string>('SEEDANCE_MODEL') ?? 'doubao-seedance-1-0'
     const content: Record<string, unknown> = {
       text: params.prompt ?? '',
-    };
+    }
     if (params.firstFrameUrl) {
-      content.image_url = params.firstFrameUrl;
+      content.image_url = params.firstFrameUrl
     }
     if (params.lastFrameUrl) {
-      content.last_image_url = params.lastFrameUrl;
+      content.last_image_url = params.lastFrameUrl
     }
     if (params.videoUrl) {
-      content.video_url = params.videoUrl;
+      content.video_url = params.videoUrl
     }
     if (params.sourceVideoUrl) {
-      content.source_video_url = params.sourceVideoUrl;
+      content.source_video_url = params.sourceVideoUrl
     }
 
     return {
@@ -266,39 +267,34 @@ export class SeedanceProvider {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       watermark: params.watermark ?? false,
       ...(params.seed != null ? { seed: params.seed } : {}),
-    };
+    }
   }
 
   /** 从响应中提取任务 ID */
   private extractTaskId(data: unknown): string {
     if (typeof data === 'object' && data !== null) {
-      const obj = data as Record<string, unknown>;
-      const id = obj.id ?? obj.task_id ?? obj.taskId;
-      if (typeof id === 'string') return id;
+      const obj = data as Record<string, unknown>
+      const id = obj.id ?? obj.task_id ?? obj.taskId
+      if (typeof id === 'string') return id
     }
-    throw new Error('Seedance 响应中未找到任务 ID');
+    throw new Error('Seedance 响应中未找到任务 ID')
   }
 
   /** 映射火山响应为统一任务状态 */
   private mapTaskStatus(data: unknown): SeedanceTaskStatus {
-    const obj = (data ?? {}) as Record<string, unknown>;
-    const status = this.mapStatus(obj.status as string | undefined);
-    const result = obj.content as Record<string, unknown> | undefined;
+    const obj = (data ?? {}) as Record<string, unknown>
+    const status = this.mapStatus(obj.status as string | undefined)
+    const result = obj.content as Record<string, unknown> | undefined
     const mappedResult =
       status === 'SUCCEEDED' && result
         ? {
             videoUrl: (result.video_url as string) ?? '',
             coverUrl: result.cover_url as string | undefined,
             duration: result.duration as number | undefined,
-            resolution: result.resolution as
-              | '480p'
-              | '720p'
-              | '1080p'
-              | '4k'
-              | undefined,
+            resolution: result.resolution as '480p' | '720p' | '1080p' | '4k' | undefined,
             size: result.size as number | undefined,
           }
-        : undefined;
+        : undefined
     return {
       taskId: (obj.id as string) ?? '',
       status,
@@ -307,7 +303,7 @@ export class SeedanceProvider {
       error: obj.error as string | undefined,
       createdAt: obj.created_at as number | undefined,
       completedAt: obj.completed_at as number | undefined,
-    };
+    }
   }
 
   /** 火山状态码映射 */
@@ -315,21 +311,21 @@ export class SeedanceProvider {
     switch (raw) {
       case 'queued':
       case 'pending':
-        return 'PENDING';
+        return 'PENDING'
       case 'running':
       case 'processing':
-        return 'PROCESSING';
+        return 'PROCESSING'
       case 'succeeded':
       case 'success':
-        return 'SUCCEEDED';
+        return 'SUCCEEDED'
       case 'failed':
       case 'error':
-        return 'FAILED';
+        return 'FAILED'
       case 'canceled':
       case 'cancelled':
-        return 'CANCELED';
+        return 'CANCELED'
       default:
-        return 'PENDING';
+        return 'PENDING'
     }
   }
 
@@ -342,29 +338,27 @@ export class SeedanceProvider {
         Authorization: `Bearer ${this.apiKeys[keyIndex]}`,
         'Content-Type': 'application/json',
       },
-    });
+    })
   }
 
   // -------------------- Mock 模式实现 --------------------
 
   /** Mock 提交任务：返回模拟任务 ID */
-  private async submitMockTask(
-    params: SeedanceTaskParams,
-  ): Promise<SeedanceSubmitResult> {
-    const taskId = `mock-seedance-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-    const now = Date.now();
+  private async submitMockTask(params: SeedanceTaskParams): Promise<SeedanceSubmitResult> {
+    const taskId = `mock-seedance-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    const now = Date.now()
     const status: SeedanceTaskStatus = {
       taskId,
       status: 'PENDING',
       progress: 0,
       createdAt: now,
-    };
-    this.mockTasks.set(taskId, status);
-    this.mockSubmitTime.set(taskId, now);
+    }
+    this.mockTasks.set(taskId, status)
+    this.mockSubmitTime.set(taskId, now)
     this.logger.log(
       `[Mock] 提交任务 taskId=${taskId} type=${params.type} prompt=${params.prompt?.slice(0, 30) ?? ''}`,
-    );
-    return { taskId, keyIndex: -1 };
+    )
+    return { taskId, keyIndex: -1 }
   }
 
   /**
@@ -372,54 +366,52 @@ export class SeedanceProvider {
    * 0-2s: PENDING, 2-8s: PROCESSING(进度递增), 8s+: SUCCEEDED
    */
   private async queryMockTask(taskId: string): Promise<SeedanceTaskStatus> {
-    const task = this.mockTasks.get(taskId);
+    const task = this.mockTasks.get(taskId)
     if (!task) {
-      throw new Error(`Mock 任务不存在: ${taskId}`);
+      throw new Error(`Mock 任务不存在: ${taskId}`)
     }
     if (task.status === 'SUCCEEDED' || task.status === 'FAILED' || task.status === 'CANCELED') {
-      return task;
+      return task
     }
 
-    const submittedAt = this.mockSubmitTime.get(taskId) ?? Date.now();
-    const elapsed = (Date.now() - submittedAt) / 1000;
+    const submittedAt = this.mockSubmitTime.get(taskId) ?? Date.now()
+    const elapsed = (Date.now() - submittedAt) / 1000
 
     if (elapsed < 2) {
-      task.status = 'PENDING';
-      task.progress = 0;
+      task.status = 'PENDING'
+      task.progress = 0
     } else if (elapsed < 8) {
-      task.status = 'PROCESSING';
-      task.progress = Math.min(99, Math.floor(((elapsed - 2) / 6) * 100));
+      task.status = 'PROCESSING'
+      task.progress = Math.min(99, Math.floor(((elapsed - 2) / 6) * 100))
     } else {
-      task.status = 'SUCCEEDED';
-      task.progress = 100;
-      task.completedAt = Date.now();
-      task.result = this.buildMockResult();
+      task.status = 'SUCCEEDED'
+      task.progress = 100
+      task.completedAt = Date.now()
+      task.result = this.buildMockResult()
     }
 
-    this.mockTasks.set(taskId, task);
-    return task;
+    this.mockTasks.set(taskId, task)
+    return task
   }
 
   /** 构造模拟生成结果 */
   private buildMockResult() {
     return {
-      videoUrl:
-        'https://mock.reelclone.local/videos/mock-sample.mp4',
-      coverUrl:
-        'https://mock.reelclone.local/videos/mock-sample-cover.jpg',
+      videoUrl: 'https://mock.reelclone.local/videos/mock-sample.mp4',
+      coverUrl: 'https://mock.reelclone.local/videos/mock-sample-cover.jpg',
       duration: 5,
       resolution: '720p' as const,
       size: 2_457_600,
-    };
+    }
   }
 
   // -------------------- 工具方法 --------------------
 
   private formatError(err: unknown): string {
     if (err instanceof AxiosError) {
-      return `HTTP ${err.response?.status ?? 'N/A'} ${err.message}`;
+      return `HTTP ${err.response?.status ?? 'N/A'} ${err.message}`
     }
-    if (err instanceof Error) return err.message;
-    return String(err);
+    if (err instanceof Error) return err.message
+    return String(err)
   }
 }

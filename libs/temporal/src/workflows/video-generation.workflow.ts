@@ -20,7 +20,31 @@ import type {
   VideoGenParams,
   VideoGenResult,
 } from '../types'
-import { NotificationType, SeedanceTaskStatus, VIDEO_POLLING_CONFIG, WorkStatus as WS } from '../types'
+import {
+  NotificationType,
+  SeedanceTaskStatus,
+  VIDEO_POLLING_CONFIG,
+  WorkStatus as WS,
+} from '../types'
+
+/**
+ * 获取工作流确定性时间戳。
+ *
+ * Temporal TypeScript SDK 会拦截 Date.now() 并返回工作流上下文的
+ * 确定性时间，因此在此处直接使用 Date.now() 是安全的。
+ * 参考: https://docs.temporal.io/dev/typescript/determinism
+ */
+function workflowNow(): number {
+  return Date.now()
+}
+
+/**
+ * 获取 ISO 格式时间戳（确定性）。
+ * new Date().toISOString() 同样被 Temporal SDK 拦截。
+ */
+function workflowISOTime(): string {
+  return new Date(workflowNow()).toISOString()
+}
 
 // 仅引入类型，实际实现由 Worker 注册
 type AllActivities = SeedanceActivities &
@@ -35,9 +59,7 @@ type AllActivities = SeedanceActivities &
  * @param params 视频生成参数（含 workId / userId / 提示词 / 模型配置 / 幂等键）
  * @returns 生成结果（成品 URL / 状态 / 消耗积分）
  */
-export async function videoGenerationWorkflow(
-  params: VideoGenParams,
-): Promise<VideoGenResult> {
+export async function videoGenerationWorkflow(params: VideoGenParams): Promise<VideoGenResult> {
   // Activity 代理配置：统一的重试策略与超时
   // 注意：proxyActivities 必须在 workflow 函数内部调用，不能在模块顶层调用
   const activities = proxyActivities<AllActivities>({
@@ -126,7 +148,7 @@ export async function videoGenerationWorkflow(
     )
   }
 
-  result.durationMs = Date.now() - startedAt
+  result.durationMs = workflowNow() - startedAt
   return result
 }
 
@@ -171,7 +193,7 @@ async function handleSuccess(
         status: WS.FAILED,
         consumedCredits: 0,
         error: `内容审核未通过：${moderation.reason}`,
-        durationMs: Date.now() - startedAt,
+        durationMs: workflowNow() - startedAt,
       }
     }
   }
@@ -191,7 +213,7 @@ async function handleSuccess(
     coverUrl: signedCoverUrl,
     coverKey: thumbnailKey,
     consumedPoints: estimatedCredits,
-    completedAt: new Date().toISOString(),
+    completedAt: workflowISOTime(),
   })
 
   // 7. 通知用户
@@ -280,7 +302,7 @@ async function handleTimeout(
   await activities.updateWorkStatus(workId, WS.TIMEOUT, {
     stage: 'timeout',
     providerTaskId: seedanceTaskId,
-    timedOutAt: new Date().toISOString(),
+    timedOutAt: workflowISOTime(),
   })
 
   // 4. 通知用户

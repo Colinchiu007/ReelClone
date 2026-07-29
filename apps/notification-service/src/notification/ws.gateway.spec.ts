@@ -9,10 +9,12 @@
  */
 import { JwtService } from '@nestjs/jwt'
 import type { Socket } from 'socket.io'
-import {
-  NotificationGateway,
-  userRoom,
-} from './ws.gateway'
+import { NotificationGateway, userRoom } from './ws.gateway'
+
+/** Redis mock */
+const redisClient = {
+  exists: jest.fn().mockResolvedValue(0),
+} as unknown as jest.Mocked<import('ioredis').Redis>
 
 /** 构造一个 socket mock，仅包含本测试所需字段 */
 function createSocketMock(handshakeQuery: Record<string, unknown> = {}): {
@@ -47,7 +49,7 @@ describe('NotificationGateway', () => {
       // 其它方法不需要
     } as unknown as jest.Mocked<JwtService>
 
-    gateway = new NotificationGateway(jwtService)
+    gateway = new NotificationGateway(jwtService, redisClient)
 
     // 通过反射注入 @WebSocketServer()
     serverMock = {
@@ -76,7 +78,10 @@ describe('NotificationGateway', () => {
       const { socket, emit, disconnect } = createSocketMock({})
       gateway.handleConnection(socket)
 
-      expect(emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.stringContaining('缺少') }))
+      expect(emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.stringContaining('缺少') }),
+      )
       expect(disconnect).toHaveBeenCalledWith(true)
     })
 
@@ -87,7 +92,10 @@ describe('NotificationGateway', () => {
       const { socket, emit, disconnect } = createSocketMock({ token: 'bad-token' })
       gateway.handleConnection(socket)
 
-      expect(emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.stringContaining('未授权') }))
+      expect(emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.stringContaining('未授权') }),
+      )
       expect(disconnect).toHaveBeenCalledWith(true)
     })
 
@@ -100,36 +108,36 @@ describe('NotificationGateway', () => {
       expect(disconnect).toHaveBeenCalledWith(true)
     })
 
-    it('token 有效（含 userId） → join user:userId 房间，data.userId 被写入', () => {
+    it('token 有效（含 userId） → join user:userId 房间，data.userId 被写入', async () => {
       jwtService.verify.mockReturnValueOnce({
         userId: 'user-1',
         openid: 'wx-openid',
       } as never)
       const { socket, join } = createSocketMock({ token: 'good-token' })
-      gateway.handleConnection(socket)
+      await gateway.handleConnection(socket)
 
       expect(join).toHaveBeenCalledWith(userRoom('user-1'))
       expect((socket.data as { userId: string }).userId).toBe('user-1')
     })
 
-    it('token 有效（payload 用 sub 而非 userId） → 也能正确提取 userId', () => {
+    it('token 有效（payload 用 sub 而非 userId） → 也能正确提取 userId', async () => {
       jwtService.verify.mockReturnValueOnce({ sub: 'sub-1' } as never)
       const { socket, join } = createSocketMock({ token: 'good-token' })
-      gateway.handleConnection(socket)
+      await gateway.handleConnection(socket)
 
       expect(join).toHaveBeenCalledWith(userRoom('sub-1'))
     })
 
-    it('token 是数组形式（query 中重复 token） → 取第一个', () => {
+    it('token 是数组形式（query 中重复 token） → 取第一个', async () => {
       jwtService.verify.mockReturnValueOnce({ userId: 'user-1' } as never)
       const { socket, join } = createSocketMock({ token: ['good-token', 'extra'] })
-      gateway.handleConnection(socket)
+      await gateway.handleConnection(socket)
 
       expect(jwtService.verify).toHaveBeenCalledWith('good-token')
       expect(join).toHaveBeenCalledWith(userRoom('user-1'))
     })
 
-    it('token 通过 socket.handshake.auth 提供 → 也能识别', () => {
+    it('token 通过 socket.handshake.auth 提供 → 也能识别', async () => {
       jwtService.verify.mockReturnValueOnce({ userId: 'user-1' } as never)
       // query 中没有 token，但 auth 中有
       const socket = {
@@ -140,7 +148,7 @@ describe('NotificationGateway', () => {
         disconnect: jest.fn(),
         join: jest.fn(),
       } as unknown as Socket
-      gateway.handleConnection(socket)
+      await gateway.handleConnection(socket)
 
       expect(jwtService.verify).toHaveBeenCalledWith('auth-token')
     })
@@ -226,12 +234,10 @@ describe('NotificationGateway', () => {
   describe('server 未就绪', () => {
     it('server 为 undefined → 不抛异常，仅记录日志', () => {
       // 重新构造 gateway 但不注入 server
-      const freshGateway = new NotificationGateway(jwtService)
+      const freshGateway = new NotificationGateway(jwtService, redisClient)
       // server 字段保持 undefined
 
-      expect(() =>
-        freshGateway.pushToUser('u1', 'notification', { foo: 'bar' }),
-      ).not.toThrow()
+      expect(() => freshGateway.pushToUser('u1', 'notification', { foo: 'bar' })).not.toThrow()
     })
   })
 })

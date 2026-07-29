@@ -27,12 +27,20 @@ import type { JwtPayload } from './jwt.service'
 /** Redis 中存放 jti 黑名单的 key 前缀（与 AuthService.logout 一致） */
 export const BLACKLIST_KEY_PREFIX = 'auth:blacklist:'
 
+/** Redis 中存放"改密后踢下线"标记的 key 前缀（与 UserService.changePassword 一致） */
+export const PASSWORD_CHANGED_KEY_PREFIX = 'user:password-changed:'
+
 /**
  * 构造黑名单 Redis key
  * 注意：RedisModule 配置了 keyPrefix（默认 'reelclone:'），所以这里不再重复加前缀
  */
 export function buildBlacklistKey(jti: string): string {
   return `${BLACKLIST_KEY_PREFIX}${jti}`
+}
+
+/** 构造"改密踢下线"Redis key */
+export function buildPasswordChangedKey(userId: string): string {
+  return `${PASSWORD_CHANGED_KEY_PREFIX}${userId}`
 }
 
 @Injectable()
@@ -59,15 +67,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
     // 检查 jti 是否在黑名单
     if (payload.jti) {
-      const isBlacklisted = await this.redis.exists(
-        buildBlacklistKey(payload.jti),
-      )
+      const isBlacklisted = await this.redis.exists(buildBlacklistKey(payload.jti))
       if (isBlacklisted) {
-        throw new BusinessException(
-          ErrorCode.UNAUTHORIZED,
-          '登录已失效，请重新登录',
-          undefined,
-        )
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, '登录已失效，请重新登录', undefined)
+      }
+    }
+
+    // 检查"改密踢下线"标记：用户修改密码后，旧 Token 立即失效
+    if (payload.sub) {
+      const passwordChanged = await this.redis.exists(buildPasswordChangedKey(payload.sub))
+      if (passwordChanged) {
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, '密码已修改，请重新登录', undefined)
       }
     }
 
