@@ -1,0 +1,169 @@
+# Checklist
+
+## 阶段一：项目基础设施
+- [ ] Nx Monorepo 工作区可运行 `npx nx run-many --target=lint` 通过
+- [ ] Docker Compose 启动 PostgreSQL + Redis 后 `psql` 可连接 4 个数据库（main/billing/template/benchmark）
+- [ ] `npm run bootstrap` 脚本可一键启动本地环境
+- [ ] GitHub Actions CI 流水线在 PR 时触发，lint + typecheck + test + build 全部通过
+- [ ] `.env.example` 包含所有必需环境变量（数据库、Redis、OSS、微信、Seedance 等）
+
+## 阶段二：后端共享库
+- [ ] `libs/common` 提供统一响应格式 `ApiResponse<T>` 和 `PaginatedResponse<T>`
+- [ ] `libs/common` 提供错误码枚举 `ErrorCode`（至少包含 spec 中列出的 11 个错误码）
+- [ ] `libs/common` 提供 HTTP 拦截器自动包装响应并注入 `traceId`
+- [ ] `libs/common` 提供全局异常过滤器将业务异常转为统一响应
+- [ ] `libs/common` 提供 JWT 守卫和 `@CurrentUser()` 装饰器
+- [ ] `libs/common` 提供基于 Redis 的限流守卫
+- [x] `libs/database` 定义 13 个核心实体（User、Work、Asset、AvatarGroup、Benchmark、Template、Favorite、Package、UserPackage、Order、PointTransaction、SmsCode、GenerationTask）
+- [x] `libs/database` 实体关系映射正确（一对多、多对多）
+- [x] `npm run migration:run` 成功创建所有表（2026-07-29 验证：main 库 10 表 + billing 1 表 + template 2 表 + benchmark 1 表 = 14 业务表）
+- [ ] `libs/ai` Seedance Provider 支持 Mock 模式（返回模拟视频任务）
+- [ ] `libs/ai` LLM 适配器支持 Mock 模式（返回模板文案）
+- [ ] `libs/ai` 视频下载器支持 5 平台（抖音/小红书/B站/快手/微博）+ Mock
+- [ ] `libs/ai` 视频分析器并行执行 4 个维度（场景/ASR/OCR/VLM）并 LLM 汇总
+- [ ] `libs/temporal` 视频生成工作流在 Mock 模式下端到端跑通（提交→轮询→后处理→结算→通知）
+- [ ] `libs/temporal` 对标解析工作流在 Mock 模式下端到端跑通
+- [ ] `libs/temporal` 工作流支持幂等键 + 重试策略 + 超时取消
+- [ ] `libs/oss` 可签发 STS Token 并上传文件
+
+## 阶段三：后端微服务
+- [ ] auth-service: `POST /api/v1/auth/wechat-login` 可完成微信登录并返回 JWT
+- [ ] auth-service: `POST /api/v1/auth/refresh-token` 可刷新过期 Token
+- [ ] auth-service: `POST /api/v1/auth/logout` 将 JWT 加入黑名单
+- [ ] user-service: `GET /api/v1/users/me` 返回当前用户信息
+- [ ] user-service: `PUT /api/v1/users/me` 可更新用户信息
+- [ ] user-service: `POST /api/v1/users/bind-mobile` 可绑定手机号（含短信验证）
+- [ ] user-service: `POST /api/v1/sms/send` 发送短信验证码（限流 60s/次）
+- [x] asset-service: `POST /api/v1/assets/upload-token` 返回 OSS STS Token（含表单 Policy/Signature + 预生成 OSS Key）
+- [x] asset-service: `GET /api/v1/assets` 返回资产列表（分页 + type/keyword/avatarGroupId 筛选）
+- [x] asset-service: `POST /api/v1/assets` 创建资产记录（含形象组归属校验 + assetCount 递增）
+- [x] asset-service: `DELETE /api/v1/assets/:id` 删除资产（OSS 删除容错 + assetCount 递减）
+- [x] asset-service: `POST /api/v1/avatar-groups` 创建真人形象组（同名校验 + 授权书字段）
+- [x] asset-service: `DELETE /api/v1/avatar-groups/:id` 级联删除组内素材（OSS + DB + 软删除形象组）
+- [ ] workbench-service: `POST /api/v1/generations` 提交任务（幂等键防重复）
+- [ ] workbench-service: `GET /api/v1/generations/:id` 返回任务状态和详情
+- [ ] workbench-service: `POST /api/v1/generations/:id/cancel` 取消任务并退款
+- [ ] workbench-service: 提交任务时调用 billing-service 冻结积分
+- [ ] workbench-service: 任务完成后通过 Temporal 工作流结算积分
+- [ ] workbench-service: `GET /api/v1/works` 返回作品列表
+- [x] benchmark-service: `POST /api/v1/benchmarks` 提交解析任务（含幂等键 + 平台识别 + 积分冻结 + Temporal 工作流启动 + 23 个单测全部通过 + tsc 编译无错误）
+- [x] benchmark-service: 解析完成后返回结构化报告（风格/镜头/文案/卖点）— 通过 Temporal 工作流编排下载→拆解→汇总，analysisResult/shots 字段存储结构化报告
+- [ ] template-service: `GET /api/v1/templates` 返回模板列表（分页 + 筛选）
+- [ ] template-service: `POST /api/v1/templates/:id/favorite` 收藏模板
+- [ ] template-service: `GET /api/v1/templates/favorites` 返回我的收藏
+- [ ] template-service: `POST /api/v1/users/industry-preferences` 绑定行业偏好
+- [ ] billing-service: `GET /api/v1/points/balance` 返回积分余额
+- [ ] billing-service: `GET /api/v1/points/transactions` 返回积分流水
+- [ ] billing-service: 积分冻结/结算/释放操作幂等（同一 workId 仅操作一次）
+- [ ] billing-service: Formance Ledger 复式记账（available → reserved → spent）
+- [ ] order-service: `GET /api/v1/packages` 返回套餐列表
+- [ ] order-service: `POST /api/v1/orders` 创建订单
+- [ ] order-service: `POST /api/v1/orders/:id/pay` 返回微信支付参数
+- [ ] order-service: `POST /api/v1/webhooks/wechat-pay` 支付回调幂等处理
+- [ ] order-service: 支付成功后调用 billing-service 增加积分
+- [x] notification-service: WebSocket `/ws?token=<jwt>` 可推送任务进度（采用单连接/用户 + 房间广播模式，事件包含 workId 供客户端过滤，等价于 spec 中按 taskId 推送的功能）
+- [x] notification-service: `GET /api/v1/notifications` 返回通知列表（含分页 + type/isRead 筛选 + unread-count + read/read-all）
+- [x] notification-service: 通过 Redis Pub/Sub 接收其他服务事件（订阅 notification:task-progress / task-completed / task-failed / system 四个频道）
+- [ ] media-worker: Temporal Worker 可执行 FFmpeg Activity（转码/封面/压缩）
+- [ ] media-worker: 内容安全审核 Activity（MVP 关键词过滤）
+- [ ] 所有微服务提供 `/health` 健康检查端点
+
+## 阶段四：微信小程序前端
+- [ ] `npm run dev:weapp` 可在微信开发者工具运行无报错
+- [ ] `app.config.ts` 配置 4 个 TabBar + 4 个分包 + 预加载规则
+- [ ] SCSS 全局变量包含深色主题色板 + 8 种渐变色 + 间距/圆角/字号规范
+- [ ] `GradientIcon` 组件支持 8 种渐变色（蓝紫/粉红/青蓝/绿青/橙黄/紫蓝/青粉/粉黄）
+- [ ] `EmptyState` / `LoadingState` / `ErrorState` 状态组件可用
+- [ ] `WorkCard` 作品卡片组件显示封面、标题、状态、创建时间
+- [ ] `TemplateCard` 模板卡片组件显示封面、标题、热度、使用人数
+- [ ] `CreditBadge` 积分徽章实时显示余额
+- [ ] `MediaUploader` 支持图片/视频选择和上传
+- [ ] `RequestManager` 并发限制为 8（小程序限制内留余量）
+- [ ] Token 拦截器自动在 401 时刷新并重试请求
+- [ ] `useAuth` Hook 管理登录状态
+- [ ] `useCredits` Hook 实时显示积分余额
+- [ ] `useWebSocket` Hook 接收任务进度推送
+- [ ] 首页（pages/home）八宫格入口 + 瀑布流推荐，截图还原度 ≥90%
+- [ ] 推荐页（pages/discover）分类模板推荐
+- [ ] 对标解析页（pages/benchmark）链接输入 + 历史
+- [ ] 我的页（pages/profile）用户信息 + 快捷菜单
+- [ ] 文本生成工作台（subpackages/workbench/text-gen）完整
+- [ ] 图片生成工作台（subpackages/workbench/image-gen）反推 + 图生图
+- [ ] 文生视频工作台（subpackages/workbench/video-gen/text-to-video）参数配置完整
+- [ ] 图生视频首帧工作台（subpackages/workbench/video-gen/first-frame）完整
+- [ ] 图生视频首尾帧工作台（subpackages/workbench/video-gen/first-last-frame）完整
+- [ ] 编辑视频工作台（subpackages/workbench/video-gen/edit-video）完整
+- [ ] 延长视频工作台（subpackages/workbench/video-gen/extend-video）完整
+- [ ] 作品详情页进度条 + WebSocket 实时更新
+- [ ] 我的作品列表页（subpackages/workbench/work-list）完整
+- [ ] 普通资产列表页（subpackages/asset/asset-list）完整
+- [ ] 真人形象组列表页（subpackages/asset/avatar-group）完整
+- [ ] 新建真人形象组页（subpackages/asset/avatar-group-create）含授权书上传
+- [ ] 上传素材弹窗（subpackages/asset/upload）支持图片/视频
+- [ ] 订阅计划页（subpackages/billing/subscribe）套餐对比 + 购买
+- [ ] 我的套餐页（subpackages/billing/my-package）当前套餐 + 剩余积分
+- [ ] 消费记录页（subpackages/billing/transactions）流水列表
+- [ ] 我的订单页（subpackages/billing/orders）订单列表 + 状态
+- [ ] 设置主页（subpackages/settings/settings）账户 + 内容管理
+- [ ] 绑定手机号弹窗（subpackages/settings/bind-mobile）含验证码
+- [ ] 修改密码弹窗（subpackages/settings/change-password）两种方式
+- [ ] 关于页（subpackages/settings/about）ICP 备案号 `粤ICP备2026062569号`
+- [ ] 隐私协议页完整展示
+- [ ] 灵感广场页行业偏好绑定弹窗 + 模板瀑布流
+- [ ] 模板详情页完整展示
+- [ ] 我的模板页空状态 + 收藏列表
+
+## 阶段五：集成与测试
+- [ ] E2E 流程：微信登录 → 浏览首页 → 提交生成 → 查看作品 全流程跑通
+- [ ] E2E 流程：素材上传 → 生成视频 → 下载作品 全流程跑通
+- [ ] E2E 流程：对标解析 → 基于拆解生成新视频 全流程跑通
+- [ ] E2E 流程：购买套餐 → 积分到账 → 生成消费 全流程跑通
+- [ ] E2E 流程：真人形象组 → 授权 → 生成数字人 全流程跑通
+- [ ] 后端单元测试覆盖率 ≥80%
+- [ ] `npm run test:unit` 全部通过
+- [ ] `npm run test:integration` 全部通过
+- [ ] API 集成测试覆盖关键接口（Supertest）
+- [ ] Temporal 工作流集成测试通过
+- [ ] WebSocket 集成测试通过
+- [ ] Pino 结构化日志输出 JSON 格式含 traceId
+- [ ] Prometheus 指标端点 `/metrics` 可访问
+- [ ] OpenTelemetry 追踪数据发送到 Jaeger
+- [ ] 所有微服务提供 `/health` 健康检查端点
+- [ ] 全栈可通过 `docker-compose up` 一键启动
+- [ ] 各服务 Dockerfile 构建成功
+- [ ] NestJS Swagger UI 可访问 `/api-docs`
+- [ ] OpenAPI 3.0 JSON 可导出
+- [ ] 前端类型从 OpenAPI 自动生成
+
+## 阶段六：质量保障
+- [x] 6 大专项检查无 CRITICAL 问题（异常处理/权限边界/事务一致性/边界值/代码风格/硬编码）— 2026-07-29 验证通过：9 项问题全部修复
+- [x] 无 API Key 硬编码（所有密钥走环境变量）— 2026-07-29 验证通过：全项目扫描无硬编码 API Key
+- [x] 无 SQL 注入风险（TypeORM 参数化查询）— 2026-07-29 验证通过：生产代码全用参数化查询
+- [x] 无 XSS 风险（小程序 rich-text 转义）— 2026-07-29 验证通过：未使用 dangerouslySetInnerHTML
+- [x] 无 N+1 查询问题（使用 relations 或 join）— 2026-07-29 验证通过：使用 innerJoinAndSelect 一次查询
+- [x] 缓存策略合理（积分余额、任务状态、模板列表）— 2026-07-29 验证通过：关键场景已加 Redis 缓存；MEDIUM 优化项列入后续迭代
+- [x] 小程序服务类目匹配（AI 服务-深度合成 + 工具-效率）— 详见 `01-docs/11-小程序审核准备文档.md`
+- [x] 隐私协议完整（收集信息类型、用途、第三方分享）— 补充 UnionID + 5 项 SDK 明细 + 数据存储保护
+- [x] 用户协议完整（虚拟物品说明、退款政策）— 新建独立页面，9 项必备条款 + 联系方式
+- [x] ICP 备案号在关于页展示 — 修正占位符为 `粤ICP备2026062569号`
+- [x] 内容安全审核接入（生成结果过审）— generation.service 启用 enableModeration，media.activities 实现关键词过滤
+- [x] README.md 包含项目说明、启动指南、架构图
+- [x] CHANGELOG.md 记录所有版本变更
+- [x] API 文档与代码一致 — `docs/API.md` + Swagger UI
+- [x] 架构文档与实现一致 — `01-docs/10-代码审查报告.md` + `01-docs/11-小程序审核准备文档.md`
+
+## Spec 核心场景验证
+- [ ] **微信登录流**: 首次微信登录创建用户并签发 JWT
+- [ ] **Token 刷新**: 401 时自动刷新并重试
+- [ ] **生成任务成功**: 提交→冻结→Temporal→完成→结算→WebSocket 推送
+- [ ] **生成任务失败退款**: 失败→释放积分→WebSocket 推送
+- [ ] **积分幂等**: 重复提交不重复扣分
+- [ ] **支付回调幂等**: 重复回调不重复到账
+- [x] **素材 OSS 直传**: STS Token + 直传 + 落库（asset-service 实现 upload-token 签发 + 资产 CRUD，25 个单测通过）
+- [x] **对标解析**: 链接→下载→拆解→报告（benchmark-service 已实现 POST /api/v1/benchmarks 提交 + Temporal 工作流编排 + 23 个单测通过）
+- [ ] **模板收藏**: 收藏→我的模板列表
+- [x] **WebSocket 实时推送**: 任务进度实时更新（notification-service WS 网关已实现 task:progress/completed/failed 事件推送）
+- [x] **离线兜底**: 订阅消息通知（WechatSubscribeService 已实现 Mock 模式，配置 APPID/SECRET 后切真实模式）
+- [ ] **真人形象级联删除**: 删组→组内素材标记 DELETED
+- [ ] **内容安全审核**: 生成结果过审，不通过则退款
+- [ ] **可观测性**: traceId 贯穿日志/指标/追踪

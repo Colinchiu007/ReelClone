@@ -1,0 +1,90 @@
+// MediaUploader 媒体上传组件样式
+// variables/mixins 由 sass.resource 自动注入
+
+.media-uploader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.media-uploader__item,
+.media-uploader__add {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: $radius-md;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.media-uploader__item {
+  background-color: $bg-tertiary;
+}
+
+.media-uploader__thumb {
+  width: 100%;
+  height: 100%;
+}
+
+.media-uploader__thumb--placeholder {
+  @include flex-center;
+  background-color: $bg-tertiary;
+}
+
+.media-uploader__type-tag {
+  font-size: $font-xs;
+  color: $text-tertiary;
+  padding: $spacing-xs $spacing-sm;
+  background-color: $bg-elevated;
+  border-radius: $radius-sm;
+}
+
+.media-uploader__delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  @include flex-center;
+  background-color: rgba($bg-primary, 0.7);
+  border-radius: $radius-full;
+  color: $text-primary;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.media-uploader__add {
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed $border-secondary;
+  background-color: $bg-secondary;
+  color: $text-tertiary;
+  gap: $spacing-xs;
+}
+
+.media-uploader__plus {
+  font-size: 48px;
+  line-height: 1;
+  color: $text-secondary;
+}
+
+.media-uploader__label {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.media-uploader__spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid $border-primary;
+  border-top-color: $brand-secondary;
+  border-radius: $radius-full;
+  animation: media-uploader-spin 0.9s linear infinite;
+}
+
+@keyframes media-uploader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

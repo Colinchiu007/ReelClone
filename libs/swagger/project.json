@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "swagger",
+  "projectType": "library",
+  "sourceRoot": "libs/swagger/src",
+  "prefix": "reelclone",
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint libs/swagger/src --ext .ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/swagger/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/swagger/jest.config.js --passWithNoTests",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/libs/swagger"]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/swagger/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    }
+  },
+  "tags": ["type:shared", "scope:docs"]
+}

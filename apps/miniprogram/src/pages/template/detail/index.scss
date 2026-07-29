@@ -1,0 +1,255 @@
+// 模板详情页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.tpl-detail {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  // -------------------- 顶部导航 --------------------
+  &__nav {
+    position: sticky;
+    top: 0;
+    z-index: $z-index-sticky;
+    @include flex-between;
+    height: 88px;
+    padding: 0 $spacing-md;
+    background-color: $bg-primary;
+    border-bottom: 1px solid $border-primary;
+  }
+
+  &__back {
+    width: 56px;
+    height: 56px;
+    line-height: 56px;
+    text-align: center;
+    font-size: $font-xl;
+    color: $text-primary;
+  }
+
+  &__nav-title {
+    flex: 1;
+    text-align: center;
+    font-size: $font-md;
+    font-weight: 600;
+    color: $text-primary;
+    @include ellipsis(1);
+    padding: 0 $spacing-sm;
+  }
+
+  &__nav-fav {
+    width: 56px;
+    height: 56px;
+    line-height: 56px;
+    text-align: center;
+    font-size: 36px;
+    color: $text-secondary;
+
+    &--on {
+      color: #ff4d6d;
+    }
+  }
+
+  // -------------------- 滚动区 --------------------
+  &__scroll {
+    flex: 1;
+    height: 0;
+  }
+
+  // -------------------- 视频区 --------------------
+  &__video {
+    width: 100%;
+    background-color: #000;
+    aspect-ratio: 9 / 16;
+    max-height: 75vh;
+  }
+
+  &__video-el {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__video-cover {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__video-placeholder {
+    width: 100%;
+    height: 100%;
+    @include flex-center;
+    color: $text-tertiary;
+    font-size: $font-sm;
+  }
+
+  // -------------------- 信息区 --------------------
+  &__info {
+    padding: $spacing-md;
+    @include flex-column;
+    gap: $spacing-md;
+  }
+
+  &__title {
+    font-size: $font-xl;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.4;
+  }
+
+  &__author {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__platform {
+    padding: $spacing-xs $spacing-sm;
+    background: $brand-gradient;
+    border-radius: $radius-sm;
+    font-size: $font-xs;
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  &__author-name {
+    font-size: $font-sm;
+    color: $text-secondary;
+  }
+
+  &__stats {
+    @include flex-start;
+    gap: $spacing-lg;
+    padding: $spacing-sm 0;
+  }
+
+  &__stat {
+    @include flex-column;
+    gap: $spacing-xs;
+  }
+
+  &__stat-label {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+
+  &__stat-value {
+    font-size: $font-md;
+    font-weight: 700;
+    color: $text-primary;
+
+    &--accent {
+      color: $brand-secondary;
+    }
+  }
+
+  &__tags {
+    @include flex-start;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+  }
+
+  &__tag {
+    padding: $spacing-xs $spacing-sm;
+    background-color: $bg-secondary;
+    border-radius: $radius-full;
+    font-size: $font-xs;
+    color: $brand-secondary;
+  }
+
+  &__desc {
+    padding: $spacing-md;
+    background-color: $bg-secondary;
+    border-radius: $radius-md;
+    font-size: $font-sm;
+    color: $text-secondary;
+    line-height: 1.6;
+  }
+
+  // -------------------- 操作区 --------------------
+  &__actions {
+    @include flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+    padding-bottom: calc(#{$spacing-lg} + env(safe-area-inset-bottom));
+  }
+
+  &__btn {
+    @include flex-center;
+    height: 88px;
+    border-radius: $radius-full;
+    font-size: $font-md;
+    font-weight: 600;
+    transition: opacity 0.18s ease;
+
+    &--primary {
+      flex: 1;
+      background: $brand-gradient;
+      color: $text-primary;
+      box-shadow: $shadow-glow;
+    }
+
+    &--outline {
+      flex-shrink: 0;
+      padding: 0 $spacing-lg;
+      background-color: transparent;
+      border: 1px solid $brand-secondary;
+      color: $brand-secondary;
+    }
+
+    &--ghost {
+      flex-shrink: 0;
+      padding: 0 $spacing-lg;
+      background-color: $bg-secondary;
+      color: #ff4d6d;
+    }
+  }
+
+  // -------------------- 相关推荐 --------------------
+  &__related {
+    padding: $spacing-md 0 $spacing-lg;
+  }
+
+  &__related-header {
+    padding: 0 $spacing-md $spacing-sm;
+  }
+
+  &__related-title {
+    font-size: $font-lg;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__related-scroll {
+    width: 100%;
+    white-space: nowrap;
+    padding: $spacing-sm $spacing-md;
+  }
+
+  &__related-item {
+    display: inline-block;
+    width: 200px;
+    margin-right: $spacing-md;
+    vertical-align: top;
+    @include flex-column;
+    gap: $spacing-xs;
+  }
+
+  &__related-cover {
+    width: 200px;
+    height: 266px;
+    border-radius: $radius-md;
+    background-color: $bg-tertiary;
+
+    &--placeholder {
+      @include flex-center;
+      color: $text-tertiary;
+      font-size: $font-sm;
+    }
+  }
+
+  &__related-name {
+    font-size: $font-sm;
+    color: $text-primary;
+    @include ellipsis(1);
+  }
+}

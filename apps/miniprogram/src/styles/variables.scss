@@ -1,0 +1,79 @@
+// ============================================================
+// ReelClone SCSS 全局变量定义
+// 该文件由 Taro sass.resource 自动注入到每个 SCSS 文件
+// ============================================================
+
+// -------------------- 品牌色（蓝紫渐变） --------------------
+$brand-primary: #4F46E5;
+$brand-secondary: #7C3AED;
+$brand-gradient: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+$brand-gradient-light: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+
+// -------------------- 背景色（深色主题） --------------------
+$bg-primary: #0A0B1A;     // 主背景
+$bg-secondary: #15162B;   // 卡片背景
+$bg-tertiary: #1F2037;    // 弹窗/输入框背景
+$bg-elevated: #2A2B45;    // 悬浮元素
+
+// -------------------- 文字色 --------------------
+$text-primary: #FFFFFF;       // 主文字
+$text-secondary: #B4B5CC;     // 次要文字
+$text-tertiary: #666680;      // 辅助文字
+$text-disabled: #3F4055;      // 禁用文字
+
+// -------------------- 边框色 --------------------
+$border-primary: #2A2B45;
+$border-secondary: #3F4055;
+
+// -------------------- 状态色 --------------------
+$success: #10B981;
+$warning: #F59E0B;
+$error: #EF4444;
+$info: #3B82F6;
+
+// -------------------- 8 种渐变色（用于 GradientIcon） --------------------
+$gradient-1: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);  // 文本生成
+$gradient-2: linear-gradient(135deg, #F093FB 0%, #F5576C 100%);  // 图片生成
+$gradient-3: linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%);  // 视频生成
+$gradient-4: linear-gradient(135deg, #43E97B 0%, #38F9D7 100%);  // 3D建模
+$gradient-5: linear-gradient(135deg, #FA709A 0%, #FEE140 100%);  // 编辑视频
+$gradient-6: linear-gradient(135deg, #30CFD0 0%, #330867 100%);  // 延长视频
+$gradient-7: linear-gradient(135deg, #A8EDEA 0%, #FED6E3 100%);  // 视频对标
+$gradient-8: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);  // 灵感模板
+
+// -------------------- 间距（8px 基准） --------------------
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+
+// -------------------- 圆角 --------------------
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+$radius-full: 9999px;
+
+// -------------------- 阴影 --------------------
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+$shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+
+// -------------------- 字号（rpx，按 iPhone 6 750 设计稿） --------------------
+$font-xs: 20px;
+$font-sm: 24px;
+$font-md: 28px;
+$font-lg: 32px;
+$font-xl: 36px;
+$font-2xl: 44px;
+$font-3xl: 56px;
+
+// -------------------- 层级 --------------------
+$z-index-base: 1;
+$z-index-dropdown: 100;
+$z-index-sticky: 200;
+$z-index-modal: 1000;
+$z-index-toast: 2000;

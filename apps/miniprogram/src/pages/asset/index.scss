@@ -1,0 +1,223 @@
+// 普通资产列表页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.asset-page {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  @include flex-column;
+  padding-bottom: 140px; // 为悬浮按钮留出空间
+}
+
+// -------------------- 顶部 Tab --------------------
+
+.asset-page__top-tabs {
+  display: flex;
+  background-color: $bg-secondary;
+  @include hairline-bottom;
+}
+
+.asset-page__top-tab {
+  flex: 1;
+  padding: $spacing-md 0;
+  text-align: center;
+  font-size: $font-md;
+  color: $text-tertiary;
+  position: relative;
+
+  &--active {
+    color: $text-primary;
+    font-weight: 600;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 48px;
+      height: 3px;
+      background: $brand-gradient;
+      border-radius: $radius-full;
+    }
+  }
+}
+
+// -------------------- 子 Tab --------------------
+
+.asset-page__sub-tabs {
+  display: flex;
+  padding: $spacing-sm $spacing-lg;
+  gap: $spacing-md;
+}
+
+.asset-page__sub-tab {
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-sm;
+  color: $text-secondary;
+  background-color: $bg-secondary;
+  border-radius: $radius-full;
+  transition: all 0.18s ease;
+
+  &--on {
+    background: $brand-gradient;
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
+// -------------------- 筛选栏 --------------------
+
+.asset-page__filter {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-lg;
+  gap: $spacing-sm;
+}
+
+.asset-page__type-filters {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.asset-page__type-filter {
+  display: inline-block;
+  padding: $spacing-xs $spacing-md;
+  margin-right: $spacing-sm;
+  font-size: $font-sm;
+  color: $text-secondary;
+  background-color: $bg-secondary;
+  border-radius: $radius-full;
+  transition: all 0.18s ease;
+
+  &--on {
+    background-color: $bg-elevated;
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
+.asset-page__industry-btn {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-md;
+  font-size: $font-sm;
+  color: $text-secondary;
+  background-color: $bg-secondary;
+  border-radius: $radius-full;
+  flex-shrink: 0;
+
+  &--on {
+    background: $brand-gradient;
+    color: $text-primary;
+  }
+}
+
+.asset-page__industry-arrow {
+  font-size: $font-xs;
+}
+
+.asset-page__industry-panel {
+  padding: $spacing-md $spacing-lg;
+  background-color: $bg-secondary;
+  @include hairline-bottom;
+}
+
+// -------------------- 资产列表 --------------------
+
+.asset-page__list {
+  flex: 1;
+  padding: $spacing-sm $spacing-lg $spacing-md;
+}
+
+.asset-page__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.asset-card {
+  width: calc((100% - 16px) / 3);
+  @include flex-column;
+}
+
+.asset-card__thumb {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; // 1:1 正方形
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.asset-card__placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+}
+
+.asset-card__icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.asset-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-card__type-badge {
+  position: absolute;
+  bottom: $spacing-xs;
+  left: $spacing-xs;
+  padding: 2px $spacing-xs;
+  background-color: rgba($bg-primary, 0.7);
+  border-radius: $radius-sm;
+  font-size: 18px;
+  color: $text-secondary;
+}
+
+.asset-card__name {
+  margin-top: $spacing-xs;
+  font-size: $font-xs;
+  color: $text-secondary;
+  @include ellipsis(1);
+  text-align: center;
+}
+
+// -------------------- 加载完提示 --------------------
+
+.asset-page__end {
+  padding: $spacing-lg 0;
+  text-align: center;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+// -------------------- 悬浮上传按钮 --------------------
+
+.asset-page__fab {
+  position: fixed;
+  right: $spacing-lg;
+  bottom: calc(48px + constant(safe-area-inset-bottom));
+  bottom: calc(48px + env(safe-area-inset-bottom));
+  width: 104px;
+  height: 104px;
+  @include flex-center;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  box-shadow: $shadow-lg;
+  z-index: $z-index-sticky;
+}
+
+.asset-page__fab-icon {
+  font-size: 56px;
+  color: $text-primary;
+  line-height: 1;
+}

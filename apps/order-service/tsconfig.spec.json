@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../libs/common/src/**/*.ts",
+    "../../libs/database/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "../../libs/common/src/**/*.spec.ts",
+    "../../libs/database/src/**/*.spec.ts"
+  ]
+}

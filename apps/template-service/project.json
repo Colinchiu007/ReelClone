@@ -1,0 +1,54 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "template-service",
+  "sourceRoot": "apps/template-service/src",
+  "projectType": "application",
+  "prefix": "reelclone",
+  "tags": ["type:app", "scope:template-service"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint apps/template-service/src --ext .ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p apps/template-service/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/template-service/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx apps/template-service/src/main.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsx watch apps/template-service/src/main.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config apps/template-service/jest.config.js",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/apps/template-service"]
+    }
+  }
+}

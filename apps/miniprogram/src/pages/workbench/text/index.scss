@@ -1,0 +1,234 @@
+// 文本生成工作台样式
+// variables/mixins 由 sass.resource 自动注入
+
+.text-wb {
+  @include flex-column;
+  min-height: 100vh;
+  padding: $spacing-md;
+  padding-bottom: calc(#{$spacing-xl} + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+
+  &__cost {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    margin-left: $spacing-sm;
+  }
+
+  // -------------------- Tab 切换 --------------------
+  &__tabs {
+    @include flex-start;
+    background-color: $bg-secondary;
+    border-radius: $radius-full;
+    padding: $spacing-xs;
+    margin-bottom: $spacing-md;
+  }
+
+  &__tab {
+    flex: 1;
+    text-align: center;
+    padding: $spacing-sm 0;
+    font-size: $font-sm;
+    color: $text-secondary;
+    border-radius: $radius-full;
+    transition: all 0.2s ease;
+
+    &--on {
+      background: $brand-gradient;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-sm;
+    }
+  }
+
+  // -------------------- 对话模式 --------------------
+  &__chat {
+    flex: 1;
+    @include flex-column;
+    min-height: 0;
+  }
+
+  &__msg-list {
+    flex: 1;
+    min-height: 400px;
+    padding-bottom: $spacing-md;
+  }
+
+  &__empty {
+    @include flex-center;
+    @include card;
+    padding: $spacing-2xl $spacing-lg;
+    color: $text-tertiary;
+    font-size: $font-sm;
+    margin-top: $spacing-xl;
+  }
+
+  &__msg {
+    @include flex-column;
+    margin-bottom: $spacing-md;
+
+    &--user {
+      align-items: flex-end;
+
+      .text-wb__msg-bubble {
+        background: $brand-gradient;
+        color: $text-primary;
+      }
+    }
+
+    &--assistant {
+      align-items: flex-start;
+
+      .text-wb__msg-bubble {
+        background-color: $bg-secondary;
+        color: $text-primary;
+      }
+    }
+  }
+
+  &__msg-role {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    margin-bottom: $spacing-xs;
+  }
+
+  &__msg-bubble {
+    max-width: 80%;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $radius-lg;
+    font-size: $font-md;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+
+  &__input-area {
+    @include flex-column;
+    gap: $spacing-md;
+    padding-top: $spacing-sm;
+    border-top: 1px solid $border-primary;
+  }
+
+  &__send {
+    width: 100%;
+  }
+
+  // -------------------- 一键改写 --------------------
+  &__rewrite {
+    @include flex-column;
+    gap: $spacing-md;
+    flex: 1;
+  }
+
+  &__section {
+    @include flex-column;
+    gap: $spacing-sm;
+  }
+
+  &__section-title {
+    font-size: $font-sm;
+    color: $text-secondary;
+    font-weight: 600;
+  }
+
+  &__textarea-wrap {
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-lg;
+    padding: $spacing-md;
+    min-height: 200px;
+  }
+
+  &__textarea {
+    width: 100%;
+    min-height: 160px;
+    font-size: $font-md;
+    color: $text-primary;
+    line-height: 1.6;
+  }
+
+  &__result {
+    @include card;
+    padding: $spacing-md;
+    min-height: 120px;
+    font-size: $font-md;
+    line-height: 1.6;
+    color: $text-primary;
+  }
+}
+
+// -------------------- 通用页面布局（workbench 分包共用） --------------------
+.page-wrap {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+  padding: $spacing-md;
+  padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-md;
+  }
+
+  &__title {
+    font-size: $font-xl;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__credits {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__btn {
+    @include flex-center;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-md;
+    font-weight: 600;
+    padding: $spacing-md;
+    border-radius: $radius-full;
+    box-shadow: $shadow-glow;
+    transition: opacity 0.2s ease;
+
+    &--disabled {
+      @include disabled;
+      box-shadow: none;
+    }
+  }
+
+  &__section {
+    @include flex-column;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+  }
+
+  &__label {
+    font-size: $font-sm;
+    color: $text-secondary;
+    font-weight: 600;
+  }
+
+  &__row {
+    @include flex-start;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+  }
+
+  &__chip {
+    padding: $spacing-xs $spacing-md;
+    background-color: $bg-secondary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-full;
+    font-size: $font-sm;
+    color: $text-secondary;
+
+    &--on {
+      background: $brand-gradient;
+      border-color: transparent;
+      color: $text-primary;
+      font-weight: 600;
+    }
+  }
+}

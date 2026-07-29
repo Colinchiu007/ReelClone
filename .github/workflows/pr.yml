@@ -1,0 +1,78 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  # 仅在新建/重开 PR 时发表评论，需要写 pull-requests 权限
+  pull-requests: write
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  commitlint:
+    name: Commit Message Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 完整历史，便于按 base..head 范围校验 commit message
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 校验 PR 内所有 commit 是否符合 Conventional Commits 规范
+      - name: Lint commit messages
+        run: |
+          npx commitlint \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}" \
+            --verbose
+
+  # 新建/重开 PR 时提醒审查清单
+  code-review-reminder:
+    name: Code Review Reminder
+    if: github.event.action == 'opened' || github.event.action == 'reopened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post review checklist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '## 📋 代码审查提醒',
+              '',
+              '感谢提交 PR！合并前请确认以下事项：',
+              '',
+              '- [ ] CI 流水线通过（Lint / Typecheck / Test / Build）',
+              '- [ ] Commit message 符合 Conventional Commits 规范',
+              '- [ ] 至少 1 位 Reviewer 审批通过',
+              '- [ ] 核心服务（支付 / 积分 / 任务状态机）需 2 人 Review',
+              '- [ ] 已补充必要的测试用例',
+              '- [ ] 已更新相关文档（API / 数据模型 / 部署手册）',
+              '- [ ] 无敏感信息（密钥 / Token / 内部地址）提交',
+              '',
+              '> 详细规范见 `01-docs/04-开发运维计划.md`'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

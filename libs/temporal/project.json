@@ -1,0 +1,47 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "temporal",
+  "projectType": "library",
+  "sourceRoot": "libs/temporal/src",
+  "prefix": "reelclone",
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint libs/temporal/src --ext .ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/temporal/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/temporal/jest.config.js --passWithNoTests",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/libs/temporal"]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/temporal/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "worker:start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "ts-node -P libs/temporal/tsconfig.json libs/temporal/src/worker/temporal.worker.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  },
+  "tags": ["type:shared", "scope:temporal"]
+}

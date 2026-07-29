@@ -1,0 +1,124 @@
+// 关于页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.about-page {
+  @include flex-column;
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+
+  &__scroll {
+    flex: 1;
+    height: 100vh;
+    padding: $spacing-lg $spacing-md;
+    padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  // -------------------- 顶部 Logo 区 --------------------
+  &__head {
+    @include flex-column;
+    align-items: center;
+    padding: $spacing-xl 0;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__logo {
+    @include flex-center;
+    width: 120px;
+    height: 120px;
+    border-radius: $radius-xl;
+    background: $brand-gradient;
+    box-shadow: $shadow-glow;
+    margin-bottom: $spacing-md;
+  }
+
+  &__logo-text {
+    font-size: 48px;
+    font-weight: 700;
+    color: $text-primary;
+    letter-spacing: 2px;
+  }
+
+  &__name {
+    font-size: $font-2xl;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: $spacing-xs;
+  }
+
+  &__version {
+    font-size: $font-sm;
+    color: $text-tertiary;
+  }
+
+  // -------------------- 分区 --------------------
+  &__section {
+    @include flex-column;
+    margin-bottom: $spacing-lg;
+    gap: $spacing-sm;
+  }
+
+  &__section-title {
+    font-size: $font-sm;
+    color: $text-tertiary;
+    padding-left: $spacing-xs;
+  }
+
+  &__desc {
+    @include card;
+    padding: $spacing-md;
+    font-size: $font-sm;
+    color: $text-secondary;
+    line-height: 1.7;
+  }
+
+  &__group {
+    @include card;
+    overflow: hidden;
+  }
+
+  &__item {
+    @include flex-between;
+    padding: $spacing-md;
+    min-height: 56px;
+    @include hairline-bottom;
+
+    &:active {
+      background-color: $bg-tertiary;
+    }
+
+    &--last::after {
+      display: none;
+    }
+  }
+
+  &__item-label {
+    font-size: $font-md;
+    color: $text-primary;
+  }
+
+  &__item-arrow {
+    font-size: $font-lg;
+    color: $text-tertiary;
+    line-height: 1;
+  }
+
+  // -------------------- 底部 --------------------
+  &__footer {
+    @include flex-column;
+    align-items: center;
+    padding: $spacing-xl 0;
+    gap: $spacing-xs;
+  }
+
+  &__icp {
+    font-size: $font-xs;
+    color: $text-tertiary;
+  }
+
+  &__copyright {
+    font-size: $font-xs;
+    color: $text-disabled;
+  }
+}

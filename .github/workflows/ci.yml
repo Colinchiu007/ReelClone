@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 最小权限原则：CI 阶段仅读取代码，Docker 镜像不推送，无需写权限
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 20
+  # Nx 在 CI 中关闭 daemon，避免守护进程开销与缓存锁问题
+  NX_DAEMON: false
+
+jobs:
+  lint-test:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 完整历史，便于 Nx 影响分析与 commitlint 取范围
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # npm 缓存：基于根目录 package-lock.json 自动缓存 ~/.npm
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Nx 本地缓存：覆盖 home 目录与工作区两种可能的缓存位置
+      # key 按 commit 唯一，保证每次运行都能写入增量缓存；restore-keys 回退到最近的 OS 缓存
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nx
+            .nx
+          key: nx-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            nx-${{ runner.os }}-
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+  # 仅在合并到 main 时构建 Docker 镜像；MVP 阶段仅本地构建，不推送到任何 registry
+  build-docker:
+    name: Build Docker (${{ matrix.service }})
+    needs: lint-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, user, asset, workbench, benchmark, template, billing, order, notification]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image (no push · MVP placeholder)
+        run: |
+          DOCKERFILE="apps/${{ matrix.service }}/Dockerfile"
+          if [ -f "$DOCKERFILE" ]; then
+            echo "::group::Building ${{ matrix.service }}"
+            docker build -t reelclone/${{ matrix.service }}:${{ github.sha }} -f "$DOCKERFILE" .
+            echo "::endgroup::"
+            echo "[MVP Placeholder] Image reelclone/${{ matrix.service }}:${{ github.sha }} built locally, not pushed."
+          else
+            echo "[MVP Placeholder] No Dockerfile at $DOCKERFILE yet — skipping build for ${{ matrix.service }}."
+          fi
+
+  # 仅在合并到 main 时构建小程序；MVP 阶段占位，脚本缺失时跳过
+  build-miniprogram:
+    name: Build Mini Program (weapp)
+    needs: lint-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Taro weapp (MVP placeholder)
+        continue-on-error: true
+        run: |
+          if npm run 2>/dev/null | grep -q "build:weapp"; then
+            npm run build:weapp
+          else
+            echo "[MVP Placeholder] npm script 'build:weapp' not defined yet — skipping miniprogram build."
+          fi

@@ -1,0 +1,68 @@
+// PromptInput 提示词输入组件样式
+// variables/mixins 由 sass.resource 自动注入
+
+.prompt-input {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.prompt-input__box {
+  position: relative;
+  background-color: $bg-tertiary;
+  border: 1px solid $border-primary;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  min-height: 160px;
+  box-sizing: border-box;
+}
+
+.prompt-input__textarea {
+  width: 100%;
+  min-height: 120px;
+  font-size: $font-md;
+  color: $text-primary;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.prompt-input__placeholder {
+  color: $text-tertiary;
+}
+
+.prompt-input__count {
+  margin-top: $spacing-sm;
+  text-align: right;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.prompt-input__count-current {
+  color: $brand-secondary;
+  font-weight: 600;
+}
+
+.prompt-input__count-sep {
+  margin: 0 2px;
+}
+
+.prompt-input__tags {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.prompt-input__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-xs $spacing-md;
+  margin-right: $spacing-sm;
+  background-color: $bg-secondary;
+  border: 1px solid $border-primary;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  color: $text-secondary;
+
+  &:active {
+    background-color: $bg-elevated;
+    color: $text-primary;
+  }
+}

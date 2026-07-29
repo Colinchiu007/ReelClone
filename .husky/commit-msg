@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Husky commit-msg 钩子
+# 校验提交信息是否符合约定式提交规范
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx --no-install commitlint --edit "$1"

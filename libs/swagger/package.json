@@ -1,0 +1,28 @@
+{
+  "name": "@reelclone/swagger",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone Swagger/OpenAPI 共享配置库：DocumentBuilder 工厂、JWT Bearer 鉴权、分页/内部 API 装饰器",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "@nestjs/swagger": "^7.4.0 || ^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "peerDependencies": {
+    "@reelclone/common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  }
+}

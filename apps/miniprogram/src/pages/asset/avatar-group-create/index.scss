@@ -1,0 +1,116 @@
+// 新建真人形象组页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.create-page {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  @include flex-column;
+}
+
+// -------------------- 顶部导航 --------------------
+
+.create-page__header {
+  @include flex-between;
+  padding: $spacing-md $spacing-lg;
+  background-color: $bg-secondary;
+  @include hairline-bottom;
+}
+
+.create-page__back {
+  width: 56px;
+  height: 56px;
+  @include flex-center;
+  font-size: $font-lg;
+  color: $text-primary;
+}
+
+.create-page__title {
+  font-size: $font-lg;
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.create-page__placeholder {
+  width: 56px;
+}
+
+// -------------------- 表单 --------------------
+
+.create-page__form {
+  flex: 1;
+  padding: $spacing-md $spacing-lg;
+  @include flex-column;
+  gap: $spacing-lg;
+}
+
+.create-page__field {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.create-page__field-label {
+  @include flex-between;
+  font-size: $font-sm;
+  color: $text-secondary;
+  font-weight: 500;
+}
+
+.create-page__required {
+  color: $error;
+  margin-right: $spacing-xs;
+}
+
+.create-page__count {
+  font-size: $font-xs;
+  color: $text-tertiary;
+  font-weight: 400;
+}
+
+.create-page__input {
+  height: 88px;
+  padding: 0 $spacing-md;
+  background-color: $bg-secondary;
+  border-radius: $radius-md;
+  font-size: $font-md;
+  color: $text-primary;
+}
+
+.create-page__textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: $spacing-md;
+  background-color: $bg-secondary;
+  border-radius: $radius-md;
+  font-size: $font-md;
+  color: $text-primary;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.create-page__hint {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+// -------------------- 底部提交 --------------------
+
+.create-page__footer {
+  padding: $spacing-md $spacing-lg;
+  @include safe-area-bottom;
+  @include hairline-top;
+}
+
+.create-page__submit {
+  height: 96px;
+  @include flex-center;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  font-size: $font-md;
+  color: $text-primary;
+  font-weight: 600;
+  transition: opacity 0.18s ease;
+
+  &--disabled {
+    @include disabled;
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "reelclone",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone - WouwouAI 微信小程序 1:1 复刻项目",
+  "license": "UNLICENSED",
+  "scripts": {
+    "bootstrap": "nx run-many --target=install --all --parallel",
+    "docker:bootstrap": "node tools/bootstrap.js",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "lint": "nx run-many --target=lint --all --parallel",
+    "typecheck": "nx run-many --target=typecheck --all --parallel",
+    "test:unit": "nx run-many --target=test --all --parallel",
+    "test:integration": "nx run-many --target=test:integration --all --parallel",
+    "test:e2e": "cd tests/integration && jest --config jest.config.js",
+    "test:e2e:flows": "cd tests/integration && jest --config jest.config.js --testPathPattern=flows",
+    "test:e2e:api": "cd tests/integration && jest --config jest.config.js --testPathPattern=api",
+    "build": "nx run-many --target=build --all --parallel",
+    "migration:run": "nx run-many --target=migration:run --all --parallel",
+    "migration:generate": "nx run-many --target=migration:generate --all --parallel",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.2.2",
+    "eslint": "^8.57.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.7",
+    "nx": "^19.5.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "libs/*",
+    "tools/*"
+  ]
+}

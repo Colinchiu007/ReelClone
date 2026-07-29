@@ -1,0 +1,89 @@
+services:
+  # ============================================================
+  # PostgreSQL 16 - 主数据库（4 个数据库 + temporal）
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: reelclone-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: reelclone
+      POSTGRES_PASSWORD: reelclone_dev
+      POSTGRES_DB: reelclone_main
+      TZ: Asia/Shanghai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reelclone -d reelclone_main"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - reelclone-net
+
+  # ============================================================
+  # Redis 7 - 缓存 / 限流 / Pub/Sub
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: reelclone-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - reelclone-net
+
+  # ============================================================
+  # Temporal - 工作流引擎（MVP 可选）
+  # 共享 PostgreSQL 实例，使用 temporal 用户和数据库
+  # ============================================================
+  temporal:
+    image: temporalio/auto-setup:1.22
+    container_name: reelclone-temporal
+    restart: unless-stopped
+    ports:
+      - "7233:7233"
+    environment:
+      DBPLUGIN: postgres
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      LOG_LEVEL: error
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - reelclone-net
+
+# ============================================================
+# 数据卷
+# ============================================================
+volumes:
+  pgdata:
+    name: reelclone-pgdata
+  redisdata:
+    name: reelclone-redisdata
+
+# ============================================================
+# 网络
+# ============================================================
+networks:
+  reelclone-net:
+    name: reelclone-net
+    driver: bridge

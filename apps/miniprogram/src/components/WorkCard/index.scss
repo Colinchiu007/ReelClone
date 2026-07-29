@@ -1,0 +1,87 @@
+// WorkCard 作品卡片样式
+// variables/mixins 由 sass.resource 自动注入
+
+.work-card {
+  @include card($radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.work-card__cover {
+  position: relative;
+  width: 100%;
+  padding-top: 133.33%; // 3:4 比例
+  background-color: $bg-tertiary;
+}
+
+.work-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.work-card__placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  @include flex-center;
+  color: $text-tertiary;
+  font-size: $font-md;
+}
+
+.work-card__badge {
+  position: absolute;
+  top: $spacing-sm;
+  right: $spacing-sm;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  color: $text-primary;
+
+  &--generating {
+    background-color: rgba($info, 0.85);
+  }
+
+  &--completed {
+    background-color: rgba($success, 0.85);
+  }
+
+  &--failed {
+    background-color: rgba($error, 0.85);
+  }
+}
+
+.work-card__body {
+  padding: $spacing-sm $spacing-md $spacing-md;
+  display: flex;
+  flex-direction: column;
+}
+
+.work-card__title {
+  font-size: $font-md;
+  color: $text-primary;
+  @include ellipsis(1);
+  margin-bottom: $spacing-xs;
+}
+
+.work-card__meta {
+  @include flex-between;
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.work-card__type {
+  padding: $spacing-xs $spacing-sm;
+  background-color: $bg-elevated;
+  border-radius: $radius-sm;
+  color: $text-secondary;
+}
+
+.work-card__time {
+  flex-shrink: 0;
+}

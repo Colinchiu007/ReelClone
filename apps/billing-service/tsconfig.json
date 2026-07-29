@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*.ts", "../../libs/common/src/**/*.ts", "../../libs/database/src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "../../libs/common/src/**/*.spec.ts",
+    "../../libs/database/src/**/*.spec.ts",
+    "jest.config.js"
+  ]
+}

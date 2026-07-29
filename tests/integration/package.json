@@ -1,0 +1,25 @@
+{
+  "name": "@reelclone/integration-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone 集成测试 / E2E 测试套件",
+  "scripts": {
+    "test": "jest --config jest.config.js",
+    "test:flows": "jest --config jest.config.js --testPathPattern=flows",
+    "test:api": "jest --config jest.config.js --testPathPattern=api",
+    "test:coverage": "jest --config jest.config.js --coverage"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "typeorm": "^0.3.20",
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.5",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "typescript": "^5.5.4"
+  }
+}

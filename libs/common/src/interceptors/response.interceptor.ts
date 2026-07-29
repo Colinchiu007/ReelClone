@@ -1,0 +1,83 @@
+/**
+ * 统一响应拦截器
+ *
+ * 将控制器返回值自动包装为 ApiResponse 格式：{ code, message, data, traceId }
+ * - 从请求 header（x-trace-id）提取 traceId，未携带则生成 uuid
+ * - 将 traceId 注入响应 header，便于客户端关联日志
+ * - 若返回值已是 ApiResponse 格式（含 code 字段），则补全 traceId 后透传
+ *
+ * 全局注册：
+ * ```ts
+ * app.useGlobalInterceptors(new ResponseInterceptor())
+ * ```
+ */
+import {
+  type CallHandler,
+  type ExecutionContext,
+  Injectable,
+  type NestInterceptor,
+} from '@nestjs/common'
+import { type Observable } from 'rxjs'
+import { map } from 'rxjs/operators'
+import { ErrorCode } from '../enums/error-code.enum'
+import { type ApiResponse } from '../types/api-response'
+import {
+  RESPONSE_TRACE_ID_HEADER,
+  TRACE_ID_HEADER,
+  extractTraceId,
+} from '../utils/tracing.util'
+
+/** 请求对象的最小结构 */
+interface MinimalRequest {
+  headers: Record<string, string | string[] | undefined>
+}
+
+/** 响应对象的最小结构 */
+interface MinimalResponse {
+  setHeader: (name: string, value: string) => void
+}
+
+/** 判断返回值是否已经是 ApiResponse 结构 */
+function isApiResponse(value: unknown): value is ApiResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'code' in value &&
+    'message' in value &&
+    'data' in value
+  )
+}
+
+@Injectable()
+export class ResponseInterceptor<T = unknown> implements NestInterceptor<T, ApiResponse<T>> {
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Observable<ApiResponse<T>> {
+    const request = context.switchToHttp().getRequest<MinimalRequest>()
+    const response = context.switchToHttp().getResponse<MinimalResponse>()
+
+    // 提取或生成 traceId
+    const traceId = extractTraceId(request.headers)
+    // 回写请求 header，供后续日志中间件使用
+    request.headers[TRACE_ID_HEADER] = traceId
+    // 注入响应 header
+    response.setHeader(RESPONSE_TRACE_ID_HEADER, traceId)
+
+    return next.handle().pipe(
+      map((data) => {
+        // 已是 ApiResponse 格式则补全 traceId
+        if (isApiResponse(data)) {
+          return { ...data, traceId } as ApiResponse<T>
+        }
+        // 包装为统一响应
+        return {
+          code: ErrorCode.SUCCESS,
+          message: 'success',
+          data,
+          traceId,
+        } as ApiResponse<T>
+      }),
+    )
+  }
+}

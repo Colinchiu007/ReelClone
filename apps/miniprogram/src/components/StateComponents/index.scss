@@ -1,0 +1,69 @@
+// StateComponents 状态组件样式
+// variables/mixins 由 sass.resource 自动注入
+
+.state {
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl $spacing-lg;
+  text-align: center;
+
+  &--fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: $z-index-base;
+    background-color: $bg-primary;
+  }
+}
+
+.state__icon {
+  font-size: 80px;
+  margin-bottom: $spacing-md;
+  line-height: 1;
+}
+
+.state__title {
+  font-size: $font-md;
+  color: $text-secondary;
+  margin-bottom: $spacing-xs;
+}
+
+.state__desc {
+  font-size: $font-sm;
+  color: $text-tertiary;
+  line-height: 1.5;
+  max-width: 480px;
+}
+
+.state__spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid $border-primary;
+  border-top-color: $brand-secondary;
+  border-radius: $radius-full;
+  margin-bottom: $spacing-md;
+  animation: state-spin 0.9s linear infinite;
+}
+
+.state__retry {
+  margin-top: $spacing-lg;
+  padding: $spacing-sm $spacing-lg;
+  background: $brand-gradient;
+  color: $text-primary;
+  font-size: $font-sm;
+  border-radius: $radius-full;
+  line-height: 1.5;
+
+  &::after {
+    border: none;
+  }
+}
+
+@keyframes state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

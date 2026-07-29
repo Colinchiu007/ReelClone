@@ -1,0 +1,209 @@
+// 推荐页（灵感广场）样式
+// variables/mixins 由 sass.resource 自动注入
+
+.recommend {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding: 0 $spacing-md $spacing-2xl;
+  @include safe-area-top;
+}
+
+// -------------------- 搜索栏 --------------------
+.recommend__search {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0 $spacing-md;
+}
+
+.recommend__search-input {
+  flex: 1;
+  height: 72px;
+  padding: 0 $spacing-md;
+  background-color: $bg-secondary;
+  border-radius: $radius-full;
+  font-size: $font-sm;
+  color: $text-primary;
+  box-sizing: border-box;
+}
+
+.recommend__search-btn {
+  flex-shrink: 0;
+  padding: $spacing-sm $spacing-lg;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  font-size: $font-sm;
+  color: $text-primary;
+  font-weight: 600;
+  transition: transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// -------------------- 平台筛选 Tab --------------------
+.recommend__platform-tabs {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: $spacing-sm;
+}
+
+.recommend__tab {
+  display: inline-block;
+  padding: $spacing-xs $spacing-md;
+  margin-right: $spacing-sm;
+  background-color: $bg-secondary;
+  border-radius: $radius-full;
+  font-size: $font-sm;
+  color: $text-secondary;
+  transition: all 0.18s ease;
+
+  &--on {
+    background: $brand-gradient;
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
+// -------------------- 排序栏 --------------------
+.recommend__sort-bar {
+  display: flex;
+  gap: $spacing-md;
+  padding: $spacing-sm 0 $spacing-md;
+  @include hairline-bottom;
+}
+
+.recommend__sort {
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-sm;
+  color: $text-tertiary;
+  position: relative;
+
+  &--on {
+    color: $brand-secondary;
+    font-weight: 600;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -$spacing-sm;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 6px;
+      background: $brand-gradient;
+      border-radius: $radius-full;
+    }
+  }
+}
+
+// -------------------- 模板列表 --------------------
+.recommend__list {
+  padding-top: $spacing-md;
+}
+
+.recommend__waterfall {
+  display: flex;
+  gap: $spacing-md;
+}
+
+.recommend__waterfall-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.recommend__end {
+  @include flex-center;
+  padding: $spacing-lg 0;
+}
+
+.recommend__end-text {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+// -------------------- 行业偏好弹窗 --------------------
+.recommend__modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: $z-index-modal;
+  background-color: rgba(0, 0, 0, 0.55);
+  @include flex-center;
+  padding: $spacing-lg;
+}
+
+.recommend__modal-card {
+  width: 100%;
+  max-width: 640px;
+  background-color: $bg-secondary;
+  border-radius: $radius-xl;
+  padding: $spacing-lg;
+  box-shadow: $shadow-lg;
+  animation: recommend-modal-in 0.22s ease;
+}
+
+@keyframes recommend-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.recommend__modal-header {
+  margin-bottom: $spacing-lg;
+}
+
+.recommend__modal-title {
+  display: block;
+  font-size: $font-lg;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.recommend__modal-desc {
+  display: block;
+  font-size: $font-sm;
+  color: $text-tertiary;
+  line-height: 1.5;
+}
+
+.recommend__modal-actions {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.recommend__modal-btn {
+  flex: 1;
+  @include flex-center;
+  padding: $spacing-sm 0;
+  border-radius: $radius-full;
+  font-size: $font-md;
+  transition: transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &--ghost {
+    background-color: $bg-elevated;
+    color: $text-secondary;
+  }
+
+  &--primary {
+    background: $brand-gradient;
+    color: $text-primary;
+    font-weight: 600;
+  }
+}

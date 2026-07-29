@@ -1,0 +1,215 @@
+// 我的页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.mine {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding: 0 $spacing-md $spacing-2xl;
+  @include safe-area-top;
+}
+
+// -------------------- 用户信息卡片 --------------------
+.mine__user-card {
+  @include card($radius-lg);
+  padding: $spacing-lg;
+  margin: $spacing-md 0;
+  background: linear-gradient(135deg, $bg-secondary 0%, $bg-tertiary 100%);
+}
+
+.mine__user-info {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.mine__avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: $radius-full;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: $bg-elevated;
+  border: 3px solid rgba(124, 58, 237, 0.4);
+  box-sizing: border-box;
+}
+
+.mine__avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.mine__avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  @include flex-center;
+  background: $brand-gradient;
+  color: $text-primary;
+  font-size: 48px;
+  font-weight: 600;
+}
+
+.mine__user-detail {
+  flex: 1;
+  min-width: 0;
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.mine__nickname {
+  font-size: $font-xl;
+  font-weight: 600;
+  color: $text-primary;
+  @include ellipsis(1);
+}
+
+.mine__user-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.mine__user-id {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+.mine__mobile-badge {
+  padding: 2px $spacing-sm;
+  background-color: rgba($warning, 0.15);
+  color: $warning;
+  border-radius: $radius-sm;
+  font-size: $font-xs;
+
+  &--on {
+    background-color: rgba($success, 0.15);
+    color: $success;
+  }
+}
+
+// -------------------- 统计数据 --------------------
+.mine__stats {
+  display: flex;
+  margin-top: $spacing-lg;
+  padding-top: $spacing-lg;
+  border-top: 1px solid $border-primary;
+}
+
+.mine__stat-item {
+  flex: 1;
+  @include flex-column;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.mine__stat-value {
+  font-size: $font-xl;
+  font-weight: 700;
+  color: $text-primary;
+  line-height: 1.2;
+  @include flex-center;
+}
+
+.mine__stat-label {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+// -------------------- 快捷菜单 --------------------
+.mine__menu {
+  @include card($radius-lg);
+  overflow: hidden;
+  margin-bottom: $spacing-lg;
+}
+
+.mine__menu-item {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  gap: $spacing-md;
+  position: relative;
+  transition: background-color 0.15s ease;
+
+  &:active {
+    background-color: $bg-tertiary;
+  }
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: $spacing-md + 64px;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: $border-primary;
+    transform: scaleY(0.5);
+  }
+}
+
+.mine__menu-icon {
+  width: 64px;
+  height: 64px;
+  @include flex-center;
+  background-color: $bg-tertiary;
+  border-radius: $radius-md;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.mine__menu-label {
+  flex: 1;
+  font-size: $font-md;
+  color: $text-primary;
+}
+
+.mine__menu-arrow {
+  font-size: 36px;
+  color: $text-tertiary;
+  line-height: 1;
+}
+
+// -------------------- 退出登录 --------------------
+.mine__logout {
+  @include flex-center;
+  height: 88px;
+  background-color: $bg-secondary;
+  border: 1px solid rgba($error, 0.3);
+  border-radius: $radius-md;
+  font-size: $font-md;
+  color: $error;
+  font-weight: 500;
+  margin-bottom: $spacing-xl;
+  transition: all 0.15s ease;
+
+  &:active {
+    background-color: rgba($error, 0.1);
+    transform: scale(0.99);
+  }
+}
+
+// -------------------- 悬浮 + 按钮 --------------------
+.mine__fab {
+  position: fixed;
+  right: $spacing-lg;
+  bottom: calc(120px + constant(safe-area-inset-bottom));
+  bottom: calc(120px + env(safe-area-inset-bottom));
+  width: 112px;
+  height: 112px;
+  @include flex-center;
+  background: $brand-gradient;
+  border-radius: $radius-full;
+  box-shadow: $shadow-glow;
+  z-index: $z-index-dropdown;
+  transition: transform 0.15s ease;
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.mine__fab-icon {
+  font-size: 56px;
+  color: $text-primary;
+  line-height: 1;
+  font-weight: 300;
+}
