@@ -11,6 +11,7 @@
  * summarizeReport 调用 LLM 将多源结果汇总为结构化报告。
  */
 import { Context } from '@temporalio/activity'
+import { validateLlmStructuredReport } from '@reelclone/ai'
 import {
   type AnalyzerActivities,
   type AnalysisReport,
@@ -256,23 +257,30 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
 
-  let structured: Partial<StructuredReport>
+  let parsed: unknown
   try {
-    structured = JSON.parse(cleaned) as Partial<StructuredReport>
+    parsed = JSON.parse(cleaned)
   } catch (err) {
     ctx.log.warn('[Analyzer] LLM 返回非 JSON，回退模板汇总', {
       error: (err as Error).message,
       preview: cleaned.slice(0, 120),
     })
-    // 解析失败时回退到基于分析报告的模板汇总（保证流程不中断）
-    structured = buildFallbackStructuredReport(report)
+    parsed = buildFallbackStructuredReport(report)
+  }
+
+  // B4: 使用字段级校验器替代原 `??` 链
+  //  - 原逻辑：copywriting 缺 hook → 整个 copywriting 被替换，丢失 body/cta
+  //  - 新逻辑：字段级容错，有效字段保留，无效字段走兜底
+  const { report: valid, errors } = validateLlmStructuredReport(parsed)
+  if (errors.length > 0) {
+    ctx.log.warn('[Analyzer] LLM 输出字段校验失败，部分字段走兜底', { errors })
   }
 
   const result: StructuredReport = {
-    style: structured.style ?? '快节奏带货种草风',
-    pacing: structured.pacing ?? `${report.duration}秒短视频，${report.scenes.length} 个场景`,
+    style: valid.style ?? '快节奏带货种草风',
+    pacing: valid.pacing ?? `${report.duration}秒短视频，${report.scenes.length} 个场景`,
     shotList:
-      structured.shotList ??
+      valid.shotList ??
       report.scenes.map((scene, idx) => ({
         sceneIndex: idx,
         duration: scene.duration,
@@ -280,7 +288,7 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
         voiceover: report.asr.segments[idx]?.text ?? '',
         onScreenText: report.ocr.items[idx]?.text ?? '',
       })),
-    copywriting: structured.copywriting ?? {
+    copywriting: valid.copywriting ?? {
       hook: report.asr.segments[0]?.text ?? '',
       body: report.asr.segments
         .slice(1, -1)
@@ -289,9 +297,9 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
       cta: report.asr.segments[report.asr.segments.length - 1]?.text ?? '',
     },
     sellingPoints:
-      structured.sellingPoints ?? report.vlm.descriptions.flatMap((d) => d.sellingPoints ?? []),
+      valid.sellingPoints ?? report.vlm.descriptions.flatMap((d) => d.sellingPoints ?? []),
     templateSuggestion:
-      structured.templateSuggestion ?? '建议复用「痛点 hook + 演示 + 价格刺激 + CTA」结构',
+      valid.templateSuggestion ?? '建议复用「痛点 hook + 演示 + 价格刺激 + CTA」结构',
     summaryMs: Date.now() - startedAt,
   }
 

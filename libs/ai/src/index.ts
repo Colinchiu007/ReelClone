@@ -33,6 +33,10 @@ export { LlmProvider } from './llm/llm.provider'
 export { PromptEngineService } from './llm/prompt-engine.service'
 export { type CloneSuggestion, type StructuredReport } from './llm/prompt-engine.service'
 export {
+  validateLlmStructuredReport,
+  type ValidationResult,
+} from './llm/structured-report.validator'
+export {
   LlmProvider as LlmProviderEnum,
   type LlmMessage,
   type LlmRole,
