@@ -19,6 +19,7 @@ import { LoadingState, ErrorState, IndustryPicker } from '@/components'
 import { useUpload } from '@/hooks/useUpload'
 import { createAsset } from '@/services/api/asset.api'
 import { uploadTemplate, getUploadStatus } from '@/services/api/template.api'
+import { RequestError } from '@/services/request'
 import type { UploadResult } from '@/types'
 import './index.scss'
 
@@ -43,6 +44,7 @@ const ALLOWED_EXTENSIONS = ['mp4', 'mov']
 /** 轮询配置 */
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_DURATION_MS = 5 * 60 * 1000 // 5 分钟
+const POLL_MAX_RETRIES = 5 // 网络错误最大连续重试次数
 
 export default function UploadTemplatePage() {
   const [step, setStep] = useState<Step>('select')
@@ -73,6 +75,7 @@ export default function UploadTemplatePage() {
   // 轮询定时器引用
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollStartRef = useRef<number>(0)
+  const pollRetryCountRef = useRef<number>(0)
 
   /** 清理轮询定时器 */
   const clearPollTimer = useCallback(() => {
@@ -208,6 +211,7 @@ export default function UploadTemplatePage() {
       setStep('analyzing')
       // 开始轮询
       pollStartRef.current = Date.now()
+      pollRetryCountRef.current = 0
       void pollStatus(result.workflowId)
     } catch (err) {
       // 提交失败，回到表单
@@ -227,6 +231,8 @@ export default function UploadTemplatePage() {
       }
       try {
         const res = await getUploadStatus(workflowId)
+        // 请求成功，重置网络错误重试计数
+        pollRetryCountRef.current = 0
         if (res.status === 'ACTIVE') {
           setStep('success')
           return
@@ -239,7 +245,24 @@ export default function UploadTemplatePage() {
         // 仍在 ANALYZING，继续轮询
         pollTimerRef.current = setTimeout(() => void pollStatus(workflowId), POLL_INTERVAL_MS)
       } catch (err) {
-        // 网络错误：延迟后重试（不立即失败）
+        // 4xx 客户端错误（404 模板不存在 / 403 无权访问等）：立即失败，重试无意义
+        if (
+          err instanceof RequestError &&
+          err.statusCode &&
+          err.statusCode >= 400 &&
+          err.statusCode < 500
+        ) {
+          setFailureReason(err.message || '查询失败')
+          setStep('failed')
+          return
+        }
+        // 网络错误 / 5xx：增量重试，超过最大次数则失败
+        pollRetryCountRef.current += 1
+        if (pollRetryCountRef.current > POLL_MAX_RETRIES) {
+          setFailureReason('网络异常，已连续重试多次，请检查网络后重试')
+          setStep('failed')
+          return
+        }
         pollTimerRef.current = setTimeout(() => void pollStatus(workflowId), POLL_INTERVAL_MS)
       }
     },
@@ -258,6 +281,7 @@ export default function UploadTemplatePage() {
   /** 失败后重试（回到选视频） */
   const handleRetry = useCallback(() => {
     clearPollTimer()
+    pollRetryCountRef.current = 0
     setVideoInfo(null)
     setAssetId('')
     setUploadResult(null)
