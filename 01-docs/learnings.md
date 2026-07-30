@@ -365,9 +365,9 @@ foreach ($port in $ports) {
 
 ---
 
-### L-019 [architecture] 可观测性库设计与接入分离
+### L-019 [architecture] 可观测性库设计与接入分离（已闭环 ✅）
 
-**场景**: 项目有独立的 `libs/observability` 库（Pino 结构化日志 + Prometheus 指标 + 健康检查端点），设计完善且导出清晰，但 9 个微服务均未接入。仅 auth-service 和 admin-service 有手写的简单 /health 端点。
+**场景**: 项目有独立的 `libs/observability` 库（Pino 结构化日志 + Prometheus 指标 + 健康检查端点），设计完善且导出清晰。初始状态：9 个微服务均未接入，仅 auth-service 和 admin-service 有手写的简单 /health 端点。
 
 **模式**: 可观测性库应作为基础设施先行建设，但接入需分阶段：
 
@@ -375,11 +375,11 @@ foreach ($port in $ports) {
 2. **试点接入**：选择 1-2 个核心服务（如 auth/user）先接入，验证可用性
 3. **全面推广**：逐步接入其他服务，替换 console.log/NestJS 默认 Logger
 
-**当前状态**: 库已就绪但未接入（技术债）。后续需逐服务接入，优先接入 auth/user/workbench（核心业务路径）。
+**当前状态**: ✅ 已完成全面接入（commit 75df551）。9 个微服务均已接入 LoggerModule + HealthModule + MetricsModule + HttpMetricsInterceptor，Redis 客户端通过 OBS_REDIS_CLIENT 桥接复用。下一阶段需补齐 observability 库单元测试（当前 0% 覆盖）。
 
-**置信度**: 8/10
+**置信度**: 9/10（已验证 9 服务接入）
 **来源**: observed
-**关联文件**: [observability/index.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/index.ts), [logger.service.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/logger/logger.service.ts)
+**关联文件**: [observability/index.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/index.ts), [auth-service/app.module.ts](file:///d:/Data/projects/ReelClone/apps/auth-service/src/app.module.ts)
 
 ---
 
@@ -405,6 +405,80 @@ foreach ($port in $ports) {
 
 ---
 
+## 2026-07-30 复盘批次（可观测性全面接入）
+
+### L-021 [pattern] Redis 客户端桥接复用模式
+
+**场景**: observability 库的 RedisHealthIndicator 需要 Redis 连接做 PING 健康检查，但服务已有 database 模块创建的 Redis 连接。直接在 observability 库内 `new Redis()` 会创建重复连接池，浪费资源。
+
+**模式**: 使用 NestJS 的 `useExisting` 别名桥接，将已注册的 provider 暴露为另一个 token：
+
+```typescript
+import { REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import { OBS_REDIS_CLIENT } from '@reelclone/observability'
+
+// 在 AppModule providers 中：
+{ provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT }
+```
+
+observability 库通过 `@Optional() @Inject(OBS_REDIS_CLIENT)` 注入，不耦合具体 Redis 实现。消费方负责桥接，库本身保持中立。
+
+**适用条件**: 库需要访问宿主已有的基础设施连接（Redis/DB/消息队列），且不想自建连接。
+
+**置信度**: 9/10（9 个服务统一使用此模式）
+**来源**: observed
+**关联文件**: [health.indicators.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/health/health.indicators.ts), [auth-service/app.module.ts](file:///d:/Data/projects/ReelClone/apps/auth-service/src/app.module.ts)
+
+---
+
+### L-022 [pattern] 可观测性三件套统一接入模板
+
+**场景**: 9 个微服务需要统一接入日志、健康检查、Prometheus 指标，每个服务的 AppModule 结构相似但业务模块不同。
+
+**模式**: 可观测性接入标准化为 3 步，所有服务一致：
+
+1. **imports 三件套**：
+   ```typescript
+   LoggerModule.forRoot({ serviceName: 'xxx-service' }),
+   HealthModule.forRoot(),
+   MetricsModule.forRoot(),
+   ```
+2. **providers 注册拦截器 + 桥接**：
+   ```typescript
+   { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+   { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
+   ```
+3. **保持业务模块不变**：可观测性作为基础设施层，不侵入业务代码
+
+接入 9 个服务时，每个服务改动仅 ~15 行，高度模板化。未来新服务接入可复制此模板。
+
+**置信度**: 9/10（9 服务验证一致）
+**来源**: observed
+**关联文件**: [auth-service/app.module.ts](file:///d:/Data/projects/ReelClone/apps/auth-service/src/app.module.ts), [benchmark-service/app.module.ts](file:///d:/Data/projects/ReelClone/apps/benchmark-service/src/app.module.ts)
+
+---
+
+### L-023 [pitfall] 可观测性库 0% 测试覆盖拖低整体评分
+
+**场景**: 可观测性库（libs/observability）新增 167 行代码（LoggerService、DatabaseHealthIndicator、RedisHealthIndicator、MetricsController、HttpMetricsInterceptor），但未编写单元测试。导致 `/health` 体检中测试覆盖维度从 49.23% 降至 49.12%，且 observability 库覆盖率为 0%。
+
+**根因**: 可观测性库作为基础设施库，测试需要 mock DataSource/Redis/Pino 等依赖，编写成本较高，开发时优先完成接入而推迟测试。
+
+**修复方向**:
+
+1. 为 LoggerService 编写单元测试（mock pino instance）
+2. 为 DatabaseHealthIndicator/RedisHealthIndicator 编写测试（mock DataSource.isInitialized / redis.ping）
+3. 为 HttpMetricsInterceptor 编写测试（mock ExecutionContext + prom-client Counter）
+4. 目标：observability 库覆盖率 ≥ 80%
+
+**预防**: 新增库代码时，`/ship` 前应同步编写单元测试。质量节拍 Step ② TDD 场景脑暴应覆盖基础设施库，不能因"只是接入"而跳过测试。
+
+**置信度**: 8/10
+**来源**: observed
+**关联文件**: [observability/src](file:///d:/Data/projects/ReelClone/libs/observability/src)
+
+---
+
 ## Skillify 检查（Phase 5 批次）
 
 | 候选模式                   | 出现次数 | 是否生成 skill        |
@@ -412,5 +486,8 @@ foreach ($port in $ports) {
 | overrides 嵌套失效 (L-018) | 1 次     | ❌ npm 通用知识       |
 | 可观测性分阶段接入 (L-019) | 1 次     | ❌ 架构模式，非 skill |
 | 漏洞分级策略 (L-020)       | 1 次     | ❌ 运营策略，非 skill |
+| Redis 桥接复用 (L-021)     | 1 次     | ❌ NestJS 通用模式    |
+| 三件套接入模板 (L-022)     | 1 次     | ❌ 项目特定模板       |
+| 0% 覆盖拖低评分 (L-023)    | 1 次     | ❌ pitfall，非 skill  |
 
 **结论**: 本次无 skillify 候选。
