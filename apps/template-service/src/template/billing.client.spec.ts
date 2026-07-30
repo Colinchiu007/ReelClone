@@ -8,6 +8,8 @@
  *  - 构造函数读取环境变量配置（baseUrl / apiKey）
  *  - getRewardCount 成功调用返回奖励次数
  *  - getRewardCount 业务错误 + 网络错误处理
+ *  - B6: 重试机制（网络错误重试成功 / 重试耗尽 / 业务错误不重试）
+ *  - B6: 熔断器（连续失败触发熔断 / 熔断时快速失败 / 半开恢复）
  */
 import { ConfigService } from '@nestjs/config'
 import axios, { type AxiosInstance, AxiosError } from 'axios'
@@ -21,6 +23,27 @@ jest.mock('axios', () => ({
     create: jest.fn(),
   },
 }))
+
+/**
+ * 创建 ConfigService Mock
+ * - 默认 maxRetries=0（不重试），保证现有测试行为不变
+ * - 重试/熔断测试可通过 overrides 覆盖
+ */
+function createConfigService(overrides: Record<string, string> = {}): jest.Mocked<ConfigService> {
+  return {
+    get: jest.fn((key: string) => {
+      const defaults: Record<string, string> = {
+        BILLING_SERVICE_URL: 'http://billing-test:3006',
+        INTERNAL_API_KEY: 'test-api-key',
+        BILLING_CLIENT_MAX_RETRIES: '0', // 默认不重试
+        BILLING_CLIENT_RETRY_DELAY_MS: '1', // 测试用极小延迟
+        BILLING_CLIENT_CB_THRESHOLD: '5',
+        BILLING_CLIENT_CB_COOLDOWN_MS: '30',
+      }
+      return overrides[key] ?? defaults[key] ?? null
+    }),
+  } as unknown as jest.Mocked<ConfigService>
+}
 
 describe('BillingClient', () => {
   let client: BillingClient
@@ -36,19 +59,13 @@ describe('BillingClient', () => {
       get: getMock,
     } as unknown as AxiosInstance)
 
-    configService = {
-      get: jest.fn((key: string) => {
-        if (key === 'BILLING_SERVICE_URL') return 'http://billing-test:3006'
-        if (key === 'INTERNAL_API_KEY') return 'test-api-key'
-        return null
-      }),
-    } as unknown as jest.Mocked<ConfigService>
-
+    configService = createConfigService()
     client = new BillingClient(configService)
   })
 
   afterEach(() => {
     jest.clearAllMocks()
+    jest.useRealTimers()
   })
 
   // -------------------- 构造函数 --------------------
@@ -356,6 +373,317 @@ describe('BillingClient', () => {
       getMock.mockRejectedValue(new Error('未知错误'))
 
       await expect(client.getRewardCount('tmpl-001')).rejects.toThrow(BusinessException)
+    })
+  })
+
+  // -------------------- B6: 重试机制 --------------------
+
+  describe('B6: 重试机制', () => {
+    let retryClient: BillingClient
+    let retryPostMock: jest.Mock
+
+    beforeEach(() => {
+      retryPostMock = jest.fn()
+      ;(axios.create as jest.Mock).mockReturnValue({
+        post: retryPostMock,
+        get: jest.fn(),
+      } as unknown as AxiosInstance)
+
+      // maxRetries=3, retryDelay=0ms（立即重试，不依赖定时器）
+      const retryConfig = createConfigService({
+        BILLING_CLIENT_MAX_RETRIES: '3',
+        BILLING_CLIENT_RETRY_DELAY_MS: '0',
+        BILLING_CLIENT_CB_THRESHOLD: '100', // 重试测试不触发熔断
+      })
+      retryClient = new BillingClient(retryConfig)
+    })
+
+    it('网络错误重试后成功：应调用 2 次 post 并返回结果', async () => {
+      // 第一次失败（网络错误），第二次成功
+      retryPostMock
+        .mockRejectedValueOnce({
+          isAxiosError: true,
+          response: undefined,
+          message: 'ECONNREFUSED',
+        } as AxiosError)
+        .mockResolvedValueOnce({
+          data: {
+            code: ErrorCode.SUCCESS,
+            message: 'ok',
+            data: { balance: 100, frozen: 0, transactionId: 'tx-001' },
+          },
+        })
+
+      const result = await retryClient.reward({
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-001',
+      })
+
+      expect(result).toEqual({ balance: 100, transactionId: 'tx-001' })
+      expect(retryPostMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('5xx 错误重试：达到最大次数后抛出 INTERNAL_ERROR', async () => {
+      // 全部失败（503）
+      retryPostMock.mockRejectedValue({
+        isAxiosError: true,
+        response: { status: 503, data: { message: 'Service Unavailable' } },
+        message: 'Request failed with status code 503',
+      } as AxiosError)
+
+      await expect(
+        retryClient.reward({
+          userId: 'user-001',
+          amount: 5,
+          templateId: 'tmpl-001',
+          idempotencyKey: 'key-001',
+        }),
+      ).rejects.toThrow(BusinessException)
+
+      // maxRetries=3 → 调用 4 次（1 次初始 + 3 次重试）
+      expect(retryPostMock).toHaveBeenCalledTimes(4)
+    })
+
+    it('业务错误（4xx + 非 SUCCESS）不重试：只调用 1 次', async () => {
+      // 422 业务错误
+      retryPostMock.mockRejectedValue({
+        isAxiosError: true,
+        response: {
+          status: 422,
+          data: { code: ErrorCode.VALIDATION_ERROR, message: '参数错误' },
+        },
+        message: 'Request failed with status code 422',
+      } as AxiosError)
+
+      await expect(
+        retryClient.reward({
+          userId: 'user-001',
+          amount: 5,
+          templateId: 'tmpl-001',
+          idempotencyKey: 'key-001',
+        }),
+      ).rejects.toThrow(BusinessException)
+
+      // 业务错误不重试，只调用 1 次
+      expect(retryPostMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('billing-service 返回非 SUCCESS 业务码不重试：只调用 1 次', async () => {
+      // HTTP 200 但业务码非 SUCCESS
+      retryPostMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.INSUFFICIENT_CREDITS,
+          message: '积分不足',
+          data: null,
+        },
+      })
+
+      await expect(
+        retryClient.reward({
+          userId: 'user-001',
+          amount: 5,
+          templateId: 'tmpl-001',
+          idempotencyKey: 'key-001',
+        }),
+      ).rejects.toThrow(BusinessException)
+
+      expect(retryPostMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('重试成功后熔断器应重置失败计数', async () => {
+      // 前 2 次失败，第 3 次成功
+      retryPostMock
+        .mockRejectedValueOnce({
+          isAxiosError: true,
+          response: undefined,
+          message: 'ECONNREFUSED',
+        } as AxiosError)
+        .mockRejectedValueOnce({
+          isAxiosError: true,
+          response: undefined,
+          message: 'ECONNREFUSED',
+        } as AxiosError)
+        .mockResolvedValueOnce({
+          data: {
+            code: ErrorCode.SUCCESS,
+            message: 'ok',
+            data: { balance: 100, frozen: 0, transactionId: 'tx-001' },
+          },
+        })
+
+      const result = await retryClient.reward({
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-001',
+      })
+
+      expect(result.transactionId).toBe('tx-001')
+      // 成功后失败计数应被重置，后续请求正常放行
+      retryPostMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { balance: 100, frozen: 0, transactionId: 'tx-2' },
+        },
+      })
+      const result2 = await retryClient.reward({
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-2',
+      })
+      expect(result2.transactionId).toBe('tx-2')
+    })
+  })
+
+  // -------------------- B6: 熔断器 --------------------
+
+  describe('B6: 熔断器', () => {
+    let cbClient: BillingClient
+    let cbPostMock: jest.Mock
+
+    beforeEach(() => {
+      cbPostMock = jest.fn()
+      ;(axios.create as jest.Mock).mockReturnValue({
+        post: cbPostMock,
+        get: jest.fn(),
+      } as unknown as AxiosInstance)
+
+      // maxRetries=0（不重试，快速触发熔断）, threshold=3, cooldown=10ms（测试用短冷却）
+      const cbConfig = createConfigService({
+        BILLING_CLIENT_MAX_RETRIES: '0',
+        BILLING_CLIENT_RETRY_DELAY_MS: '1',
+        BILLING_CLIENT_CB_THRESHOLD: '3',
+        BILLING_CLIENT_CB_COOLDOWN_MS: '10',
+      })
+      cbClient = new BillingClient(cbConfig)
+    })
+
+    it('连续失败达阈值后触发熔断：后续请求快速失败不发请求', async () => {
+      // 网络错误（无 response）
+      const networkError = {
+        isAxiosError: true,
+        response: undefined,
+        message: 'ECONNREFUSED',
+      } as AxiosError
+      cbPostMock.mockRejectedValue(networkError)
+
+      const params = {
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-001',
+      }
+
+      // 前 3 次失败（达到阈值 3）→ 熔断器打开
+      for (let i = 0; i < 3; i++) {
+        await expect(cbClient.reward(params)).rejects.toThrow(BusinessException)
+      }
+      expect(cbPostMock).toHaveBeenCalledTimes(3)
+
+      // 第 4 次请求：熔断器 OPEN，快速失败，不发请求
+      await expect(cbClient.reward(params)).rejects.toThrow(BusinessException)
+      try {
+        await cbClient.reward(params)
+      } catch (e) {
+        expect((e as BusinessException).message).toContain('熔断')
+      }
+      // postMock 调用次数仍为 3（第 4 次没发请求）
+      expect(cbPostMock).toHaveBeenCalledTimes(3)
+    })
+
+    it('熔断器冷却后进入半开状态：试探请求成功则恢复', async () => {
+      const networkError = {
+        isAxiosError: true,
+        response: undefined,
+        message: 'ECONNREFUSED',
+      } as AxiosError
+
+      const params = {
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-001',
+      }
+
+      // 触发熔断（3 次失败）
+      cbPostMock.mockRejectedValue(networkError)
+      for (let i = 0; i < 3; i++) {
+        await cbClient.reward(params).catch(() => {
+          /* 预期失败 */
+        })
+      }
+      expect(cbPostMock).toHaveBeenCalledTimes(3)
+
+      // 确认熔断中
+      await expect(cbClient.reward(params)).rejects.toThrow(BusinessException)
+      expect(cbPostMock).toHaveBeenCalledTimes(3)
+
+      // 等待冷却期（10ms）
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      // 半开状态：下一次请求成功 → 恢复 CLOSED
+      cbPostMock.mockResolvedValueOnce({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { balance: 100, frozen: 0, transactionId: 'tx-recover' },
+        },
+      })
+
+      const result = await cbClient.reward(params)
+      expect(result).toEqual({ balance: 100, transactionId: 'tx-recover' })
+      expect(cbPostMock).toHaveBeenCalledTimes(4)
+
+      // 确认熔断器已恢复：后续请求正常放行
+      cbPostMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { balance: 100, frozen: 0, transactionId: 'tx-2' },
+        },
+      })
+      const result2 = await cbClient.reward(params)
+      expect(result2.transactionId).toBe('tx-2')
+      expect(cbPostMock).toHaveBeenCalledTimes(5)
+    })
+
+    it('熔断器半开状态试探失败：重新打开熔断器', async () => {
+      const networkError = {
+        isAxiosError: true,
+        response: undefined,
+        message: 'ECONNREFUSED',
+      } as AxiosError
+
+      const params = {
+        userId: 'user-001',
+        amount: 5,
+        templateId: 'tmpl-001',
+        idempotencyKey: 'key-001',
+      }
+
+      // 触发熔断
+      cbPostMock.mockRejectedValue(networkError)
+      for (let i = 0; i < 3; i++) {
+        await cbClient.reward(params).catch(() => {
+          /* 预期失败 */
+        })
+      }
+
+      // 等待冷却期
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      // 半开状态：试探请求失败 → 重新打开
+      cbPostMock.mockRejectedValueOnce(networkError)
+      await expect(cbClient.reward(params)).rejects.toThrow(BusinessException)
+
+      // 熔断器重新 OPEN：后续请求快速失败
+      await expect(cbClient.reward(params)).rejects.toThrow(BusinessException)
+      // 只多调用了 1 次（半开试探），后续快速失败
+      expect(cbPostMock).toHaveBeenCalledTimes(4)
     })
   })
 })
