@@ -3,4 +3,26 @@
 # 校验提交信息是否符合约定式提交规范
 . "$(dirname -- "$0")/_/husky.sh"
 
-npx --no-install commitlint --edit "$1"
+# L-005 根治：git 子 shell 中 node/npm 可能不在 PATH，显式补充常见位置
+if ! command -v node >/dev/null 2>&1; then
+  if [ -d "$HOME/.fnm" ]; then
+    # shellcheck disable=SC1090
+    eval "$(fnm env --shell sh 2>/dev/null)" 2>/dev/null || true
+  fi
+  if ! command -v node >/dev/null 2>&1; then
+    NODE_PATHS="
+      $HOME/AppData/Local/hermes/node
+      /c/Users/$USER/AppData/Local/hermes/node
+      /c/Users/$USER/AppData/Local/fnm_multishells/current
+      /d/Program Files/npm-global
+    "
+    for p in $NODE_PATHS; do
+      if [ -d "$p" ]; then
+        export PATH="$p:$PATH"
+      fi
+    done
+  fi
+fi
+
+# 直接调用本地 commitlint，避免依赖全局 npx
+node_modules/.bin/commitlint --edit "$1"
