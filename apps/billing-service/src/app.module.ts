@@ -15,12 +15,19 @@
  */
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
-import { APP_GUARD } from '@nestjs/core'
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
 import { JwtAuthGuard, jwtConfig, configuration } from '@reelclone/common'
-import { DatabaseModule, RedisModule } from '@reelclone/database'
+import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  LoggerModule,
+  HealthModule,
+  MetricsModule,
+  HttpMetricsInterceptor,
+  OBS_REDIS_CLIENT,
+} from '@reelclone/observability'
 import { BillingModule } from './billing/billing.module'
 import { InternalApiKeyGuard } from './billing/guards/internal-api-key.guard'
 import { JwtStrategy } from './billing/guards/jwt.strategy'
@@ -32,6 +39,10 @@ import { JwtStrategy } from './billing/guards/jwt.strategy'
       isGlobal: true,
       load: [configuration, jwtConfig],
     }),
+    // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
+    LoggerModule.forRoot({ serviceName: 'billing-service' }),
+    HealthModule.forRoot(),
+    MetricsModule.forRoot(),
     // 数据库（4 个连接）
     DatabaseModule.forRoot(),
     // Redis
@@ -57,6 +68,10 @@ import { JwtStrategy } from './billing/guards/jwt.strategy'
     // 全局守卫：JWT（默认）+ InternalApiKey（按需）
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: InternalApiKeyGuard },
+    // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
+    { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

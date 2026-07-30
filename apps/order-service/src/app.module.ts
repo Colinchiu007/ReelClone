@@ -13,21 +13,32 @@
  * 全局守卫：
  *  - JwtAuthGuard：默认所有路由需 JWT，@Public() 跳过
  */
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { JwtAuthGuard, resolveJwtSecret } from '@reelclone/common';
-import { DatabaseModule, RedisModule } from '@reelclone/database';
-import { JwtStrategy } from './auth/jwt.strategy';
-import { PackageModule } from './package/package.module';
-import { OrderModule } from './order/order.module';
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import { JwtAuthGuard, resolveJwtSecret } from '@reelclone/common'
+import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  LoggerModule,
+  HealthModule,
+  MetricsModule,
+  HttpMetricsInterceptor,
+  OBS_REDIS_CLIENT,
+} from '@reelclone/observability'
+import { JwtStrategy } from './auth/jwt.strategy'
+import { PackageModule } from './package/package.module'
+import { OrderModule } from './order/order.module'
 
 @Module({
   imports: [
     // 环境变量
     ConfigModule.forRoot({ isGlobal: true }),
+    // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
+    LoggerModule.forRoot({ serviceName: 'order-service' }),
+    HealthModule.forRoot(),
+    MetricsModule.forRoot(),
     // 数据库（4 个连接）
     DatabaseModule.forRoot(),
     // Redis
@@ -49,6 +60,10 @@ import { OrderModule } from './order/order.module';
     JwtStrategy,
     // 全局守卫：JWT（默认），@Public() 跳过
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // HTTP 指标拦截器（记录请求耗时/状态码到 Prometheus）
+    { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

@@ -37,7 +37,8 @@
   },
   "peerDependencies": {
     "@reelclone/common": "*",
-    "@reelclone/database": "*"
+    "@reelclone/database": "*",
+    "@reelclone/observability": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.0.0 || ^11.0.0",

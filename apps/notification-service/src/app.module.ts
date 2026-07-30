@@ -10,8 +10,16 @@
  */
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { APP_INTERCEPTOR } from '@nestjs/core'
 import { jwtConfig } from '@reelclone/common'
-import { DatabaseModule, RedisModule } from '@reelclone/database'
+import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  LoggerModule,
+  HealthModule,
+  MetricsModule,
+  HttpMetricsInterceptor,
+  OBS_REDIS_CLIENT,
+} from '@reelclone/observability'
 import { AuthModule } from './auth/auth.module'
 import { NotificationModule } from './notification/notification.module'
 
@@ -26,6 +34,12 @@ import { NotificationModule } from './notification/notification.module'
       cache: true,
     }),
 
+    // -------------------- 可观测性 --------------------
+    // Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
+    LoggerModule.forRoot({ serviceName: 'notification-service' }),
+    HealthModule.forRoot(),
+    MetricsModule.forRoot(),
+
     // -------------------- 基础设施 --------------------
     DatabaseModule.forRoot(),
     RedisModule.forRoot(),
@@ -35,6 +49,12 @@ import { NotificationModule } from './notification/notification.module'
 
     // -------------------- 业务 --------------------
     NotificationModule,
+  ],
+  providers: [
+    // HTTP 指标拦截器（记录请求耗时/状态码到 Prometheus）
+    { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}
