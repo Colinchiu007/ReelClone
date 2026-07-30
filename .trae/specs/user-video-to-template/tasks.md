@@ -74,11 +74,11 @@
 
 ## 后续待办（建议改进项，下迭代处理）
 
-- [ ] B1 reward 幂等键并发竞态修复（悲观锁或 DB 序列号）
-- [ ] B2 reward 失败补发机制（对账任务）
-- [ ] B3 submitUpload 原子性（ANALYZING 超时对账任务）
-- [ ] B4 LLM 输出 Schema 校验（class-validator）
-- [ ] B5 Prompt Injection 防护（OCR/ASR 文本脱敏）
-- [ ] B6 billing.client 重试/熔断
-- [ ] B7 upload 页轮询 404 立即失败 + 最大重试次数
-- [ ] B8 前后端类型对齐（workflowId/avatarUrl/templateId/TemplateStatus）
+- [x] B1 reward 幂等键并发竞态修复（悲观锁或 DB 序列号）✅ 已闭环（PostgreSQL 原子自增）
+- [x] B2 reward 失败补发机制（对账任务）✅ 已闭环（RewardReconciliationService）
+- [x] B3 submitUpload 原子性（ANALYZING 超时对账任务）✅ 已闭环（UploadReconciliationService + Cron 每 10min）
+- [x] B4 LLM 输出 Schema 校验（class-validator）✅ 已闭环（structured-report.validator.ts）
+- [x] B5 Prompt Injection 防护（OCR/ASR 文本脱敏）✅ 已闭环（prompt-sanitizer.ts 5 层防护）
+- [x] B6 billing.client 重试/熔断 ✅ 已闭环
+- [x] B7 upload 页轮询 404 立即失败 + 最大重试次数 ✅ 已闭环（POLL_MAX_RETRIES=5 + 4xx 立即失败）
+- [x] B8 前后端类型对齐（workflowId/avatarUrl/templateId/TemplateStatus）✅ 已闭环（OpenAPI 自动生成前端类型 Phase 1-2）
