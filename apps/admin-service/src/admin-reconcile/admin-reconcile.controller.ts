@@ -14,9 +14,11 @@
  *  - @CurrentUser('userId') 获取操作者 ID（用于操作日志）
  */
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles, RolesGuard } from '@reelclone/common'
 import { AdminReconcileService } from './admin-reconcile.service'
 
+@ApiTags('admin-reconcile')
 @Controller('admin/reconcile')
 @Roles('ADMIN', 'SUPER_ADMIN')
 @UseGuards(RolesGuard)
@@ -32,6 +34,7 @@ export class AdminReconcileController {
    * 从 Redis 读取 `reconcile:results:{date}` 缓存，无缓存时返回空数组。
    */
   @Get('results')
+  @ApiOperation({ summary: '查看对账结果' })
   async getResults(@Query('date') date?: string) {
     return this.adminReconcileService.getResults(date)
   }
@@ -46,6 +49,7 @@ export class AdminReconcileController {
    * 操作者 ID 由 @CurrentUser 注入，记入操作日志。
    */
   @Post()
+  @ApiOperation({ summary: '手动触发对账' })
   async trigger(@Body() body: { scope: string }, @CurrentUser('userId') operatorId: string) {
     return this.adminReconcileService.triggerReconcile(body, operatorId)
   }

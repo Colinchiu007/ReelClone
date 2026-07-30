@@ -11,11 +11,13 @@
  *  - POST /api/v1/benchmarks/:id/clone  生成一键复刻建议（需 JWT）
  */
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser } from '@reelclone/common'
 import { BenchmarkService } from './benchmark.service'
 import { CreateBenchmarkDto } from './dto/create-benchmark.dto'
 import { ListBenchmarksDto } from './dto/list-benchmarks.dto'
 
+@ApiTags('benchmark')
 @Controller('benchmarks')
 export class BenchmarkController {
   constructor(private readonly benchmarkService: BenchmarkService) {}
@@ -28,6 +30,7 @@ export class BenchmarkController {
    * 响应: { benchmarkId: string, status: 'PENDING', estimatedPoints: number }
    */
   @Post()
+  @ApiOperation({ summary: '提交对标解析任务' })
   async create(@CurrentUser('userId') userId: string, @Body() dto: CreateBenchmarkDto) {
     return this.benchmarkService.create(userId, dto)
   }
@@ -39,6 +42,7 @@ export class BenchmarkController {
    * Query: page, pageSize, platform?, status?
    */
   @Get()
+  @ApiOperation({ summary: '查询对标解析历史（分页 + 筛选）' })
   async findAll(@CurrentUser('userId') userId: string, @Query() dto: ListBenchmarksDto) {
     return this.benchmarkService.findAll(userId, dto)
   }
@@ -48,6 +52,7 @@ export class BenchmarkController {
    * 解析详情（校验所有权）
    */
   @Get(':id')
+  @ApiOperation({ summary: '查询单条对标解析详情' })
   async findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.benchmarkService.findOne(userId, id)
   }
@@ -59,6 +64,7 @@ export class BenchmarkController {
    * 响应: { benchmarkId: string, status: 'CANCELLED' }
    */
   @Post(':id/cancel')
+  @ApiOperation({ summary: '取消对标解析任务' })
   async cancel(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.benchmarkService.cancel(userId, id)
   }
@@ -70,6 +76,7 @@ export class BenchmarkController {
    * 响应: { benchmarkId, prompt, model, resolution, aspectRatio, duration }
    */
   @Post(':id/clone')
+  @ApiOperation({ summary: '生成一键复刻建议参数' })
   async clone(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.benchmarkService.clone(userId, id)
   }

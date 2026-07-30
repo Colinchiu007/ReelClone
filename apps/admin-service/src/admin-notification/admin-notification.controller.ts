@@ -14,11 +14,13 @@
  *  - @CurrentUser('userId') 获取操作者 ID（用于操作日志）
  */
 import { Body, Controller, Post, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles, RolesGuard } from '@reelclone/common'
 import { AdminNotificationService } from './admin-notification.service'
 import { BroadcastDto } from './dto/broadcast.dto'
 import { SendNotificationDto } from './dto/send-notification.dto'
 
+@ApiTags('admin-notification')
 @Controller('admin/notifications')
 @Roles('ADMIN', 'SUPER_ADMIN')
 @UseGuards(RolesGuard)
@@ -36,6 +38,7 @@ export class AdminNotificationController {
    * 通过 HTTP 调用 notification-service 逐个推送。
    */
   @Post('broadcast')
+  @ApiOperation({ summary: '广播公告' })
   async broadcast(@Body() dto: BroadcastDto, @CurrentUser('userId') operatorId: string) {
     return this.adminNotificationService.broadcast(dto, operatorId)
   }
@@ -49,6 +52,7 @@ export class AdminNotificationController {
    * 通过 HTTP 调用 notification-service 推送给指定用户。
    */
   @Post('send')
+  @ApiOperation({ summary: '定向推送通知' })
   async send(@Body() dto: SendNotificationDto, @CurrentUser('userId') operatorId: string) {
     return this.adminNotificationService.send(dto, operatorId)
   }

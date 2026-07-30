@@ -1,4 +1,5 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 
 /**
  * 冻结积分 DTO（内部 API）
@@ -8,27 +9,49 @@ import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
  */
 export class FreezePointsDto {
   /** 用户 ID */
+  @ApiProperty({
+    description: '用户 ID',
+    example: 'user-uuid-001',
+  })
   @IsString()
-  userId!: string;
+  userId!: string
 
   /** 冻结数量（>0） */
+  @ApiProperty({
+    description: '冻结数量（>0）',
+    example: 100,
+  })
   @IsInt()
   @Min(1)
-  amount!: number;
+  amount!: number
 
   /** 幂等键（必传，重复请求返回首次结果） */
+  @ApiProperty({
+    description: '幂等键（必传，重复请求返回首次结果）',
+    example: 'freeze-20260731-001',
+  })
   @IsString()
   @MaxLength(128)
-  idempotencyKey!: string;
+  idempotencyKey!: string
 
   /** 关联作品 ID（可选） */
+  @ApiProperty({
+    description: '关联作品 ID（可选）',
+    example: 'work-uuid-001',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  workId?: string;
+  workId?: string
 
   /** 业务说明（可选） */
+  @ApiProperty({
+    description: '业务说明（可选）',
+    example: '生成视频任务冻结积分',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(256)
-  description?: string;
+  description?: string
 }

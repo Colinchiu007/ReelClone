@@ -12,6 +12,7 @@
  * 注意：全局前缀 `api/v1` 在 main.ts 中设置，此处仅声明子路径。
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Public, RateLimit } from '@reelclone/common'
 import { UserService } from './user.service'
 import { SmsService } from './sms.service'
@@ -20,6 +21,7 @@ import { BindMobileDto } from './dto/bind-mobile.dto'
 import { SendSmsDto } from './dto/send-sms.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 
+@ApiTags('user')
 @Controller()
 export class UserController {
   constructor(
@@ -34,6 +36,7 @@ export class UserController {
    * 获取当前登录用户完整信息（不含 password）
    */
   @Get('users/me')
+  @ApiOperation({ summary: '获取当前登录用户信息' })
   async getCurrentUser(@CurrentUser('userId') userId: string) {
     return this.userService.getCurrentUser(userId)
   }
@@ -43,6 +46,7 @@ export class UserController {
    * 更新当前用户信息
    */
   @Put('users/me')
+  @ApiOperation({ summary: '更新当前用户信息' })
   async updateUser(@CurrentUser('userId') userId: string, @Body() dto: UpdateUserDto) {
     return this.userService.updateUser(userId, dto)
   }
@@ -57,6 +61,7 @@ export class UserController {
    */
   @Public()
   @Get('users/:id/profile')
+  @ApiOperation({ summary: '获取公开用户主页信息' })
   async getPublicProfile(@Param('id') id: string) {
     return this.userService.findPublicProfile(id)
   }
@@ -69,6 +74,7 @@ export class UserController {
    */
   @Post('users/bind-mobile')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '绑定手机号' })
   async bindMobile(@CurrentUser('userId') userId: string, @Body() dto: BindMobileDto) {
     return this.userService.bindMobile(userId, dto)
   }
@@ -80,6 +86,7 @@ export class UserController {
    * 修改密码：已设置密码用旧密码验证，未设置密码用短信验证码验证
    */
   @Put('users/password')
+  @ApiOperation({ summary: '修改密码' })
   async changePassword(@CurrentUser('userId') userId: string, @Body() dto: ChangePasswordDto) {
     return this.userService.changePassword(userId, dto)
   }
@@ -97,6 +104,7 @@ export class UserController {
   @Post('sms/send')
   @HttpCode(HttpStatus.OK)
   @RateLimit(10, 60)
+  @ApiOperation({ summary: '发送短信验证码' })
   async sendSmsCode(@Body() dto: SendSmsDto) {
     const code = await this.smsService.sendCode(dto.mobile, dto.purpose)
     return {

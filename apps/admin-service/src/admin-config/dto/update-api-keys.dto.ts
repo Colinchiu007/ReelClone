@@ -8,6 +8,7 @@
  *  - provider: 仅支持 'seedance' | 'llm' | 'oss'
  *  - keys: Key 数组（自动去除空字符串与首尾空白）
  */
+import { ApiProperty } from '@nestjs/swagger'
 import { IsArray, IsEnum, IsString } from 'class-validator'
 
 /** 受支持的 Provider 名称 */
@@ -22,10 +23,20 @@ export enum ApiKeyProviderEnum {
 
 export class UpdateApiKeysDto {
   /** 目标 Provider */
+  @ApiProperty({
+    description: '目标 Provider（seedance / llm / oss）',
+    example: 'seedance',
+    enum: ApiKeyProviderEnum,
+  })
   @IsEnum(ApiKeyProviderEnum)
   provider: ApiKeyProvider
 
   /** Key 列表（覆盖式更新，空数组表示清空） */
+  @ApiProperty({
+    description: 'Key 列表（覆盖式更新，空数组表示清空）',
+    example: ['sk-xxxxx', 'sk-yyyyy'],
+    type: [String],
+  })
   @IsArray()
   @IsString({ each: true })
   keys: string[]

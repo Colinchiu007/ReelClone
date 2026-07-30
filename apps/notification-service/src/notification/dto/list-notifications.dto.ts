@@ -9,23 +9,27 @@
  *  - isRead:     可选，按已读状态筛选
  */
 import { Transform, Type } from 'class-transformer'
-import {
-  IsBoolean,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-} from 'class-validator'
+import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 import { NotificationType } from '@reelclone/database'
 
 export class ListNotificationsDto {
+  @ApiProperty({
+    description: '页码，1 基，默认 1',
+    example: 1,
+    required: false,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()
   page: number = 1
 
+  @ApiProperty({
+    description: '每页条数，默认 20，最大 100',
+    example: 20,
+    required: false,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -33,10 +37,21 @@ export class ListNotificationsDto {
   @IsOptional()
   pageSize: number = 20
 
+  @ApiProperty({
+    description: '按通知类型筛选（TASK_COMPLETED / TASK_FAILED / PAYMENT_SUCCESS / SYSTEM）',
+    example: 'SYSTEM',
+    required: false,
+    enum: NotificationType,
+  })
   @IsEnum(NotificationType)
   @IsOptional()
   type?: NotificationType
 
+  @ApiProperty({
+    description: '按已读状态筛选，true 仅返回已读，false 仅返回未读',
+    example: false,
+    required: false,
+  })
   @Transform(({ value }) => {
     if (value === undefined || value === null || value === '') return undefined
     if (typeof value === 'boolean') return value

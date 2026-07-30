@@ -9,23 +9,13 @@
  *
  * 行业偏好存储在 main 库 user.industryPreferences 字段（jsonb string[]）。
  */
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  User,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database';
-import {
-  CurrentUser,
-  BusinessException,
-} from '@reelclone/common';
-import { IndustryPreferenceDto } from './dto/industry-preference.dto';
+import { Controller, Get, Post, Body } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { User, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { CurrentUser, BusinessException } from '@reelclone/common'
+import { IndustryPreferenceDto } from './dto/industry-preference.dto'
 
 /** 可选行业列表（参考） */
 export const INDUSTRIES = [
@@ -49,8 +39,9 @@ export const INDUSTRIES = [
   '家居',
   '汽车',
   '金融',
-] as const;
+] as const
 
+@ApiTags('template-industry')
 @Controller('users/industry-preferences')
 export class IndustryController {
   constructor(
@@ -63,14 +54,13 @@ export class IndustryController {
    * @returns { industries: string[] }
    */
   @Get()
-  async getPreferences(
-    @CurrentUser('userId') userId: string,
-  ): Promise<{ industries: string[] }> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+  @ApiOperation({ summary: '获取当前用户的行业偏好' })
+  async getPreferences(@CurrentUser('userId') userId: string): Promise<{ industries: string[] }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } })
     if (!user) {
-      throw BusinessException.notFound('用户');
+      throw BusinessException.notFound('用户')
     }
-    return { industries: user.industryPreferences ?? [] };
+    return { industries: user.industryPreferences ?? [] }
   }
 
   /**
@@ -79,18 +69,19 @@ export class IndustryController {
    * @returns { industries: string[] } 更新后的行业偏好
    */
   @Post()
+  @ApiOperation({ summary: '设置行业偏好' })
   async setPreferences(
     @CurrentUser('userId') userId: string,
     @Body() dto: IndustryPreferenceDto,
   ): Promise<{ industries: string[] }> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const user = await this.userRepo.findOne({ where: { id: userId } })
     if (!user) {
-      throw BusinessException.notFound('用户');
+      throw BusinessException.notFound('用户')
     }
 
-    user.industryPreferences = dto.industries;
-    await this.userRepo.save(user);
+    user.industryPreferences = dto.industries
+    await this.userRepo.save(user)
 
-    return { industries: user.industryPreferences };
+    return { industries: user.industryPreferences }
   }
 }

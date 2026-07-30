@@ -8,6 +8,7 @@
  *  - 内部 API（@Public + @InternalApi，x-api-key 鉴权）：freeze / settle / release / grant / reward
  */
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, InternalApi, Public } from '@reelclone/common'
 import { BillingService } from './billing.service'
 import { FreezePointsDto } from './dto/freeze-points.dto'
@@ -17,6 +18,7 @@ import { ReleasePointsDto } from './dto/release-points.dto'
 import { RewardPointsDto } from './dto/reward-points.dto'
 import { SettlePointsDto } from './dto/settle-points.dto'
 
+@ApiTags('billing')
 @Controller('points')
 export class BillingController {
   constructor(private readonly billing: BillingService) {}
@@ -28,6 +30,7 @@ export class BillingController {
    * 当前积分余额（可用 / 冻结 / 累计）
    */
   @Get('balance')
+  @ApiOperation({ summary: '查询当前积分余额（可用/冻结/累计）' })
   async getBalance(@CurrentUser('userId') userId: string) {
     return this.billing.getBalance(userId)
   }
@@ -37,6 +40,7 @@ export class BillingController {
    * 积分流水（分页 + 筛选）
    */
   @Get('transactions')
+  @ApiOperation({ summary: '查询积分流水列表（分页 + 筛选）' })
   async listTransactions(@CurrentUser('userId') userId: string, @Query() dto: ListTransactionsDto) {
     return this.billing.listTransactions(userId, dto)
   }
@@ -46,6 +50,7 @@ export class BillingController {
    * 单笔流水详情
    */
   @Get('transactions/:id')
+  @ApiOperation({ summary: '查询单笔积分流水详情' })
   async getTransaction(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.billing.getTransaction(userId, id)
   }
@@ -59,6 +64,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Post('freeze')
+  @ApiOperation({ summary: '冻结积分（内部 API）' })
   async freeze(@Body() dto: FreezePointsDto) {
     return this.billing.freeze(dto)
   }
@@ -70,6 +76,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Post('settle')
+  @ApiOperation({ summary: '结算冻结积分（内部 API）' })
   async settle(@Body() dto: SettlePointsDto) {
     return this.billing.settle(dto)
   }
@@ -81,6 +88,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Post('release')
+  @ApiOperation({ summary: '释放冻结积分（内部 API）' })
   async release(@Body() dto: ReleasePointsDto) {
     return this.billing.release(dto)
   }
@@ -92,6 +100,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Post('grant')
+  @ApiOperation({ summary: '赠送积分（内部 API）' })
   async grant(@Body() dto: GrantPointsDto) {
     return this.billing.grant(dto)
   }
@@ -103,6 +112,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Post('reward')
+  @ApiOperation({ summary: '奖励积分（内部 API）' })
   async reward(@Body() dto: RewardPointsDto) {
     return this.billing.reward(dto)
   }
@@ -114,6 +124,7 @@ export class BillingController {
   @Public()
   @InternalApi()
   @Get('internal/templates/:templateId/reward-count')
+  @ApiOperation({ summary: '统计模板已发放奖励数（内部 API）' })
   async getRewardCount(@Param('templateId') templateId: string) {
     const count = await this.billing.countRewardsByTemplateId(templateId)
     return { templateId, rewardCount: count }

@@ -25,6 +25,7 @@
  *       必须在 /:id 之前定义，否则会被当作 :id 参数。
  */
 import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Public, CurrentUser, Roles, RolesGuard, InternalApi } from '@reelclone/common'
 import { TemplateService } from './template.service'
 import { FavoriteService } from './favorite.service'
@@ -35,6 +36,7 @@ import { UploadTemplateDto } from './dto/upload-template.dto'
 import { FailTemplateDto, FinalizeTemplateInternalDto } from './dto/finalize-template.dto'
 import { PaginationDto } from '@reelclone/common'
 
+@ApiTags('template')
 @Controller('templates')
 @UseGuards(RolesGuard)
 export class TemplateController {
@@ -49,6 +51,7 @@ export class TemplateController {
    */
   @Public()
   @Get()
+  @ApiOperation({ summary: '模板广场列表（公开，分页 + 筛选 + 排序）' })
   async list(@Query() dto: ListTemplatesDto) {
     return this.templateService.findAll(dto)
   }
@@ -58,6 +61,7 @@ export class TemplateController {
    * 提交后进入 ANALYZING 状态，Temporal 工作流异步分析视频生成模板。
    */
   @Post('upload')
+  @ApiOperation({ summary: '用户上传视频转模板' })
   async upload(@CurrentUser('userId') userId: string, @Body() dto: UploadTemplateDto) {
     return this.templateService.submitUpload(userId, dto)
   }
@@ -67,6 +71,7 @@ export class TemplateController {
    * 前端轮询此接口获取状态（ANALYZING → ACTIVE / ANALYSIS_FAILED）。
    */
   @Get('upload/:workflowId/status')
+  @ApiOperation({ summary: '查询上传转模板进度' })
   async uploadStatus(
     @CurrentUser('userId') userId: string,
     @Param('workflowId') workflowId: string,
@@ -79,6 +84,7 @@ export class TemplateController {
    * 包含 ACTIVE / ANALYZING / ANALYSIS_FAILED 三种状态。
    */
   @Get('my-uploaded')
+  @ApiOperation({ summary: '我上传的模板列表' })
   async myUploaded(@CurrentUser('userId') userId: string, @Query() pagination: PaginationDto) {
     const page = pagination.page ?? 1
     const pageSize = pagination.pageSize ?? 20
@@ -90,6 +96,7 @@ export class TemplateController {
    * 将作品转为模板，提交后进入待审核状态。
    */
   @Post('publish')
+  @ApiOperation({ summary: '用户发布模板' })
   async publish(@CurrentUser('userId') userId: string, @Body() dto: PublishTemplateDto) {
     return this.templateService.publishFromWork(userId, dto)
   }
@@ -101,6 +108,7 @@ export class TemplateController {
   @Public()
   @InternalApi()
   @Post('internal/publish')
+  @ApiOperation({ summary: '发布模板（内部 API）' })
   async internalPublish(@Body() body: PublishTemplateDto & { userId: string }) {
     const { userId, ...dto } = body
     return this.templateService.publishFromWork(userId, dto)
@@ -113,6 +121,7 @@ export class TemplateController {
   @Public()
   @InternalApi()
   @Post('internal/finalize')
+  @ApiOperation({ summary: '完成模板（内部 API）' })
   async internalFinalize(@Body() dto: FinalizeTemplateInternalDto) {
     return this.templateService.internalFinalize(dto)
   }
@@ -124,6 +133,7 @@ export class TemplateController {
   @Public()
   @InternalApi()
   @Post('internal/fail')
+  @ApiOperation({ summary: '标记模板失败（内部 API）' })
   async internalFail(@Body() dto: FailTemplateDto) {
     return this.templateService.internalFail(dto)
   }
@@ -134,6 +144,7 @@ export class TemplateController {
    */
   @Roles('ADMIN', 'SUPER_ADMIN')
   @Get('pending-review')
+  @ApiOperation({ summary: '待审核模板列表' })
   async pendingReview(@Query() pagination: PaginationDto) {
     const page = pagination.page ?? 1
     const pageSize = pagination.pageSize ?? 20
@@ -145,6 +156,7 @@ export class TemplateController {
    * 查询当前用户发布的所有模板，分页返回。
    */
   @Get('my-published')
+  @ApiOperation({ summary: '我发布的模板列表' })
   async myPublished(@CurrentUser('userId') userId: string, @Query() pagination: PaginationDto) {
     const page = pagination.page ?? 1
     const pageSize = pagination.pageSize ?? 20
@@ -156,6 +168,7 @@ export class TemplateController {
    * 按 Favorite.createdAt 倒序，分页返回
    */
   @Get('favorites')
+  @ApiOperation({ summary: '我的收藏列表' })
   async myFavorites(@CurrentUser('userId') userId: string, @Query() pagination: PaginationDto) {
     const page = pagination.page ?? 1
     const pageSize = pagination.pageSize ?? 20
@@ -167,6 +180,7 @@ export class TemplateController {
    */
   @Public()
   @Get(':id')
+  @ApiOperation({ summary: '模板详情' })
   async detail(@Param('id') id: string) {
     return this.templateService.findOne(id)
   }
@@ -177,6 +191,7 @@ export class TemplateController {
    */
   @Roles('ADMIN', 'SUPER_ADMIN')
   @Post(':id/review')
+  @ApiOperation({ summary: '审核模板' })
   async review(@Param('id') id: string, @Body() dto: ReviewTemplateDto) {
     return this.templateService.review(id, dto)
   }
@@ -189,6 +204,7 @@ export class TemplateController {
   @Public()
   @InternalApi()
   @Post(':id/increment-use')
+  @ApiOperation({ summary: '模板使用次数 +1' })
   async incrementUse(@Param('id') id: string) {
     await this.templateService.incrementUseCount(id)
     return { success: true }
@@ -198,6 +214,7 @@ export class TemplateController {
    * 收藏模板（需 JWT，幂等）
    */
   @Post(':id/favorite')
+  @ApiOperation({ summary: '收藏模板' })
   async favorite(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.favoriteService.favorite(userId, id)
   }
@@ -206,6 +223,7 @@ export class TemplateController {
    * 取消收藏（需 JWT，幂等）
    */
   @Delete(':id/favorite')
+  @ApiOperation({ summary: '取消收藏' })
   async unfavorite(@CurrentUser('userId') userId: string, @Param('id') id: string) {
     return this.favoriteService.unfavorite(userId, id)
   }

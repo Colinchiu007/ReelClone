@@ -12,16 +12,18 @@
  *  3. 始终返回 200 + { code: 'SUCCESS' }，避免微信重试
  *     （即使订单不存在或已处理，也返回成功）
  */
-import { Body, Controller, Headers, Post } from '@nestjs/common';
-import { Public } from '@reelclone/common';
-import { OrderService } from './order.service';
+import { Body, Controller, Headers, Post } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { Public } from '@reelclone/common'
+import { OrderService } from './order.service'
 
 /** 微信支付回调响应（微信要求格式） */
 interface WechatCallbackResponse {
-  code: 'SUCCESS' | 'FAIL';
-  message: string;
+  code: 'SUCCESS' | 'FAIL'
+  message: string
 }
 
+@ApiTags('order-webhook')
 @Controller('webhooks/wechat-pay')
 export class WebhookController {
   constructor(private readonly orderService: OrderService) {}
@@ -35,14 +37,15 @@ export class WebhookController {
    */
   @Public()
   @Post()
+  @ApiOperation({ summary: '微信支付回调' })
   async handle(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Body() body: unknown,
   ): Promise<WechatCallbackResponse> {
-    const serial = this.extractHeader(headers, 'wechatpay-serial');
-    const timestamp = this.extractHeader(headers, 'wechatpay-timestamp');
-    const nonce = this.extractHeader(headers, 'wechatpay-nonce');
-    const signature = this.extractHeader(headers, 'wechatpay-signature');
+    const serial = this.extractHeader(headers, 'wechatpay-serial')
+    const timestamp = this.extractHeader(headers, 'wechatpay-timestamp')
+    const nonce = this.extractHeader(headers, 'wechatpay-nonce')
+    const signature = this.extractHeader(headers, 'wechatpay-signature')
 
     try {
       await this.orderService.handleCallback({
@@ -51,15 +54,15 @@ export class WebhookController {
         nonce,
         signature,
         body,
-      });
-      return { code: 'SUCCESS', message: 'OK' };
+      })
+      return { code: 'SUCCESS', message: 'OK' }
     } catch (err) {
       // 签名校验失败或其他错误：返回 FAIL，微信会重试
       // 但对于订单不存在、已 PAID 等情况，handleCallback 内部不会抛错
       return {
         code: 'FAIL',
         message: (err as Error).message ?? '处理失败',
-      };
+      }
     }
   }
 
@@ -68,12 +71,12 @@ export class WebhookController {
     headers: Record<string, string | string[] | undefined>,
     name: string,
   ): string | undefined {
-    const lower = name.toLowerCase();
+    const lower = name.toLowerCase()
     for (const [key, value] of Object.entries(headers)) {
       if (key.toLowerCase() === lower) {
-        return typeof value === 'string' ? value : value?.[0];
+        return typeof value === 'string' ? value : value?.[0]
       }
     }
-    return undefined;
+    return undefined
   }
 }

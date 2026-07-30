@@ -14,10 +14,12 @@
  *  - 更新操作会触发 ConfigStore 热刷新（通过 Redis Pub/Sub 通知所有实例）
  */
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Roles, RolesGuard } from '@reelclone/common'
 import { AdminConfigService } from './admin-config.service'
 import { UpdateApiKeysDto } from './dto/update-api-keys.dto'
 
+@ApiTags('admin-config')
 @Controller('admin/config')
 @Roles('ADMIN', 'SUPER_ADMIN')
 @UseGuards(RolesGuard)
@@ -33,6 +35,7 @@ export class AdminConfigController {
    * **不返回明文 Key**，仅返回 Key 数量与是否已配置。
    */
   @Get('api-keys')
+  @ApiOperation({ summary: '查看各 Provider 的 Key 配置状态' })
   async listApiKeys() {
     return this.adminConfigService.listApiKeys()
   }
@@ -47,6 +50,7 @@ export class AdminConfigController {
    * 返回 { success: true, provider, keyCount }
    */
   @Put('api-keys')
+  @ApiOperation({ summary: '更新指定 Provider 的 Key 列表' })
   async updateApiKeys(@Body() dto: UpdateApiKeysDto) {
     return this.adminConfigService.updateApiKeys(dto.provider, dto.keys)
   }

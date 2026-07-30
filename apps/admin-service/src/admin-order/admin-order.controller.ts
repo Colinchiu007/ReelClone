@@ -13,11 +13,13 @@
  *  - @CurrentUser('userId') 获取操作者 ID（用于退款审计日志）
  */
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles } from '@reelclone/common'
 import { AdminOrderService } from './admin-order.service'
 import { ListOrdersDto } from './dto/list-orders.dto'
 import { RefundOrderDto } from './dto/refund-order.dto'
 
+@ApiTags('admin-order')
 @Controller('admin/orders')
 @Roles('ADMIN', 'SUPER_ADMIN')
 export class AdminOrderController {
@@ -30,6 +32,7 @@ export class AdminOrderController {
    * 返回精简字段：id / userId / packageId / amount / status / paymentMethod / createdAt
    */
   @Get()
+  @ApiOperation({ summary: '全平台订单列表（分页 + 多条件筛选）' })
   async list(@Query() dto: ListOrdersDto) {
     return this.adminOrderService.findAll(dto)
   }
@@ -43,6 +46,7 @@ export class AdminOrderController {
    * 操作者 ID 由 @CurrentUser 注入，记入退款审计日志
    */
   @Post(':id/refund')
+  @ApiOperation({ summary: '订单退款（敏感操作）' })
   async refund(
     @Param('id') id: string,
     @Body() dto: RefundOrderDto,

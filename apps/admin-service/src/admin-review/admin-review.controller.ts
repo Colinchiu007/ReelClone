@@ -11,11 +11,13 @@
  * 所有端点均需 JWT + 管理员角色（全局 JwtAuthGuard + RolesGuard 生效）。
  */
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles } from '@reelclone/common'
 import { AdminReviewService } from './admin-review.service'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
 
+@ApiTags('admin-review')
 @Controller('admin')
 @Roles('ADMIN', 'SUPER_ADMIN')
 export class AdminReviewController {
@@ -27,6 +29,7 @@ export class AdminReviewController {
    * 响应：{ templates: [...], avatarGroups: [...], total: number }
    */
   @Get('reviews/pending')
+  @ApiOperation({ summary: '聚合待审核列表' })
   async pending(@Query('type') type?: string) {
     return this.adminReviewService.findPending(type ?? 'all')
   }
@@ -36,6 +39,7 @@ export class AdminReviewController {
    * 模板审核：更新 status + reviewNote + reviewedAt，并通知提交者
    */
   @Post('templates/:id/review')
+  @ApiOperation({ summary: '模板审核' })
   async reviewTemplate(
     @Param('id') id: string,
     @Body() dto: ReviewTemplateDto,
@@ -49,6 +53,7 @@ export class AdminReviewController {
    * 形象组授权审核：更新 authorizationStatus
    */
   @Put('avatar-groups/:id/authorization')
+  @ApiOperation({ summary: '形象组授权审核' })
   async reviewAvatarGroup(
     @Param('id') id: string,
     @Body() dto: ReviewAvatarGroupDto,

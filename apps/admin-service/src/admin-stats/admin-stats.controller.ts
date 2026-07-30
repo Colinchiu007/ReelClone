@@ -13,11 +13,13 @@
  *  - @UseGuards(RolesGuard) 配合 @Roles() 做 RBAC 角色校验
  */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Roles, RolesGuard } from '@reelclone/common'
 import { AdminStatsService } from './admin-stats.service'
 import { OverviewQueryDto } from './dto/overview-query.dto'
 import { PointsFlowQueryDto } from './dto/points-flow-query.dto'
 
+@ApiTags('admin-stats')
 @Controller('admin/stats')
 @Roles('ADMIN', 'SUPER_ADMIN')
 @UseGuards(RolesGuard)
@@ -33,6 +35,7 @@ export class AdminStatsController {
    * Query: range = '7d' | '30d'（默认 7d）
    */
   @Get('overview')
+  @ApiOperation({ summary: '概览指标（DAU / 新增用户 / GMV / 生成量 / 积分消耗 + 趋势）' })
   async overview(@Query() dto: OverviewQueryDto) {
     return this.adminStatsService.getOverview(dto)
   }
@@ -45,6 +48,7 @@ export class AdminStatsController {
    * 从 billing 库 point_transactions 表分页查询，支持 userId / startDate / endDate 筛选。
    */
   @Get('points-flow')
+  @ApiOperation({ summary: '积分流水查询' })
   async pointsFlow(@Query() dto: PointsFlowQueryDto) {
     return this.adminStatsService.getPointsFlow(dto)
   }

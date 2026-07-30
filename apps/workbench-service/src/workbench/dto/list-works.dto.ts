@@ -1,6 +1,7 @@
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { WorkStatus, WorkType } from '@reelclone/database';
+import { Type } from 'class-transformer'
+import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
+import { WorkStatus, WorkType } from '@reelclone/database'
 
 /**
  * 作品列表查询 DTO
@@ -9,27 +10,52 @@ import { WorkStatus, WorkType } from '@reelclone/database';
  */
 export class ListWorksDto {
   /** 页码，从 1 开始 */
+  @ApiProperty({
+    description: '页码，从 1 开始',
+    example: 1,
+    required: false,
+    minimum: 1,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page: number = 1;
+  page: number = 1
 
   /** 每页条数 */
+  @ApiProperty({
+    description: '每页条数（1-100）',
+    example: 20,
+    required: false,
+    minimum: 1,
+    maximum: 100,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize: number = 20;
+  pageSize: number = 20
 
   /** 作品状态筛选 */
+  @ApiProperty({
+    description: '作品状态筛选（PENDING/PROCESSING/COMPLETED/FAILED/CANCELLED/REJECTED/DELETED）',
+    example: WorkStatus.COMPLETED,
+    enum: WorkStatus,
+    required: false,
+  })
   @IsOptional()
   @IsEnum(WorkStatus)
-  status?: WorkStatus;
+  status?: WorkStatus
 
   /** 作品类型筛选 */
+  @ApiProperty({
+    description: '作品类型筛选（TEXT/IMAGE/VIDEO）',
+    example: WorkType.VIDEO,
+    enum: WorkType,
+    required: false,
+  })
   @IsOptional()
   @IsEnum(WorkType)
-  workType?: WorkType;
+  workType?: WorkType
 }

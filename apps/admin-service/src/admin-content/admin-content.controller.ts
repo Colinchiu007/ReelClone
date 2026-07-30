@@ -13,12 +13,14 @@
  * 操作者：通过 @CurrentUser('userId') 获取管理员 ID，传递给 Service 用于审计日志。
  */
 import { Body, Controller, Delete, Get, Param, Put, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles } from '@reelclone/common'
 import { AdminContentService } from './admin-content.service'
 import { ListWorksDto } from './dto/list-works.dto'
 import { TakedownWorkDto } from './dto/takedown-work.dto'
 import { UpdateTemplateStatusDto } from './dto/update-template-status.dto'
 
+@ApiTags('admin-content')
 @Controller('admin')
 @Roles('ADMIN', 'SUPER_ADMIN')
 export class AdminContentController {
@@ -29,6 +31,7 @@ export class AdminContentController {
    * 全平台作品列表，支持 ?status=&userId=&startDate=&endDate=&page=&pageSize=
    */
   @Get('works')
+  @ApiOperation({ summary: '全平台作品列表（分页 + 筛选）' })
   listWorks(@Query() query: ListWorksDto) {
     return this.service.listWorks(query)
   }
@@ -39,6 +42,7 @@ export class AdminContentController {
    * Work.status 改为 CANCELLED，记录下架日志 + 通知创作者
    */
   @Delete('works/:id')
+  @ApiOperation({ summary: '强制下架作品' })
   takedownWork(
     @Param('id') id: string,
     @Body() dto: TakedownWorkDto,
@@ -52,6 +56,7 @@ export class AdminContentController {
    * 全状态模板列表（含 PENDING_REVIEW / ACTIVE / OFFLINE / REJECTED）
    */
   @Get('templates')
+  @ApiOperation({ summary: '全状态模板列表' })
   listTemplates() {
     return this.service.listTemplates()
   }
@@ -61,6 +66,7 @@ export class AdminContentController {
    * 模板上下架，body: { status: 'ACTIVE' | 'OFFLINE' }
    */
   @Put('templates/:id/status')
+  @ApiOperation({ summary: '模板上下架' })
   updateTemplateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateTemplateStatusDto,

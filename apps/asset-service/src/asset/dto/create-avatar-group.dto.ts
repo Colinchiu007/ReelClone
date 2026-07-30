@@ -9,6 +9,7 @@
  *   name / description / authorizationKey / authorizationStatus / assetCount
  */
 import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 import { PaginationDto } from '@reelclone/common'
 
 /**
@@ -17,16 +18,32 @@ import { PaginationDto } from '@reelclone/common'
  */
 export class CreateAvatarGroupDto {
   /** 组名称（同用户下唯一） */
+  @ApiProperty({
+    description: '组名称（同用户下唯一）',
+    example: '我的形象组',
+    maxLength: 64,
+  })
   @IsString()
   @MaxLength(64)
   name: string
 
   /** 描述 */
+  @ApiProperty({
+    description: '描述',
+    example: '用于短视频口播的真人形象',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string
 
   /** 授权书 OSS Key（可后续补充） */
+  @ApiProperty({
+    description: '授权书 OSS Key（可后续补充）',
+    example: 'avatars/auth/user-uuid/authorization.pdf',
+    required: false,
+    maxLength: 512,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(512)
@@ -42,17 +59,34 @@ export class CreateAvatarGroupDto {
  */
 export class UpdateAvatarGroupDto {
   /** 组名称（若变更需重新校验唯一性） */
+  @ApiProperty({
+    description: '组名称（若变更需重新校验唯一性）',
+    example: '我的形象组-改名',
+    required: false,
+    maxLength: 64,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(64)
   name?: string
 
   /** 描述 */
+  @ApiProperty({
+    description: '描述',
+    example: '用于短视频口播的真人形象',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string
 
   /** 授权书 OSS Key */
+  @ApiProperty({
+    description: '授权书 OSS Key',
+    example: 'avatars/auth/user-uuid/authorization.pdf',
+    required: false,
+    maxLength: 512,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(512)

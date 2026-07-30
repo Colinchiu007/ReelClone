@@ -1,4 +1,5 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 
 /**
  * 赠送积分 DTO（内部 API）
@@ -8,30 +9,55 @@ import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
  */
 export class GrantPointsDto {
   /** 用户 ID */
+  @ApiProperty({
+    description: '用户 ID',
+    example: 'user-uuid-001',
+  })
   @IsString()
-  userId!: string;
+  userId!: string
 
   /** 赠送数量（>0） */
+  @ApiProperty({
+    description: '赠送数量（>0）',
+    example: 500,
+  })
   @IsInt()
   @Min(1)
-  amount!: number;
+  amount!: number
 
   /** 幂等键 */
+  @ApiProperty({
+    description: '幂等键',
+    example: 'grant-20260731-001',
+  })
   @IsString()
   @MaxLength(128)
-  idempotencyKey!: string;
+  idempotencyKey!: string
 
   /** 关联订单 ID */
+  @ApiProperty({
+    description: '关联订单 ID',
+    example: 'order-uuid-001',
+  })
   @IsString()
-  orderId!: string;
+  orderId!: string
 
   /** 关联套餐 ID */
+  @ApiProperty({
+    description: '关联套餐 ID',
+    example: 'package-uuid-001',
+  })
   @IsString()
-  packageId!: string;
+  packageId!: string
 
   /** 业务说明（可选） */
+  @ApiProperty({
+    description: '业务说明（可选）',
+    example: '套餐购买赠送积分',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(256)
-  description?: string;
+  description?: string
 }

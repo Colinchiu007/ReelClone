@@ -1,4 +1,5 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 
 /**
  * 结算冻结积分 DTO（内部 API）
@@ -8,31 +9,57 @@ import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
  */
 export class SettlePointsDto {
   /** 用户 ID */
+  @ApiProperty({
+    description: '用户 ID',
+    example: 'user-uuid-001',
+  })
   @IsString()
-  userId!: string;
+  userId!: string
 
   /** 结算数量（>0） */
+  @ApiProperty({
+    description: '结算数量（>0）',
+    example: 80,
+  })
   @IsInt()
   @Min(1)
-  amount!: number;
+  amount!: number
 
   /** 幂等键 */
+  @ApiProperty({
+    description: '幂等键',
+    example: 'settle-20260731-001',
+  })
   @IsString()
   @MaxLength(128)
-  idempotencyKey!: string;
+  idempotencyKey!: string
 
   /** 关联作品 ID（可选） */
+  @ApiProperty({
+    description: '关联作品 ID（可选）',
+    example: 'work-uuid-001',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  workId?: string;
+  workId?: string
 
   /** 关联的 FREEZE 流水 ID（必传，定位原冻结记录） */
+  @ApiProperty({
+    description: '关联的 FREEZE 流水 ID（必传，定位原冻结记录）',
+    example: 'txn-freeze-uuid-001',
+  })
   @IsString()
-  freezeId!: string;
+  freezeId!: string
 
   /** 业务说明（可选） */
+  @ApiProperty({
+    description: '业务说明（可选）',
+    example: '任务成功结算冻结积分',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(256)
-  description?: string;
+  description?: string
 }

@@ -18,12 +18,14 @@ import {
   Param,
   Post,
   Query,
-} from '@nestjs/common';
-import { CurrentUser } from '@reelclone/common';
-import { AssetService } from './asset.service';
-import { CreateAssetDto, UploadTokenDto } from './dto/create-asset.dto';
-import { ListAssetsDto } from './dto/list-assets.dto';
+} from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { CurrentUser } from '@reelclone/common'
+import { AssetService } from './asset.service'
+import { CreateAssetDto, UploadTokenDto } from './dto/create-asset.dto'
+import { ListAssetsDto } from './dto/list-assets.dto'
 
+@ApiTags('asset')
 @Controller('assets')
 export class AssetController {
   constructor(private readonly assetService: AssetService) {}
@@ -34,11 +36,8 @@ export class AssetController {
    */
   @Post('upload-token')
   @HttpCode(HttpStatus.OK)
-  async createUploadToken(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: UploadTokenDto,
-  ) {
-    return this.assetService.createUploadToken(userId, dto);
+  async createUploadToken(@CurrentUser('userId') userId: string, @Body() dto: UploadTokenDto) {
+    return this.assetService.createUploadToken(userId, dto)
   }
 
   /**
@@ -46,11 +45,9 @@ export class AssetController {
    * 资产列表（仅返回当前用户的 ACTIVE 资产）
    */
   @Get()
-  async findAll(
-    @CurrentUser('userId') userId: string,
-    @Query() query: ListAssetsDto,
-  ) {
-    return this.assetService.findAll(userId, query);
+  @ApiOperation({ summary: '资产列表（分页 + 筛选）' })
+  async findAll(@CurrentUser('userId') userId: string, @Query() query: ListAssetsDto) {
+    return this.assetService.findAll(userId, query)
   }
 
   /**
@@ -58,11 +55,9 @@ export class AssetController {
    * 用户直传 OSS 完成后登记资产记录
    */
   @Post()
-  async create(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CreateAssetDto,
-  ) {
-    return this.assetService.create(userId, dto);
+  @ApiOperation({ summary: '创建资产记录（直传 OSS 完成后登记）' })
+  async create(@CurrentUser('userId') userId: string, @Body() dto: CreateAssetDto) {
+    return this.assetService.create(userId, dto)
   }
 
   /**
@@ -70,11 +65,8 @@ export class AssetController {
    * 资产详情（校验所有权）
    */
   @Get(':id')
-  async findOne(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.assetService.findOne(userId, id);
+  async findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.assetService.findOne(userId, id)
   }
 
   /**
@@ -83,10 +75,8 @@ export class AssetController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async delete(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.assetService.delete(userId, id);
+  @ApiOperation({ summary: '删除资产' })
+  async delete(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.assetService.delete(userId, id)
   }
 }

@@ -7,10 +7,12 @@
  *  - GET /          套餐列表（按 sort、price 升序）
  *  - GET /:id       套餐详情
  */
-import { Controller, Get, Param } from '@nestjs/common';
-import { Public } from '@reelclone/common';
-import { PackageService } from './package.service';
+import { Controller, Get, Param } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { Public } from '@reelclone/common'
+import { PackageService } from './package.service'
 
+@ApiTags('package')
 @Controller('packages')
 export class PackageController {
   constructor(private readonly packageService: PackageService) {}
@@ -20,8 +22,9 @@ export class PackageController {
    */
   @Public()
   @Get()
+  @ApiOperation({ summary: '套餐列表（公开）' })
   async list() {
-    return this.packageService.findAll();
+    return this.packageService.findAll()
   }
 
   /**
@@ -29,7 +32,8 @@ export class PackageController {
    */
   @Public()
   @Get(':id')
+  @ApiOperation({ summary: '套餐详情（公开）' })
   async detail(@Param('id') id: string) {
-    return this.packageService.findOne(id);
+    return this.packageService.findOne(id)
   }
 }

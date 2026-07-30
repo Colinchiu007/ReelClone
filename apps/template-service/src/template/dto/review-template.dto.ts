@@ -1,4 +1,5 @@
 import { IsOptional, IsString, IsEnum } from 'class-validator'
+import { ApiProperty } from '@nestjs/swagger'
 import { TemplateStatus } from '@reelclone/database'
 
 /**
@@ -9,10 +10,20 @@ import { TemplateStatus } from '@reelclone/database'
  */
 export class ReviewTemplateDto {
   /** 审核后状态（ACTIVE 或 REJECTED） */
+  @ApiProperty({
+    description: '审核后状态（ACTIVE 或 REJECTED）',
+    example: TemplateStatus.ACTIVE,
+    enum: TemplateStatus,
+  })
   @IsEnum(TemplateStatus)
   status!: TemplateStatus
 
   /** 审核备注 */
+  @ApiProperty({
+    description: '审核备注',
+    example: '内容符合规范，审核通过。',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   reviewNote?: string

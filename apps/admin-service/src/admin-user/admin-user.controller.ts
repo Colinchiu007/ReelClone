@@ -13,6 +13,7 @@
  * 权限：Controller 级别 @Roles('ADMIN', 'SUPER_ADMIN')，全局 JwtAuthGuard 已验证 JWT。
  */
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser, Roles, RolesGuard } from '@reelclone/common'
 import { AdminUserService } from './admin-user.service'
 import { ListUsersDto } from './dto/list-users.dto'
@@ -20,6 +21,7 @@ import { UpdateUserStatusDto } from './dto/update-user-status.dto'
 import { UpdateUserRoleDto } from './dto/update-user-role.dto'
 import { GrantPointsDto } from './dto/grant-points.dto'
 
+@ApiTags('admin-user')
 @Controller('admin/users')
 @Roles('ADMIN', 'SUPER_ADMIN')
 @UseGuards(RolesGuard)
@@ -33,6 +35,7 @@ export class AdminUserController {
    * 支持 keyword（昵称/手机号模糊搜索）、status 筛选、role 筛选。
    */
   @Get()
+  @ApiOperation({ summary: '分页查询用户列表' })
   async listUsers(@Query() dto: ListUsersDto) {
     return this.adminUserService.listUsers(dto)
   }
@@ -43,6 +46,7 @@ export class AdminUserController {
    * 查询用户详情（含 currentPoints/totalPoints/role/status/lastLoginAt）
    */
   @Get(':id')
+  @ApiOperation({ summary: '查询用户详情' })
   async getUserDetail(@Param('id') id: string) {
     return this.adminUserService.getUserDetail(id)
   }
@@ -54,6 +58,7 @@ export class AdminUserController {
    * body: { status: 'ACTIVE' | 'FROZEN' }
    */
   @Put(':id/status')
+  @ApiOperation({ summary: '封禁 / 解封用户' })
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto) {
     return this.adminUserService.updateStatus(id, dto)
   }
@@ -65,6 +70,7 @@ export class AdminUserController {
    * body: { role: 'USER' | 'ADMIN' | 'SUPER_ADMIN' }
    */
   @Put(':id/role')
+  @ApiOperation({ summary: '变更用户角色（仅 SUPER_ADMIN）' })
   async updateRole(
     @Param('id') id: string,
     @Body() dto: UpdateUserRoleDto,
@@ -80,6 +86,7 @@ export class AdminUserController {
    * body: { amount: number, reason: string }
    */
   @Post(':id/grant-points')
+  @ApiOperation({ summary: '人工调账（赠送积分）' })
   async grantPoints(
     @Param('id') id: string,
     @Body() dto: GrantPointsDto,

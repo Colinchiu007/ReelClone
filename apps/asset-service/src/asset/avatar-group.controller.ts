@@ -19,15 +19,17 @@ import {
   Post,
   Put,
   Query,
-} from '@nestjs/common';
-import { CurrentUser } from '@reelclone/common';
-import { AvatarGroupService } from './avatar-group.service';
+} from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { CurrentUser } from '@reelclone/common'
+import { AvatarGroupService } from './avatar-group.service'
 import {
   CreateAvatarGroupDto,
   ListAvatarGroupsDto,
   UpdateAvatarGroupDto,
-} from './dto/create-avatar-group.dto';
+} from './dto/create-avatar-group.dto'
 
+@ApiTags('asset-avatar-group')
 @Controller('avatar-groups')
 export class AvatarGroupController {
   constructor(private readonly avatarGroupService: AvatarGroupService) {}
@@ -38,11 +40,9 @@ export class AvatarGroupController {
    */
   @Post()
   @HttpCode(HttpStatus.OK)
-  async create(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CreateAvatarGroupDto,
-  ) {
-    return this.avatarGroupService.create(userId, dto);
+  @ApiOperation({ summary: '创建真人形象组' })
+  async create(@CurrentUser('userId') userId: string, @Body() dto: CreateAvatarGroupDto) {
+    return this.avatarGroupService.create(userId, dto)
   }
 
   /**
@@ -50,11 +50,8 @@ export class AvatarGroupController {
    * 当前用户的真人形象组列表（仅 ACTIVE）
    */
   @Get()
-  async findAll(
-    @CurrentUser('userId') userId: string,
-    @Query() query: ListAvatarGroupsDto,
-  ) {
-    return this.avatarGroupService.findAll(userId, query);
+  async findAll(@CurrentUser('userId') userId: string, @Query() query: ListAvatarGroupsDto) {
+    return this.avatarGroupService.findAll(userId, query)
   }
 
   /**
@@ -62,11 +59,8 @@ export class AvatarGroupController {
    * 详情（含组内资产列表）
    */
   @Get(':id')
-  async findOne(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.avatarGroupService.findOne(userId, id);
+  async findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.avatarGroupService.findOne(userId, id)
   }
 
   /**
@@ -79,7 +73,7 @@ export class AvatarGroupController {
     @Param('id') id: string,
     @Body() dto: UpdateAvatarGroupDto,
   ) {
-    return this.avatarGroupService.update(userId, id, dto);
+    return this.avatarGroupService.update(userId, id, dto)
   }
 
   /**
@@ -88,10 +82,8 @@ export class AvatarGroupController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async delete(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.avatarGroupService.delete(userId, id);
+  @ApiOperation({ summary: '删除真人形象组（级联删除组内资产）' })
+  async delete(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.avatarGroupService.delete(userId, id)
   }
 }

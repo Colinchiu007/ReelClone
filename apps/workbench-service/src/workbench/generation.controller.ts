@@ -10,12 +10,14 @@
  *  - POST   /:id/cancel  取消任务（需 JWT）
  *  - POST   /:id/retry   重试任务（需 JWT）
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { CurrentUser } from '@reelclone/common';
-import { GenerationService } from './generation.service';
-import { CreateGenerationDto } from './dto/create-generation.dto';
-import { ListGenerationsDto } from './dto/list-generations.dto';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import { CurrentUser } from '@reelclone/common'
+import { GenerationService } from './generation.service'
+import { CreateGenerationDto } from './dto/create-generation.dto'
+import { ListGenerationsDto } from './dto/list-generations.dto'
 
+@ApiTags('generation')
 @Controller('generations')
 export class GenerationController {
   constructor(private readonly generationService: GenerationService) {}
@@ -25,11 +27,9 @@ export class GenerationController {
    * 提交生成任务
    */
   @Post()
-  async create(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CreateGenerationDto,
-  ) {
-    return this.generationService.create(userId, dto);
+  @ApiOperation({ summary: '提交生成任务' })
+  async create(@CurrentUser('userId') userId: string, @Body() dto: CreateGenerationDto) {
+    return this.generationService.create(userId, dto)
   }
 
   /**
@@ -37,11 +37,9 @@ export class GenerationController {
    * 任务列表（分页 + 筛选）
    */
   @Get()
-  async findAll(
-    @CurrentUser('userId') userId: string,
-    @Query() dto: ListGenerationsDto,
-  ) {
-    return this.generationService.findAll(userId, dto);
+  @ApiOperation({ summary: '任务列表（分页 + 筛选）' })
+  async findAll(@CurrentUser('userId') userId: string, @Query() dto: ListGenerationsDto) {
+    return this.generationService.findAll(userId, dto)
   }
 
   /**
@@ -49,11 +47,9 @@ export class GenerationController {
    * 任务详情
    */
   @Get(':id')
-  async findOne(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.generationService.findOne(userId, id);
+  @ApiOperation({ summary: '任务详情' })
+  async findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.generationService.findOne(userId, id)
   }
 
   /**
@@ -61,12 +57,10 @@ export class GenerationController {
    * 取消任务
    */
   @Post(':id/cancel')
-  async cancel(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    await this.generationService.cancel(userId, id);
-    return { cancelled: true, taskId: id };
+  @ApiOperation({ summary: '取消任务' })
+  async cancel(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    await this.generationService.cancel(userId, id)
+    return { cancelled: true, taskId: id }
   }
 
   /**
@@ -74,10 +68,8 @@ export class GenerationController {
    * 重试任务
    */
   @Post(':id/retry')
-  async retry(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.generationService.retry(userId, id);
+  @ApiOperation({ summary: '重试任务' })
+  async retry(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.generationService.retry(userId, id)
   }
 }

@@ -10,8 +10,10 @@
  * 并在 Controller 级别声明 @Roles('ADMIN', 'SUPER_ADMIN') 强制管理员权限。
  */
 import { Controller, Get } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Public } from '@reelclone/common'
 
+@ApiTags('admin-app')
 @Controller('admin')
 export class AppController {
   /**
@@ -21,6 +23,7 @@ export class AppController {
    */
   @Public()
   @Get('health')
+  @ApiOperation({ summary: '健康检查' })
   health(): { status: string; service: string } {
     return { status: 'ok', service: 'admin-service' }
   }

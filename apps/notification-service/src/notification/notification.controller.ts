@@ -12,10 +12,12 @@
  * 所有端点均需 JWT（全局 JwtAuthGuard），无需 @Public()
  */
 import { Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CurrentUser } from '@reelclone/common'
 import { NotificationService } from './notification.service'
 import { ListNotificationsDto } from './dto/list-notifications.dto'
 
+@ApiTags('notification')
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
@@ -25,10 +27,8 @@ export class NotificationController {
    * GET /api/v1/notifications?page=1&pageSize=20&type=SYSTEM&isRead=false
    */
   @Get()
-  list(
-    @CurrentUser('userId') userId: string,
-    @Query() query: ListNotificationsDto,
-  ) {
+  @ApiOperation({ summary: '获取通知列表（分页 + 筛选）' })
+  list(@CurrentUser('userId') userId: string, @Query() query: ListNotificationsDto) {
     return this.notificationService.listNotifications(userId, query)
   }
 
@@ -40,9 +40,8 @@ export class NotificationController {
    * 注意：必须放在 :id 路由之前，否则 unread-count 会被当成 notificationId
    */
   @Get('unread-count')
-  async unreadCount(
-    @CurrentUser('userId') userId: string,
-  ): Promise<{ count: number }> {
+  @ApiOperation({ summary: '获取未读通知数量' })
+  async unreadCount(@CurrentUser('userId') userId: string): Promise<{ count: number }> {
     const count = await this.notificationService.getUnreadCount(userId)
     return { count }
   }
@@ -55,9 +54,8 @@ export class NotificationController {
    * 注意：必须放在 :id/read 路由之前，否则 read-all 会被当成 notificationId
    */
   @Post('read-all')
-  async markAllAsRead(
-    @CurrentUser('userId') userId: string,
-  ): Promise<{ affected: number }> {
+  @ApiOperation({ summary: '全部通知标记为已读' })
+  async markAllAsRead(@CurrentUser('userId') userId: string): Promise<{ affected: number }> {
     const affected = await this.notificationService.markAllAsRead(userId)
     return { affected }
   }
@@ -67,10 +65,8 @@ export class NotificationController {
    * POST /api/v1/notifications/:id/read
    */
   @Post(':id/read')
-  markAsRead(
-    @CurrentUser('userId') userId: string,
-    @Param('id') notificationId: string,
-  ) {
+  @ApiOperation({ summary: '标记单条通知为已读' })
+  markAsRead(@CurrentUser('userId') userId: string, @Param('id') notificationId: string) {
     return this.notificationService.markAsRead(userId, notificationId)
   }
 }
