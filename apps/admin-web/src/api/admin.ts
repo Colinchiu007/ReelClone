@@ -50,6 +50,43 @@ export function getOverview(range: OverviewRange): Promise<OverviewResult> {
   })
 }
 
+// -------------------- 积分流水 --------------------
+
+export type PointTxType = 'FREEZE' | 'SETTLE' | 'RELEASE' | 'GRANT' | 'CONSUME'
+
+export interface PointsFlowItem {
+  id: string
+  userId: string
+  type: PointTxType
+  amount: number
+  balance: number
+  source: string | null
+  createdAt: string
+}
+
+export interface PaginatedPointsFlow {
+  list: PointsFlowItem[]
+  page: number
+  pageSize: number
+  total: number
+}
+
+export interface ListPointsFlowParams {
+  page?: number
+  pageSize?: number
+  userId?: string
+  startDate?: string
+  endDate?: string
+}
+
+export function listPointsFlow(params: ListPointsFlowParams): Promise<PaginatedPointsFlow> {
+  return http<PaginatedPointsFlow>({
+    url: '/api/v1/admin/stats/points-flow',
+    method: 'GET',
+    params,
+  })
+}
+
 // ==================== 用户管理 ====================
 
 export type UserStatus = 'ACTIVE' | 'FROZEN' | 'DELETED'
@@ -335,6 +372,43 @@ export function refundOrder(
   reason: string,
 ): Promise<{ id: string; status: OrderStatus }> {
   return http({ url: `/api/v1/admin/orders/${id}/refund`, method: 'POST', data: { reason } })
+}
+
+// ==================== 对账监控 ====================
+
+export interface ReconcileResultItem {
+  userId: string
+  userBalance: number
+  txBalance: number
+  frozen: number
+  expectedBalance: number
+  difference: number
+  isConsistent: boolean
+}
+
+export interface ReconcileSummary {
+  totalUsers: number
+  inconsistentCount: number
+  results: ReconcileResultItem[]
+  date?: string
+  startedAt: string
+  finishedAt: string
+}
+
+export function getReconcileResults(date?: string): Promise<ReconcileResultItem[]> {
+  return http<ReconcileResultItem[]>({
+    url: '/api/v1/admin/reconcile/results',
+    method: 'GET',
+    params: { date },
+  })
+}
+
+export function triggerReconcile(scope: string): Promise<ReconcileSummary> {
+  return http<ReconcileSummary>({
+    url: '/api/v1/admin/reconcile',
+    method: 'POST',
+    data: { scope },
+  })
 }
 
 // ==================== 通知推送 ====================

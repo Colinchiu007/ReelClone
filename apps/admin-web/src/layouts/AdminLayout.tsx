@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Layout, Menu, Dropdown, Avatar, Space, Typography, Breadcrumb, type MenuProps } from 'antd'
 import {
   DashboardOutlined,
+  AccountBookOutlined,
   TeamOutlined,
   AuditOutlined,
   AppstoreOutlined,
   GiftOutlined,
   ShoppingOutlined,
+  ReconciliationOutlined,
   NotificationOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -22,22 +24,26 @@ const { Text } = Typography
 
 const menuItems: NonNullable<MenuProps['items']> = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+  { key: '/points-flow', icon: <AccountBookOutlined />, label: '积分流水' },
   { key: '/users', icon: <TeamOutlined />, label: '用户管理' },
   { key: '/reviews', icon: <AuditOutlined />, label: '审核工作台' },
   { key: '/content', icon: <AppstoreOutlined />, label: '内容管理' },
   { key: '/packages', icon: <GiftOutlined />, label: '套餐管理' },
   { key: '/orders', icon: <ShoppingOutlined />, label: '订单管理' },
+  { key: '/reconcile', icon: <ReconciliationOutlined />, label: '对账监控' },
   { key: '/notifications', icon: <NotificationOutlined />, label: '通知推送' },
   { key: '/system-config', icon: <SettingOutlined />, label: '系统配置' },
 ]
 
 const breadcrumbMap: Record<string, string> = {
   dashboard: 'Dashboard',
+  'points-flow': '积分流水',
   users: '用户管理',
   reviews: '审核工作台',
   content: '内容管理',
   packages: '套餐管理',
   orders: '订单管理',
+  reconcile: '对账监控',
   notifications: '通知推送',
   'system-config': '系统配置',
 }
