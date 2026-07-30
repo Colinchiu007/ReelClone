@@ -74,9 +74,13 @@ describe('MetricsModule', () => {
       expect(hasInterceptor).toBe(true)
     })
 
-    it('应导出 HttpMetricsInterceptor', () => {
+    it('应导出 HttpMetricsInterceptor + 两个 token', () => {
       const dynamicModule = MetricsModule.forRoot()
-      expect(dynamicModule.exports).toEqual([HttpMetricsInterceptor])
+      expect(dynamicModule.exports).toEqual([
+        HttpMetricsInterceptor,
+        HTTP_REQUESTS_TOTAL,
+        HTTP_REQUEST_DURATION_SECONDS,
+      ])
     })
 
     it('Counter 应有 method/route/status 标签', () => {

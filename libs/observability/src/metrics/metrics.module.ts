@@ -89,7 +89,9 @@ export class MetricsModule {
       module: MetricsModule,
       controllers: [MetricsController],
       providers,
-      exports: [HttpMetricsInterceptor],
+      // 必须导出 token，否则当 HttpMetricsInterceptor 作为 APP_INTERCEPTOR 在 AppModule
+      // 上下文中实例化时，无法注入 @Inject(HTTP_REQUESTS_TOTAL) 等依赖。
+      exports: [HttpMetricsInterceptor, HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS],
     }
   }
 }

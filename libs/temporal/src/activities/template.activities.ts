@@ -469,7 +469,7 @@ export async function finalizeTemplate(params: {
   }
 
   // ---- 真实模式：HTTP 调用 template-service 内部端点 ----
-  const baseUrl = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:3004'
+  const baseUrl = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:3005'
   const apiKey = process.env.INTERNAL_API_KEY
   await axios.post(
     `${baseUrl}/api/v1/templates/internal/finalize`,
@@ -513,7 +513,7 @@ export async function markTemplateFailed(params: {
   }
 
   // ---- 真实模式：HTTP 调用 template-service 内部端点 ----
-  const baseUrl = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:3004'
+  const baseUrl = process.env.TEMPLATE_SERVICE_URL || 'http://localhost:3005'
   const apiKey = process.env.INTERNAL_API_KEY
   await axios.post(
     `${baseUrl}/api/v1/templates/internal/fail`,
