@@ -340,3 +340,77 @@ foreach ($port in $ports) {
 | 端口清理脚本 (L-017)      | 多次                        | ❌ 运维操作，非 skill |
 
 **结论**: 本次无 skillify 候选。
+
+---
+
+## 2026-07-30 复盘批次（Phase 5 运营期加固）
+
+### L-018 [pitfall] npm overrides 在 workspaces 嵌套 node_modules 中不生效
+
+**场景**: 根 package.json 添加 overrides 强制升级 tar/brace-expansion/uuid 版本，但 `npm audit` 显示漏洞数未减少。检查发现 apps/*/node_modules 下的嵌套依赖仍为旧版本，不受根 overrides 控制。
+
+**根因**: npm workspaces 中，当子包与根包的依赖版本范围冲突时，npm 会在子包目录下安装兼容版本。这些嵌套的 node_modules 不受根 package.json overrides 影响。`npm dedupe` 也无法解决，因为子包的 package.json 锁定了特定版本范围。
+
+**修复**:
+
+1. 删除嵌套的 `apps/*/node_modules` 中的特定旧版包（如 `apps/auth-service/node_modules/bcrypt`）
+2. 在子包 package.json 中直接升级依赖版本（如 bcrypt `^5.1.1` → `^6.0.0`）
+3. 删除 `package-lock.json` 后重新 `npm install --legacy-peer-deps`，强制 npm 重新解析依赖树
+
+**预防**: 升级安全漏洞依赖时，不仅修改根 package.json，还需同步修改所有子包的 package.json，并清理嵌套 node_modules。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [package.json](file:///d:/Data/projects/ReelClone/package.json), [auth-service/package.json](file:///d:/Data/projects/ReelClone/apps/auth-service/package.json)
+
+---
+
+### L-019 [architecture] 可观测性库设计与接入分离
+
+**场景**: 项目有独立的 `libs/observability` 库（Pino 结构化日志 + Prometheus 指标 + 健康检查端点），设计完善且导出清晰，但 9 个微服务均未接入。仅 auth-service 和 admin-service 有手写的简单 /health 端点。
+
+**模式**: 可观测性库应作为基础设施先行建设，但接入需分阶段：
+
+1. **库设计阶段**：定义统一的 LoggerService/HealthModule/MetricsModule 接口
+2. **试点接入**：选择 1-2 个核心服务（如 auth/user）先接入，验证可用性
+3. **全面推广**：逐步接入其他服务，替换 console.log/NestJS 默认 Logger
+
+**当前状态**: 库已就绪但未接入（技术债）。后续需逐服务接入，优先接入 auth/user/workbench（核心业务路径）。
+
+**置信度**: 8/10
+**来源**: observed
+**关联文件**: [observability/index.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/index.ts), [logger.service.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/logger/logger.service.ts)
+
+---
+
+### L-020 [operational] 安全漏洞修复的现实策略：接受框架级漏洞
+
+**场景**: `npm audit` 显示 38 个漏洞（5 critical / 14 high / 19 moderate），但其中大多数来自框架传递依赖：
+
+- critical tar: 来自 bcrypt 构建链（运行时不触发）
+- critical swiper/multer: 来自 Taro/NestJS（需大版本升级）
+- high brace-expansion: 来自 typeorm/glob（需 typeorm 0.4）
+
+**模式**: 安全漏洞修复应分优先级：
+
+1. **P0 直接依赖漏洞**: 立即升级（如 bcrypt 5→6、uuid 10→11）
+2. **P1 传递依赖漏洞**: 用 npm overrides 尝试修复，失败则评估风险
+3. **P2 框架级漏洞**: 需要框架大版本升级（NestJS 10→11、Taro 3.6→4），记录为技术债，在专项升级周期处理
+
+**关键判断**: 漏洞的实际风险取决于攻击面。tar 漏洞只在解压恶意 tar 文件时触发，生产环境不暴露该攻击面，可接受。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [package.json](file:///d:/Data/projects/ReelClone/package.json)
+
+---
+
+## Skillify 检查（Phase 5 批次）
+
+| 候选模式                   | 出现次数 | 是否生成 skill        |
+| -------------------------- | -------- | --------------------- |
+| overrides 嵌套失效 (L-018) | 1 次     | ❌ npm 通用知识       |
+| 可观测性分阶段接入 (L-019) | 1 次     | ❌ 架构模式，非 skill |
+| 漏洞分级策略 (L-020)       | 1 次     | ❌ 运营策略，非 skill |
+
+**结论**: 本次无 skillify 候选。
