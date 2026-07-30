@@ -26,10 +26,12 @@ import { IndustryController } from './industry.controller'
 import { BillingClient } from './billing.client'
 import { RewardReconciliationService } from './reward-reconciliation.service'
 import { RewardReconciliationCron } from './reward-reconciliation.cron'
+import { UploadReconciliationService } from './upload-reconciliation.service'
+import { UploadReconciliationCron } from './upload-reconciliation.cron'
 
 @Module({
   imports: [
-    // 定时任务（奖励漏发补发对账）
+    // 定时任务（奖励漏发补发对账 + ANALYZING 超时对账）
     ScheduleModule.forRoot(),
     // template 库实体
     TypeOrmModule.forFeature([Template, Favorite], DATABASE_CONNECTIONS.TEMPLATE),
@@ -43,6 +45,8 @@ import { RewardReconciliationCron } from './reward-reconciliation.cron'
     BillingClient,
     RewardReconciliationService,
     RewardReconciliationCron,
+    UploadReconciliationService,
+    UploadReconciliationCron,
   ],
   exports: [TemplateService, FavoriteService],
 })
