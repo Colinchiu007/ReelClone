@@ -106,4 +106,16 @@ export class BillingController {
   async reward(@Body() dto: RewardPointsDto) {
     return this.billing.reward(dto)
   }
+
+  /**
+   * GET /api/v1/points/internal/templates/:templateId/reward-count
+   * 统计某模板已发放的 REWARD 流水数（内部接口，供对账任务调用）
+   */
+  @Public()
+  @InternalApi()
+  @Get('internal/templates/:templateId/reward-count')
+  async getRewardCount(@Param('templateId') templateId: string) {
+    const count = await this.billing.countRewardsByTemplateId(templateId)
+    return { templateId, rewardCount: count }
+  }
 }

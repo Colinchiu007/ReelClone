@@ -16,6 +16,7 @@
  *  - IndustryController: api/v1/users/industry-preferences
  */
 import { Module } from '@nestjs/common'
+import { ScheduleModule } from '@nestjs/schedule'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Asset, Template, Favorite, User, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { TemplateService } from './template.service'
@@ -23,16 +24,26 @@ import { FavoriteService } from './favorite.service'
 import { TemplateController } from './template.controller'
 import { IndustryController } from './industry.controller'
 import { BillingClient } from './billing.client'
+import { RewardReconciliationService } from './reward-reconciliation.service'
+import { RewardReconciliationCron } from './reward-reconciliation.cron'
 
 @Module({
   imports: [
+    // 定时任务（奖励漏发补发对账）
+    ScheduleModule.forRoot(),
     // template 库实体
     TypeOrmModule.forFeature([Template, Favorite], DATABASE_CONNECTIONS.TEMPLATE),
     // main 库实体（User: 行业偏好读写；Asset: 上传视频转模板时校验资产归属）
     TypeOrmModule.forFeature([User, Asset], DATABASE_CONNECTIONS.MAIN),
   ],
   controllers: [TemplateController, IndustryController],
-  providers: [TemplateService, FavoriteService, BillingClient],
+  providers: [
+    TemplateService,
+    FavoriteService,
+    BillingClient,
+    RewardReconciliationService,
+    RewardReconciliationCron,
+  ],
   exports: [TemplateService, FavoriteService],
 })
 export class TemplateModule {}

@@ -243,41 +243,51 @@ export class TemplateService {
    *
    * 用于"基于模板创作"时调用（workbench-service 通过 HTTP 调用）。
    * 触发条件：模板 userId 非空（用户上传的模板才奖励）。
-   * 幂等保证：idempotencyKey = `reward:template:{templateId}:use:{useCount}`，
-   *           useCount 为自增前的值，保证每次使用只奖励一次。
-   * 失败容错：积分奖励失败不影响主流程（仅记录日志），避免业务请求因积分服务抖动而失败。
+   *
+   * 幂等保证（B1 修复）：
+   *  使用 PostgreSQL 原子自增 `useCount = useCount + 1` + `RETURNING` 获取自增后的值，
+   *  幂等键 = `reward:template:{templateId}:use:{useCountAfter}`。
+   *  自增后的 useCount 单调递增且唯一，并发请求拿到的值不同，从根本上消除竞态。
+   *
+   * 失败容错：积分奖励失败不影响主流程（仅记录日志），由 RewardReconciliationCron 定时补发。
    *
    * @param id 模板 ID
    */
   async incrementUseCount(id: string): Promise<void> {
-    // 1. 查询模板（需取得 userId 和当前 useCount 用于幂等键）
-    const template = await this.templateRepo.findOne({ where: { id } })
-    if (!template) {
+    // 1. 原子自增 useCount 并返回自增后的值 + userId（单条 SQL，消除竞态）
+    const result = await this.templateRepo
+      .createQueryBuilder()
+      .update(Template)
+      .set({ useCount: () => 'useCount + 1' })
+      .where('id = :id', { id })
+      .returning(['useCount', 'userId'])
+      .execute()
+
+    if (result.affected === 0 || !result.raw[0]) {
       throw BusinessException.notFound('模板')
     }
 
-    // 2. 自增 useCount（乐观自增，避免并发覆盖）
-    await this.templateRepo.increment({ id }, 'useCount', 1)
+    const useCountAfter = Number(result.raw[0].useCount ?? 0)
+    const userId: string | null = result.raw[0].userId
 
-    // 3. 触发积分奖励（仅对用户上传的模板）
-    if (template.userId) {
-      const useCountBefore = Number(template.useCount ?? 0)
-      const idempotencyKey = `reward:template:${id}:use:${useCountBefore}`
+    // 2. 触发积分奖励（仅对用户上传的模板）
+    if (userId) {
+      const idempotencyKey = `reward:template:${id}:use:${useCountAfter}`
       try {
         await this.billingClient.reward({
-          userId: template.userId,
+          userId,
           amount: this.rewardPoints,
           templateId: id,
           idempotencyKey,
-          description: `template:reward:${id}:use:${useCountBefore + 1}`,
+          description: `template:reward:${id}:use:${useCountAfter}`,
         })
         this.logger.log(
-          `模板使用奖励已发放 templateId=${id} userId=${template.userId} amount=${this.rewardPoints} useCount=${useCountBefore + 1}`,
+          `模板使用奖励已发放 templateId=${id} userId=${userId} amount=${this.rewardPoints} useCount=${useCountAfter}`,
         )
       } catch (err) {
-        // 积分奖励失败不影响主流程（幂等键保证下次可补发）
+        // 积分奖励失败不影响主流程，由 RewardReconciliationCron 定时补发
         this.logger.error(
-          `模板使用奖励失败 templateId=${id} userId=${template.userId} idempotencyKey=${idempotencyKey}: ${(err as Error).message}`,
+          `模板使用奖励失败 templateId=${id} userId=${userId} idempotencyKey=${idempotencyKey}: ${(err as Error).message}`,
         )
       }
     }

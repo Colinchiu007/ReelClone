@@ -6,6 +6,8 @@
  *  - billing-service 返回业务错误码时抛出 BusinessException
  *  - Axios 网络错误时抛出 INTERNAL_ERROR BusinessException
  *  - 构造函数读取环境变量配置（baseUrl / apiKey）
+ *  - getRewardCount 成功调用返回奖励次数
+ *  - getRewardCount 业务错误 + 网络错误处理
  */
 import { ConfigService } from '@nestjs/config'
 import axios, { type AxiosInstance, AxiosError } from 'axios'
@@ -23,12 +25,15 @@ jest.mock('axios', () => ({
 describe('BillingClient', () => {
   let client: BillingClient
   let postMock: jest.Mock
+  let getMock: jest.Mock
   let configService: jest.Mocked<ConfigService>
 
   beforeEach(() => {
     postMock = jest.fn()
+    getMock = jest.fn()
     ;(axios.create as jest.Mock).mockReturnValue({
       post: postMock,
+      get: getMock,
     } as unknown as AxiosInstance)
 
     configService = {
@@ -244,6 +249,113 @@ describe('BillingClient', () => {
           idempotencyKey: 'key-001',
         }),
       ).rejects.toThrow(BusinessException)
+    })
+  })
+
+  // -------------------- getRewardCount --------------------
+
+  describe('getRewardCount', () => {
+    it('成功调用返回 rewardCount', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: {
+            templateId: 'tmpl-001',
+            rewardCount: 7,
+          },
+        },
+      })
+
+      const result = await client.getRewardCount('tmpl-001')
+
+      expect(result).toBe(7)
+      // 校验 GET 请求路径
+      expect(getMock).toHaveBeenCalledWith(
+        '/api/v1/points/internal/templates/tmpl-001/reward-count',
+      )
+    })
+
+    it('rewardCount=0 时正确返回 0', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { templateId: 'tmpl-new', rewardCount: 0 },
+        },
+      })
+
+      const result = await client.getRewardCount('tmpl-new')
+
+      expect(result).toBe(0)
+    })
+
+    it('billing-service 返回非 SUCCESS 业务错误码时抛出 BusinessException', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.NOT_FOUND,
+          message: '模板不存在',
+          data: null,
+        },
+      })
+
+      await expect(client.getRewardCount('tmpl-001')).rejects.toThrow(BusinessException)
+
+      try {
+        await client.getRewardCount('tmpl-001')
+      } catch (e) {
+        expect(e).toBeInstanceOf(BusinessException)
+        expect((e as BusinessException).code).toBe(ErrorCode.NOT_FOUND)
+        expect((e as BusinessException).message).toBe('模板不存在')
+      }
+    })
+
+    it('Axios 网络错误且响应包含 ApiResponse 时抛出对应 BusinessException', async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: {
+          data: {
+            code: ErrorCode.VALIDATION_ERROR,
+            message: 'templateId 格式错误',
+          },
+        },
+        message: 'Request failed with status code 422',
+      } as AxiosError
+      getMock.mockRejectedValue(axiosError)
+
+      await expect(client.getRewardCount('')).rejects.toThrow(BusinessException)
+
+      try {
+        await client.getRewardCount('')
+      } catch (e) {
+        expect(e).toBeInstanceOf(BusinessException)
+        expect((e as BusinessException).code).toBe(ErrorCode.VALIDATION_ERROR)
+      }
+    })
+
+    it('Axios 网络错误且无响应时抛出 INTERNAL_ERROR', async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: undefined,
+        message: 'ECONNREFUSED',
+      } as AxiosError
+      getMock.mockRejectedValue(axiosError)
+
+      await expect(client.getRewardCount('tmpl-001')).rejects.toThrow(BusinessException)
+
+      try {
+        await client.getRewardCount('tmpl-001')
+      } catch (e) {
+        expect(e).toBeInstanceOf(BusinessException)
+        expect((e as BusinessException).code).toBe(ErrorCode.INTERNAL_ERROR)
+        expect((e as BusinessException).message).toContain('计费服务')
+      }
+    })
+
+    it('非 Axios 错误（普通 Error）时抛出 INTERNAL_ERROR', async () => {
+      getMock.mockRejectedValue(new Error('未知错误'))
+
+      await expect(client.getRewardCount('tmpl-001')).rejects.toThrow(BusinessException)
     })
   })
 })

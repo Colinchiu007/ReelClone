@@ -50,6 +50,7 @@ function mockRepo<T extends ObjectLiteral>(): jest.Mocked<Repository<T>> {
     save: jest.fn(),
     create: jest.fn((e: unknown) => e),
     createQueryBuilder: jest.fn(),
+    count: jest.fn(),
   } as unknown as jest.Mocked<Repository<T>>
 }
 
@@ -475,6 +476,29 @@ describe('BillingService', () => {
 
       expect(result.transactionId).toBe('old-tx')
       expect(ledger.freeze).not.toHaveBeenCalled()
+    })
+  })
+
+  // -------------------- countRewardsByTemplateId --------------------
+
+  describe('countRewardsByTemplateId', () => {
+    it('应按 templateId + REWARD 类型统计流水数', async () => {
+      txRepo.count.mockResolvedValue(7)
+
+      const result = await service.countRewardsByTemplateId('tmpl-001')
+
+      expect(result).toBe(7)
+      expect(txRepo.count).toHaveBeenCalledWith({
+        where: { templateId: 'tmpl-001', type: PointTransactionType.REWARD },
+      })
+    })
+
+    it('无奖励流水时返回 0', async () => {
+      txRepo.count.mockResolvedValue(0)
+
+      const result = await service.countRewardsByTemplateId('tmpl-new')
+
+      expect(result).toBe(0)
     })
   })
 })

@@ -11,7 +11,7 @@
 import { ConfigService } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
-import { Repository, SelectQueryBuilder } from 'typeorm'
+import { Repository } from 'typeorm'
 import {
   Asset,
   AssetStatus,
@@ -29,15 +29,24 @@ import { BillingClient } from './billing.client'
 
 // -------------------- Mock 工具 --------------------
 
-/** 创建 QueryBuilder Mock */
-function createQueryBuilderMock(): jest.Mocked<SelectQueryBuilder<Template>> {
+/** 创建 QueryBuilder Mock（支持 select + update 两种模式） */
+function createQueryBuilderMock(): Record<string, jest.Mock> {
   const qb: Record<string, jest.Mock> = {}
+  // select 模式链式方法
   qb.andWhere = jest.fn().mockReturnThis()
   qb.orderBy = jest.fn().mockReturnThis()
   qb.skip = jest.fn().mockReturnThis()
   qb.take = jest.fn().mockReturnThis()
   qb.getManyAndCount = jest.fn()
-  return qb as unknown as jest.Mocked<SelectQueryBuilder<Template>>
+  qb.getOne = jest.fn()
+  qb.getMany = jest.fn()
+  // update 模式链式方法（B1 修复后 incrementUseCount 使用）
+  qb.update = jest.fn().mockReturnThis()
+  qb.set = jest.fn().mockReturnThis()
+  qb.where = jest.fn().mockReturnThis()
+  qb.returning = jest.fn().mockReturnThis()
+  qb.execute = jest.fn()
+  return qb
 }
 
 /** 创建模板 Mock 实体 */
@@ -93,7 +102,7 @@ describe('TemplateService', () => {
   let assetRepo: jest.Mocked<Repository<Asset>>
   let billingClient: jest.Mocked<BillingClient>
   let temporalService: jest.Mocked<TemporalService>
-  let qb: jest.Mocked<SelectQueryBuilder<Template>>
+  let qb: Record<string, jest.Mock>
 
   beforeEach(async () => {
     qb = createQueryBuilderMock()
@@ -659,92 +668,79 @@ describe('TemplateService', () => {
   // -------------------- incrementUseCount (含积分奖励) --------------------
 
   describe('incrementUseCount', () => {
-    it('成功 +1 + 触发积分奖励（用户上传的模板）', async () => {
-      const mockTemplate = createMockTemplate({
-        id: 'tmpl-001',
-        userId: 'user-001',
-        useCount: 10,
+    /** 辅助：mock 原子自增返回结果 */
+    function mockIncrementResult(useCountAfter: number, userId: string | null) {
+      qb.execute.mockResolvedValue({
+        affected: 1,
+        raw: [{ useCount: useCountAfter, userId }],
+        generatedMaps: [],
       })
-      repo.findOne.mockResolvedValue(mockTemplate)
+    }
+
+    it('成功 +1 + 触发积分奖励（用户上传的模板，幂等键用自增后的 useCount）', async () => {
+      // 自增后 useCount=11（自增前 10），userId='user-001'
+      mockIncrementResult(11, 'user-001')
 
       await service.incrementUseCount('tmpl-001')
 
-      // 应自增 useCount
-      expect(repo.increment).toHaveBeenCalledWith({ id: 'tmpl-001' }, 'useCount', 1)
-      // 应调用积分奖励，幂等键使用自增前的 useCount=10
+      // 应使用原子自增 + returning
+      expect(qb.update).toHaveBeenCalledWith(Template)
+      expect(qb.set).toHaveBeenCalled()
+      expect(qb.returning).toHaveBeenCalledWith(['useCount', 'userId'])
+      expect(qb.execute).toHaveBeenCalled()
+      // 应调用积分奖励，幂等键使用自增后的 useCount=11（B1 修复：消除竞态）
       expect(billingClient.reward).toHaveBeenCalledWith({
         userId: 'user-001',
         amount: 5, // 来自 configService TEMPLATE_REWARD_POINTS
         templateId: 'tmpl-001',
-        idempotencyKey: 'reward:template:tmpl-001:use:10',
+        idempotencyKey: 'reward:template:tmpl-001:use:11',
         description: 'template:reward:tmpl-001:use:11',
       })
     })
 
     it('运营录入的模板（userId=null）不触发积分奖励', async () => {
-      const mockTemplate = createMockTemplate({
-        id: 'tmpl-001',
-        userId: null,
-        useCount: 5,
-      })
-      repo.findOne.mockResolvedValue(mockTemplate)
+      mockIncrementResult(6, null)
 
       await service.incrementUseCount('tmpl-001')
 
-      expect(repo.increment).toHaveBeenCalledWith({ id: 'tmpl-001' }, 'useCount', 1)
+      expect(qb.execute).toHaveBeenCalled()
       expect(billingClient.reward).not.toHaveBeenCalled()
     })
 
-    it('模板不存在时抛出 NOT_FOUND', async () => {
-      repo.findOne.mockResolvedValue(null)
+    it('模板不存在时（affected=0）抛出 NOT_FOUND', async () => {
+      qb.execute.mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] })
 
       await expect(service.incrementUseCount('not-exist')).rejects.toThrow(BusinessException)
-      expect(repo.increment).not.toHaveBeenCalled()
       expect(billingClient.reward).not.toHaveBeenCalled()
     })
 
-    it('积分奖励失败时不影响主流程（useCount 仍自增）', async () => {
-      const mockTemplate = createMockTemplate({
-        id: 'tmpl-001',
-        userId: 'user-001',
-        useCount: 0,
-      })
-      repo.findOne.mockResolvedValue(mockTemplate)
+    it('积分奖励失败时不影响主流程（useCount 已自增）', async () => {
+      mockIncrementResult(1, 'user-001')
       billingClient.reward.mockRejectedValue(new Error('billing 不可用'))
 
       // 不应抛出异常
       await expect(service.incrementUseCount('tmpl-001')).resolves.toBeUndefined()
 
-      // useCount 应已自增
-      expect(repo.increment).toHaveBeenCalledWith({ id: 'tmpl-001' }, 'useCount', 1)
+      // useCount 应已自增（execute 已调用）
+      expect(qb.execute).toHaveBeenCalled()
       // 应尝试调用积分奖励
       expect(billingClient.reward).toHaveBeenCalled()
     })
 
-    it('幂等键随 useCount 变化（每次使用唯一）', async () => {
-      // 第一次使用：useCount 0 → 1，幂等键 use:0
-      const mockTemplate1 = createMockTemplate({
-        id: 'tmpl-001',
-        userId: 'user-001',
-        useCount: 0,
-      })
-      repo.findOne.mockResolvedValueOnce(mockTemplate1)
+    it('幂等键随 useCount 变化（每次使用唯一，B1 消除竞态）', async () => {
+      // 第一次使用：自增后 useCount=1，幂等键 use:1
+      mockIncrementResult(1, 'user-001')
       await service.incrementUseCount('tmpl-001')
 
-      // 第二次使用：useCount 1 → 2，幂等键 use:1
-      const mockTemplate2 = createMockTemplate({
-        id: 'tmpl-001',
-        userId: 'user-001',
-        useCount: 1,
-      })
-      repo.findOne.mockResolvedValueOnce(mockTemplate2)
+      // 第二次使用：自增后 useCount=2，幂等键 use:2
+      mockIncrementResult(2, 'user-001')
       await service.incrementUseCount('tmpl-001')
 
-      // 两次幂等键应不同
+      // 两次幂等键应不同（自增后的值单调递增）
       const call1 = billingClient.reward.mock.calls[0][0]
       const call2 = billingClient.reward.mock.calls[1][0]
-      expect(call1.idempotencyKey).toBe('reward:template:tmpl-001:use:0')
-      expect(call2.idempotencyKey).toBe('reward:template:tmpl-001:use:1')
+      expect(call1.idempotencyKey).toBe('reward:template:tmpl-001:use:1')
+      expect(call2.idempotencyKey).toBe('reward:template:tmpl-001:use:2')
     })
   })
 })

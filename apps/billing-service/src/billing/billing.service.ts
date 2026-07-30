@@ -18,7 +18,13 @@ import { InjectDataSource } from '@nestjs/typeorm'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
 import { BusinessException, ErrorCode } from '@reelclone/common'
-import { DATABASE_CONNECTIONS, PointTransaction, REDIS_CLIENT, User } from '@reelclone/database'
+import {
+  DATABASE_CONNECTIONS,
+  PointTransaction,
+  PointTransactionType,
+  REDIS_CLIENT,
+  User,
+} from '@reelclone/database'
 import { LedgerService } from './ledger.service'
 import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto'
 import { RewardPointsDto } from './dto/reward-points.dto'
@@ -298,6 +304,21 @@ export class BillingService {
         transactionId: result.tx.id,
       }
     })
+  }
+
+  /**
+   * 统计某模板已发放的 REWARD 流水数（内部接口，供对账任务使用）
+   *
+   * @param templateId 模板 ID
+   * @returns 已成功发放的奖励次数
+   */
+  async countRewardsByTemplateId(templateId: string): Promise<number> {
+    const repo: Repository<PointTransaction> =
+      this.billingDataSource.getRepository(PointTransaction)
+    const count = await repo.count({
+      where: { templateId, type: PointTransactionType.REWARD },
+    })
+    return count
   }
 
   // -------------------- 幂等编排 --------------------
