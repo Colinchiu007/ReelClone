@@ -9,11 +9,21 @@
  *  - DELETE /templates/:id/favorite      取消收藏
  *  - POST   /templates/publish           发布模板（从作品发布）
  *  - GET    /templates/my-published       我发布的模板列表
+ *  - POST   /templates/upload            用户上传视频转模板（JWT）
+ *  - GET    /templates/upload/:wfId/status  查询转模板进度（JWT）
+ *  - GET    /templates/my-uploaded       我上传的模板列表（JWT）
  *  - GET    /users/industry-preferences  获取行业偏好
  *  - POST   /users/industry-preferences  设置行业偏好
  */
 import { request } from '../request'
-import type { PaginatedResponse, PaginationParams, Template } from '@/types'
+import type {
+  PaginatedResponse,
+  PaginationParams,
+  Template,
+  UploadResult,
+  UploadStatusResult,
+  UploadTemplateParams,
+} from '@/types'
 
 /** 模板广场列表（分页 + 筛选 + 排序） */
 export function listTemplates(
@@ -84,6 +94,33 @@ export function listMyPublishedTemplates(
 ): Promise<PaginatedResponse<Template>> {
   return request.get<PaginatedResponse<Template>>(
     '/templates/my-published',
+    params as Record<string, unknown>,
+  )
+}
+
+/**
+ * 用户上传视频转模板（JWT）
+ * 提交后进入 ANALYZING 状态，Temporal 工作流异步分析视频生成模板。
+ */
+export function uploadTemplate(params: UploadTemplateParams): Promise<UploadResult> {
+  return request.post<UploadResult>('/templates/upload', params)
+}
+
+/**
+ * 查询上传转模板进度（JWT）
+ * 前端轮询此接口获取状态（ANALYZING → ACTIVE / ANALYSIS_FAILED）。
+ */
+export function getUploadStatus(workflowId: string): Promise<UploadStatusResult> {
+  return request.get<UploadStatusResult>(`/templates/upload/${workflowId}/status`)
+}
+
+/**
+ * 我上传的模板列表（JWT）
+ * 包含 ACTIVE / ANALYZING / ANALYSIS_FAILED 三种状态。
+ */
+export function listMyUploaded(params?: PaginationParams): Promise<PaginatedResponse<Template>> {
+  return request.get<PaginatedResponse<Template>>(
+    '/templates/my-uploaded',
     params as Record<string, unknown>,
   )
 }

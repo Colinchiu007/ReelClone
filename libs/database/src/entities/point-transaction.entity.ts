@@ -10,6 +10,8 @@ export enum PointTransactionType {
   RELEASE = 'RELEASE',
   GRANT = 'GRANT',
   CONSUME = 'CONSUME',
+  /** 模板被使用奖励上传者 */
+  REWARD = 'REWARD',
 }
 
 /**
@@ -46,6 +48,10 @@ export class PointTransaction {
   /** 关联订单 ID（跨库 main，可空） */
   @Column({ type: 'uuid', nullable: true })
   orderId: string | null
+
+  /** 关联模板 ID（跨库 template，REWARD 类型时填充） */
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  templateId: string | null
 
   /** 幂等键（唯一） */
   @Index({ unique: true })

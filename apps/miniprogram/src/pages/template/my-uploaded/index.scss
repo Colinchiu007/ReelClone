@@ -1,0 +1,157 @@
+// 我的上传页样式
+// variables/mixins 由 sass.resource 自动注入
+
+.my-upload {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+
+  // -------------------- 顶部导航 --------------------
+  &__nav {
+    @include flex-between;
+    padding: $spacing-md;
+    padding-top: calc(#{$spacing-md} + env(safe-area-inset-top));
+    border-bottom: 1px solid $border-primary;
+  }
+
+  &__back {
+    width: 40px;
+    height: 40px;
+    @include flex-center;
+    font-size: $font-xl;
+    color: $text-primary;
+  }
+
+  &__nav-title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__upload-btn {
+    @include flex-center;
+    padding: $spacing-xs $spacing-md;
+    background: $brand-gradient;
+    border-radius: $radius-full;
+    font-size: $font-sm;
+    color: $text-primary;
+    font-weight: 600;
+    box-shadow: $shadow-glow;
+  }
+
+  // -------------------- Tab 筛选 --------------------
+  &__tabs {
+    @include flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  &__tab {
+    flex-shrink: 0;
+    padding: $spacing-xs $spacing-md;
+    background-color: $bg-secondary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-full;
+    font-size: $font-sm;
+    color: $text-secondary;
+
+    &--on {
+      background: $brand-gradient;
+      border-color: transparent;
+      color: $text-primary;
+      font-weight: 600;
+    }
+  }
+
+  // -------------------- 列表区 --------------------
+  &__list {
+    padding: 0 $spacing-md;
+  }
+
+  &__waterfall {
+    @include flex-start;
+    gap: $spacing-sm;
+    align-items: flex-start;
+  }
+
+  &__col {
+    flex: 1;
+    @include flex-column;
+    gap: $spacing-sm;
+    min-width: 0;
+  }
+
+  &__item {
+    position: relative;
+  }
+
+  // -------------------- 状态标签 --------------------
+  &__tag {
+    position: absolute;
+    top: $spacing-sm;
+    right: $spacing-sm;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $radius-sm;
+    font-size: $font-xs;
+    font-weight: 600;
+    z-index: 2;
+
+    &--active {
+      background-color: rgba($success, 0.9);
+      color: $text-primary;
+    }
+
+    &--analyzing {
+      background-color: rgba($warning, 0.9);
+      color: $text-primary;
+    }
+
+    &--failed {
+      background-color: rgba($error, 0.9);
+      color: $text-primary;
+    }
+
+    &--review {
+      background-color: rgba($info, 0.9);
+      color: $text-primary;
+    }
+  }
+
+  // -------------------- 失败信息 --------------------
+  &__fail-info {
+    @include flex-column;
+    gap: $spacing-xs;
+    padding: $spacing-sm $spacing-md $spacing-md;
+    background-color: $bg-secondary;
+    border-radius: 0 0 $radius-lg $radius-lg;
+    margin-top: -$spacing-sm;
+  }
+
+  &__fail-reason {
+    font-size: $font-xs;
+    color: $error;
+    line-height: 1.5;
+    @include ellipsis(2);
+  }
+
+  &__retry-btn {
+    align-self: flex-start;
+    padding: $spacing-xs $spacing-md;
+    background-color: rgba($brand-secondary, 0.2);
+    border: 1px solid $brand-secondary;
+    border-radius: $radius-full;
+    font-size: $font-xs;
+    color: $brand-secondary;
+    font-weight: 600;
+  }
+
+  // -------------------- 状态提示 --------------------
+  &__status {
+    @include flex-center;
+    padding: $spacing-md;
+    font-size: $font-sm;
+    color: $text-tertiary;
+  }
+}

@@ -4,16 +4,17 @@ import {
   HttpStatus,
   Injectable,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Reflector } from '@nestjs/core';
-import * as crypto from 'crypto';
-import { BusinessException, ErrorCode } from '@reelclone/common';
-import { IS_INTERNAL_API_KEY } from './internal-api.decorator';
+} from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { Reflector } from '@nestjs/core'
+import * as crypto from 'crypto'
+import { BusinessException } from '../exceptions/business.exception'
+import { ErrorCode } from '../enums/error-code.enum'
+import { IS_INTERNAL_API_KEY } from '../decorators/internal-api.decorator'
 
 /** 最小化请求结构 */
 interface MinimalRequest {
-  headers: Record<string, string | string[] | undefined>;
+  headers: Record<string, string | string[] | undefined>
 }
 
 /**
@@ -27,40 +28,38 @@ interface MinimalRequest {
  */
 @Injectable()
 export class InternalApiKeyGuard implements CanActivate {
-  private readonly logger = new Logger(InternalApiKeyGuard.name);
-  private readonly expectedKey: string;
+  private readonly logger = new Logger(InternalApiKeyGuard.name)
+  private readonly expectedKey: string
 
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
   ) {
-    this.expectedKey = this.configService.get<string>('INTERNAL_API_KEY') ?? '';
+    this.expectedKey = this.configService.get<string>('INTERNAL_API_KEY') ?? ''
   }
 
   canActivate(context: ExecutionContext): boolean {
-    const isInternal = this.reflector.getAllAndOverride<boolean>(
-      IS_INTERNAL_API_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const isInternal = this.reflector.getAllAndOverride<boolean>(IS_INTERNAL_API_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ])
 
     // 非内部 API，直接放行
     if (!isInternal) {
-      return true;
+      return true
     }
 
-    const request = context.switchToHttp().getRequest<MinimalRequest>();
-    const providedKey = this.extractApiKey(request.headers);
+    const request = context.switchToHttp().getRequest<MinimalRequest>()
+    const providedKey = this.extractApiKey(request.headers)
 
     if (!this.expectedKey) {
-      this.logger.error(
-        'INTERNAL_API_KEY 环境变量未配置，内部 API 无法鉴权',
-      );
+      this.logger.error('INTERNAL_API_KEY 环境变量未配置，内部 API 无法鉴权')
       throw new BusinessException(
         ErrorCode.INTERNAL_ERROR,
         '内部 API 鉴权未配置',
         undefined,
         HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      )
     }
 
     if (!providedKey || !this.constantTimeCompare(providedKey, this.expectedKey)) {
@@ -69,21 +68,21 @@ export class InternalApiKeyGuard implements CanActivate {
         '内部 API Key 无效',
         undefined,
         HttpStatus.UNAUTHORIZED,
-      );
+      )
     }
 
-    return true;
+    return true
   }
 
   /** 提取 x-api-key Header（大小写不敏感） */
   private extractApiKey(
     headers: Record<string, string | string[] | undefined>,
   ): string | undefined {
-    const raw = headers['x-api-key'] ?? headers['X-Api-Key'];
+    const raw = headers['x-api-key'] ?? headers['X-Api-Key']
     if (typeof raw === 'string' && raw.trim().length > 0) {
-      return raw.trim();
+      return raw.trim()
     }
-    return undefined;
+    return undefined
   }
 
   /**
@@ -94,13 +93,13 @@ export class InternalApiKeyGuard implements CanActivate {
    * 使用 crypto.timingSafeEqual 保证比较耗时与字符串内容无关。
    */
   private constantTimeCompare(a: string, b: string): boolean {
-    const aBuf = Buffer.from(a);
-    const bBuf = Buffer.from(b);
+    const aBuf = Buffer.from(a)
+    const bBuf = Buffer.from(b)
     if (aBuf.length !== bBuf.length) {
       // 长度不同时也走完一次 timingSafeEqual 以保持耗时稳定
-      crypto.timingSafeEqual(bBuf, bBuf);
-      return false;
+      crypto.timingSafeEqual(bBuf, bBuf)
+      return false
     }
-    return crypto.timingSafeEqual(aBuf, bBuf);
+    return crypto.timingSafeEqual(aBuf, bBuf)
   }
 }

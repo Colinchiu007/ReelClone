@@ -38,6 +38,6 @@
     "sass-loader": "^14.2.1",
     "stylelint": "^14.16.1",
     "typescript": "^5.5.4",
-    "webpack": "^5.91.0"
+    "webpack": "5.78.0"
   }
 }

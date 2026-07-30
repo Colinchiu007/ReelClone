@@ -21,6 +21,7 @@ import { BusinessException, ErrorCode } from '@reelclone/common'
 import { DATABASE_CONNECTIONS, PointTransaction, REDIS_CLIENT, User } from '@reelclone/database'
 import { LedgerService } from './ledger.service'
 import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto'
+import { RewardPointsDto } from './dto/reward-points.dto'
 
 /** 余额响应 */
 export interface BalanceResponse {
@@ -266,6 +267,33 @@ export class BillingService {
       return {
         success: true,
         frozenAmount: params.amount,
+        balance: result.balance,
+        transactionId: result.tx.id,
+      }
+    })
+  }
+
+  // -------------------- 内部操作：REWARD --------------------
+
+  /**
+   * 模板被使用奖励上传者
+   *
+   * 通过 runIdempotent 包装 LedgerService.reward，
+   * 复用三层幂等机制（Redis 缓存 + Redis 锁 + DB 唯一约束）。
+   */
+  async reward(dto: RewardPointsDto): Promise<OperationResponse> {
+    return this.runIdempotent(dto.idempotencyKey, async () => {
+      const result = await this.ledger.reward({
+        userId: dto.userId,
+        amount: dto.amount,
+        idempotencyKey: dto.idempotencyKey,
+        templateId: dto.templateId,
+        description: dto.description,
+      })
+      await this.invalidateBalanceCache(dto.userId)
+      return {
+        success: true,
+        frozenAmount: dto.amount,
         balance: result.balance,
         transactionId: result.tx.id,
       }

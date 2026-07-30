@@ -36,7 +36,13 @@ export default {
     },
     {
       root: 'pages/template',
-      pages: ['gallery/index', 'detail/index', 'my-templates/index'],
+      pages: [
+        'gallery/index',
+        'detail/index',
+        'my-templates/index',
+        'upload/index',
+        'my-uploaded/index',
+      ],
     },
   ],
   window: {

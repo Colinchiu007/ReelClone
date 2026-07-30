@@ -76,16 +76,58 @@
   margin-bottom: $spacing-xs;
 }
 
-.template-card__meta {
-  @include flex-between;
-  font-size: $font-xs;
-  color: $text-tertiary;
+// -------------------- 上传者信息行 --------------------
+.template-card__author-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-xs;
+
+  &--clickable {
+    // 可点击时无视觉变化，仅响应点击事件（避免误触）
+  }
+}
+
+.template-card__author-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-full;
+  flex-shrink: 0;
+  margin-right: $spacing-xs;
+  background-color: $bg-elevated;
+
+  &--placeholder {
+    @include flex-center;
+    font-size: $font-xs;
+    color: $text-primary;
+    background: $brand-gradient-light;
+  }
 }
 
 .template-card__author {
   @include ellipsis(1);
   flex: 1;
-  margin-right: $spacing-sm;
+  font-size: $font-xs;
+  color: $text-tertiary;
+  margin-right: $spacing-xs;
+}
+
+.template-card__author-stats {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.template-card__author-stat {
+  font-size: $font-xs;
+  color: $text-tertiary;
+}
+
+// -------------------- 播放数与 IQ --------------------
+.template-card__meta {
+  @include flex-between;
+  font-size: $font-xs;
+  color: $text-tertiary;
 }
 
 .template-card__plays {

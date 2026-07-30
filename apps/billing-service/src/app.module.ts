@@ -29,7 +29,7 @@ import {
   OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { BillingModule } from './billing/billing.module'
-import { InternalApiKeyGuard } from './billing/guards/internal-api-key.guard'
+import { InternalApiKeyGuard } from '@reelclone/common'
 import { JwtStrategy } from './billing/guards/jwt.strategy'
 
 @Module({

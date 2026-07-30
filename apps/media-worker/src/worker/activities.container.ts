@@ -16,6 +16,7 @@
  *   - analyzer      对标视频下载 / 4 维度分析 / LLM 汇总
  *   - notification  Work / Benchmark 状态更新 / Redis 推送 / 微信订阅消息
  *   - oss           上传 / 签名 URL
+ *   - template      用户上传视频转模板 / 下载 / 分析 / 封面 / 完成 / 失败
  */
 import {
   seedanceActivities,
@@ -24,6 +25,7 @@ import {
   analyzerActivities,
   notificationActivities,
   ossActivities,
+  templateActivities,
 } from '@reelclone/temporal'
 
 /** 所有 Activity 名称清单（用于校验装配完整性） */
@@ -53,6 +55,15 @@ export const ACTIVITY_NAMES = [
   // oss
   'uploadToOSS',
   'generateSignedUrl',
+  // template（用户上传视频转模板）
+  'downloadAssetVideo',
+  'extractVideoMeta',
+  'generateTemplateThumbnail',
+  'analyzeTemplateVideo',
+  'summarizeTemplate',
+  'uploadThumbnail',
+  'finalizeTemplate',
+  'markTemplateFailed',
 ] as const
 
 /**
@@ -68,5 +79,6 @@ export function buildActivities() {
     ...analyzerActivities,
     ...notificationActivities,
     ...ossActivities,
+    ...templateActivities,
   }
 }

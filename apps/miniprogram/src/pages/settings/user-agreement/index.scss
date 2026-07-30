@@ -17,7 +17,7 @@
     font-size: $font-md;
 
     // RichText 内部标签样式覆盖
-    /deep/ {
+    & ::v-deep {
       h1 {
         font-size: $font-xl;
         font-weight: 700;

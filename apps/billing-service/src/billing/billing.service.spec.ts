@@ -10,40 +10,36 @@
  *  - listTransactions / getTransaction
  *  - 幂等机制：Redis 锁竞争 + 结果缓存
  */
-import { BusinessException } from '@reelclone/common';
-import {
-  PointTransaction,
-  PointTransactionType,
-  User,
-} from '@reelclone/database';
-import { DataSource, ObjectLiteral, Repository } from 'typeorm';
-import { BillingService } from './billing.service';
-import { LedgerService } from './ledger.service';
-import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto';
+import { BusinessException } from '@reelclone/common'
+import { PointTransaction, PointTransactionType, User } from '@reelclone/database'
+import { DataSource, ObjectLiteral, Repository } from 'typeorm'
+import { BillingService } from './billing.service'
+import { LedgerService } from './ledger.service'
+import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto'
 
 // -------------------- Mock 工具 --------------------
 
 /** 模拟 Redis 客户端 */
 function mockRedis(): Record<string, jest.Mock> {
-  const store = new Map<string, string>();
+  const store = new Map<string, string>()
   return {
     get: jest.fn(async (key: string) => store.get(key) ?? null),
     set: jest.fn(async (key: string, value: string, ...rest: unknown[]) => {
       // 支持 'EX', ttl, 'NX' 等参数
-      let nx = false;
+      let nx = false
       for (let i = 0; i < rest.length; i++) {
-        if (rest[i] === 'NX') nx = true;
+        if (rest[i] === 'NX') nx = true
       }
-      if (nx && store.has(key)) return null;
-      store.set(key, value);
-      return 'OK';
+      if (nx && store.has(key)) return null
+      store.set(key, value)
+      return 'OK'
     }),
     del: jest.fn(async (key: string) => {
-      store.delete(key);
-      return 1;
+      store.delete(key)
+      return 1
     }),
     _store: store,
-  } as unknown as Record<string, jest.Mock>;
+  } as unknown as Record<string, jest.Mock>
 }
 
 /** 模拟 Repository */
@@ -54,108 +50,92 @@ function mockRepo<T extends ObjectLiteral>(): jest.Mocked<Repository<T>> {
     save: jest.fn(),
     create: jest.fn((e: unknown) => e),
     createQueryBuilder: jest.fn(),
-  } as unknown as jest.Mocked<Repository<T>>;
+  } as unknown as jest.Mocked<Repository<T>>
 }
 
 describe('BillingService', () => {
-  let service: BillingService;
-  let redis: Record<string, jest.Mock>;
-  let mainDataSource: jest.Mocked<DataSource>;
-  let billingDataSource: jest.Mocked<DataSource>;
-  let ledger: jest.Mocked<LedgerService>;
-  let userRepo: jest.Mocked<Repository<User>>;
-  let txRepo: jest.Mocked<Repository<PointTransaction>>;
+  let service: BillingService
+  let redis: Record<string, jest.Mock>
+  let mainDataSource: jest.Mocked<DataSource>
+  let billingDataSource: jest.Mocked<DataSource>
+  let ledger: jest.Mocked<LedgerService>
+  let userRepo: jest.Mocked<Repository<User>>
+  let txRepo: jest.Mocked<Repository<PointTransaction>>
 
   beforeEach(() => {
-    redis = mockRedis();
-    userRepo = mockRepo<User>();
-    txRepo = mockRepo<PointTransaction>();
+    redis = mockRedis()
+    userRepo = mockRepo<User>()
+    txRepo = mockRepo<PointTransaction>()
 
     mainDataSource = {
       getRepository: jest.fn(() => userRepo),
       transaction: jest.fn(),
-    } as unknown as jest.Mocked<DataSource>;
+    } as unknown as jest.Mocked<DataSource>
 
     billingDataSource = {
       getRepository: jest.fn(() => txRepo),
-    } as unknown as jest.Mocked<DataSource>;
+    } as unknown as jest.Mocked<DataSource>
 
     ledger = {
       freeze: jest.fn(),
       settle: jest.fn(),
       release: jest.fn(),
       grant: jest.fn(),
+      reward: jest.fn(),
       consume: jest.fn(),
       getFrozenBalance: jest.fn(),
       findByIdempotencyKey: jest.fn(),
       findById: jest.fn(),
       lockUser: jest.fn(),
       writeTransaction: jest.fn(),
-    } as unknown as jest.Mocked<LedgerService>;
+    } as unknown as jest.Mocked<LedgerService>
 
-    service = new BillingService(
-      redis as never,
-      mainDataSource,
-      billingDataSource,
-      ledger,
-    );
-  });
+    service = new BillingService(redis as never, mainDataSource, billingDataSource, ledger)
+  })
 
   // -------------------- getBalance --------------------
 
   describe('getBalance', () => {
     it('缓存命中时直接返回缓存值', async () => {
       // 预设缓存
-      await redis.set(`points:balance:u1`, '100', 'EX', 60);
-      await redis.set(`points:frozen:u1`, '20', 'EX', 60);
+      await redis.set(`points:balance:u1`, '100', 'EX', 60)
+      await redis.set(`points:frozen:u1`, '20', 'EX', 60)
 
       // totalPoints 仍从 DB 查
       const qb = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: '500' }),
-      };
-      userRepo.createQueryBuilder.mockReturnValue(qb as never);
+      }
+      userRepo.createQueryBuilder.mockReturnValue(qb as never)
 
-      const result = await service.getBalance('u1');
-      expect(result).toEqual({ balance: 100, frozen: 20, total: 500 });
+      const result = await service.getBalance('u1')
+      expect(result).toEqual({ balance: 100, frozen: 20, total: 500 })
       // 不应该读 user 表的 findOne
-      expect(userRepo.findOne).not.toHaveBeenCalled();
-    });
+      expect(userRepo.findOne).not.toHaveBeenCalled()
+    })
 
     it('缓存未命中时查 DB 并回填缓存', async () => {
       const user: Partial<User> = {
         id: 'u1',
         currentPoints: 100,
         totalPoints: 500,
-      };
-      userRepo.findOne.mockResolvedValue(user as User);
-      ledger.getFrozenBalance.mockResolvedValue(20);
+      }
+      userRepo.findOne.mockResolvedValue(user as User)
+      ledger.getFrozenBalance.mockResolvedValue(20)
 
-      const result = await service.getBalance('u1');
-      expect(result).toEqual({ balance: 100, frozen: 20, total: 500 });
+      const result = await service.getBalance('u1')
+      expect(result).toEqual({ balance: 100, frozen: 20, total: 500 })
       // 缓存应被回填
-      expect(redis.set).toHaveBeenCalledWith(
-        'points:balance:u1',
-        '100',
-        'EX',
-        60,
-      );
-      expect(redis.set).toHaveBeenCalledWith(
-        'points:frozen:u1',
-        '20',
-        'EX',
-        60,
-      );
-    });
+      expect(redis.set).toHaveBeenCalledWith('points:balance:u1', '100', 'EX', 60)
+      expect(redis.set).toHaveBeenCalledWith('points:frozen:u1', '20', 'EX', 60)
+    })
 
     it('用户不存在时抛异常', async () => {
-      userRepo.findOne.mockResolvedValue(null);
-      await expect(service.getBalance('nope')).rejects.toThrow(
-        BusinessException,
-      );
-    });
-  });
+      userRepo.findOne.mockResolvedValue(null)
+      await expect(service.getBalance('nope')).rejects.toThrow(BusinessException)
+    })
+  })
 
   // -------------------- listTransactions --------------------
 
@@ -167,20 +147,15 @@ describe('BillingService', () => {
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
-        getManyAndCount: jest
-          .fn()
-          .mockResolvedValue([
-            [{ id: 't1' } as PointTransaction],
-            1,
-          ]),
-      };
-      txRepo.createQueryBuilder.mockReturnValue(qb as never);
+        getManyAndCount: jest.fn().mockResolvedValue([[{ id: 't1' } as PointTransaction], 1]),
+      }
+      txRepo.createQueryBuilder.mockReturnValue(qb as never)
 
-      const result = await service.listTransactions('u1', new ListTransactionsDto());
-      expect(result.list).toHaveLength(1);
-      expect(result.page).toBe(1);
-      expect(result.total).toBe(1);
-    });
+      const result = await service.listTransactions('u1', new ListTransactionsDto())
+      expect(result.list).toHaveLength(1)
+      expect(result.page).toBe(1)
+      expect(result.total).toBe(1)
+    })
 
     it('支持 type 与 direction 过滤', async () => {
       const qb = {
@@ -190,36 +165,34 @@ describe('BillingService', () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
-      };
-      txRepo.createQueryBuilder.mockReturnValue(qb as never);
+      }
+      txRepo.createQueryBuilder.mockReturnValue(qb as never)
 
-      const dto = new ListTransactionsDto();
-      dto.type = PointTransactionType.FREEZE;
-      dto.direction = TransactionDirection.DEBIT;
+      const dto = new ListTransactionsDto()
+      dto.type = PointTransactionType.FREEZE
+      dto.direction = TransactionDirection.DEBIT
 
-      await service.listTransactions('u1', dto);
+      await service.listTransactions('u1', dto)
       // 应该至少调用了 type / amount < 0 的 andWhere
-      expect(qb.andWhere).toHaveBeenCalled();
-    });
-  });
+      expect(qb.andWhere).toHaveBeenCalled()
+    })
+  })
 
   // -------------------- getTransaction --------------------
 
   describe('getTransaction', () => {
     it('找到时返回流水', async () => {
-      const tx: Partial<PointTransaction> = { id: 't1', userId: 'u1' };
-      ledger.findById.mockResolvedValue(tx as PointTransaction);
-      const result = await service.getTransaction('u1', 't1');
-      expect(result.id).toBe('t1');
-    });
+      const tx: Partial<PointTransaction> = { id: 't1', userId: 'u1' }
+      ledger.findById.mockResolvedValue(tx as PointTransaction)
+      const result = await service.getTransaction('u1', 't1')
+      expect(result.id).toBe('t1')
+    })
 
     it('未找到时抛异常', async () => {
-      ledger.findById.mockResolvedValue(null);
-      await expect(service.getTransaction('u1', 'nope')).rejects.toThrow(
-        BusinessException,
-      );
-    });
-  });
+      ledger.findById.mockResolvedValue(null)
+      await expect(service.getTransaction('u1', 'nope')).rejects.toThrow(BusinessException)
+    })
+  })
 
   // -------------------- freeze --------------------
 
@@ -230,29 +203,27 @@ describe('BillingService', () => {
         balance: 90,
         frozen: 10,
         tx: { id: 'f1' } as PointTransaction,
-      });
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.freeze({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k1',
         workId: 'w1',
-      });
+      })
 
-      expect(result.success).toBe(true);
-      expect(result.balance).toBe(90);
-      expect(result.transactionId).toBe('f1');
+      expect(result.success).toBe(true)
+      expect(result.balance).toBe(90)
+      expect(result.transactionId).toBe('f1')
       // 缓存应被失效
-      expect(redis.del).toHaveBeenCalledWith('points:balance:u1');
-      expect(redis.del).toHaveBeenCalledWith('points:frozen:u1');
-    });
+      expect(redis.del).toHaveBeenCalledWith('points:balance:u1')
+      expect(redis.del).toHaveBeenCalledWith('points:frozen:u1')
+    })
 
     it('余额不足时抛异常（来自 LedgerService）', async () => {
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
-      ledger.freeze.mockRejectedValue(
-        BusinessException.insufficientCredits('not enough'),
-      );
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.freeze.mockRejectedValue(BusinessException.insufficientCredits('not enough'))
 
       await expect(
         service.freeze({
@@ -260,8 +231,8 @@ describe('BillingService', () => {
           amount: 1000,
           idempotencyKey: 'k1',
         }),
-      ).rejects.toThrow(BusinessException);
-    });
+      ).rejects.toThrow(BusinessException)
+    })
 
     it('幂等：重复请求返回首次结果', async () => {
       // 首次调用：执行成功
@@ -270,27 +241,27 @@ describe('BillingService', () => {
         balance: 90,
         frozen: 10,
         tx: { id: 'f1' } as PointTransaction,
-      });
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const first = await service.freeze({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k-dup',
-      });
-      expect(first.transactionId).toBe('f1');
+      })
+      expect(first.transactionId).toBe('f1')
 
       // 第二次调用：不应再调用 ledger.freeze
-      ledger.freeze.mockClear();
+      ledger.freeze.mockClear()
       const second = await service.freeze({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k-dup',
-      });
-      expect(second.transactionId).toBe('f1');
-      expect(ledger.freeze).not.toHaveBeenCalled();
-    });
-  });
+      })
+      expect(second.transactionId).toBe('f1')
+      expect(ledger.freeze).not.toHaveBeenCalled()
+    })
+  })
 
   // -------------------- settle --------------------
 
@@ -300,21 +271,21 @@ describe('BillingService', () => {
         balance: 90,
         frozen: 0,
         tx: { id: 's1' } as PointTransaction,
-      });
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.settle({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k2',
         freezeId: 'f1',
-      });
+      })
 
-      expect(result.success).toBe(true);
-      expect(result.transactionId).toBe('s1');
-      expect(ledger.settle).toHaveBeenCalled();
-    });
-  });
+      expect(result.success).toBe(true)
+      expect(result.transactionId).toBe('s1')
+      expect(ledger.settle).toHaveBeenCalled()
+    })
+  })
 
   // -------------------- release --------------------
 
@@ -324,21 +295,21 @@ describe('BillingService', () => {
         balance: 100,
         frozen: 0,
         tx: { id: 'r1' } as PointTransaction,
-      });
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.release({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k3',
         freezeId: 'f1',
-      });
+      })
 
-      expect(result.success).toBe(true);
-      expect(result.transactionId).toBe('r1');
-      expect(ledger.release).toHaveBeenCalled();
-    });
-  });
+      expect(result.success).toBe(true)
+      expect(result.transactionId).toBe('r1')
+      expect(ledger.release).toHaveBeenCalled()
+    })
+  })
 
   // -------------------- grant --------------------
 
@@ -348,8 +319,8 @@ describe('BillingService', () => {
         balance: 130,
         frozen: 0,
         tx: { id: 'g1' } as PointTransaction,
-      });
-      ledger.findByIdempotencyKey.mockResolvedValue(null);
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.grant({
         userId: 'u1',
@@ -357,13 +328,132 @@ describe('BillingService', () => {
         idempotencyKey: 'k4',
         orderId: 'o1',
         packageId: 'p1',
-      });
+      })
 
-      expect(result.success).toBe(true);
-      expect(result.balance).toBe(130);
-      expect(ledger.grant).toHaveBeenCalled();
-    });
-  });
+      expect(result.success).toBe(true)
+      expect(result.balance).toBe(130)
+      expect(ledger.grant).toHaveBeenCalled()
+    })
+  })
+
+  // -------------------- reward --------------------
+
+  describe('reward', () => {
+    it('成功时调用 LedgerService.reward 并失效缓存', async () => {
+      // 模拟 reward 返回：余额 100 + 奖励 20 = 120
+      ledger.reward.mockResolvedValue({
+        balance: 120,
+        frozen: 0,
+        tx: { id: 'rw1' } as PointTransaction,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+
+      const result = await service.reward({
+        userId: 'u1',
+        amount: 20,
+        templateId: 'tpl-1',
+        idempotencyKey: 'k-rw-1',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.balance).toBe(120)
+      expect(result.transactionId).toBe('rw1')
+      // 应调用 LedgerService.reward 并透传 templateId
+      expect(ledger.reward).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          amount: 20,
+          templateId: 'tpl-1',
+          idempotencyKey: 'k-rw-1',
+        }),
+      )
+      // 缓存应被失效
+      expect(redis.del).toHaveBeenCalledWith('points:balance:u1')
+      expect(redis.del).toHaveBeenCalledWith('points:frozen:u1')
+    })
+
+    it('幂等：重复请求返回首次结果且不重复发放', async () => {
+      // 首次调用：执行成功
+      ledger.reward.mockResolvedValue({
+        balance: 120,
+        frozen: 0,
+        tx: { id: 'rw1' } as PointTransaction,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+
+      const first = await service.reward({
+        userId: 'u1',
+        amount: 20,
+        templateId: 'tpl-1',
+        idempotencyKey: 'k-rw-dup',
+      })
+      expect(first.transactionId).toBe('rw1')
+      expect(first.balance).toBe(120)
+
+      // 第二次调用：不应再调用 ledger.reward
+      ledger.reward.mockClear()
+      const second = await service.reward({
+        userId: 'u1',
+        amount: 20,
+        templateId: 'tpl-1',
+        idempotencyKey: 'k-rw-dup',
+      })
+      // 幂等返回首次结果
+      expect(second.transactionId).toBe('rw1')
+      expect(second.balance).toBe(120)
+      // 不应再次调用 ledger.reward（避免重复发放）
+      expect(ledger.reward).not.toHaveBeenCalled()
+    })
+
+    it('余额正确性：amount > 0 时余额增加', async () => {
+      // 模拟：原余额 80，奖励 25 → 余额 105
+      ledger.reward.mockResolvedValue({
+        balance: 105,
+        frozen: 0,
+        tx: { id: 'rw2' } as PointTransaction,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+
+      const result = await service.reward({
+        userId: 'u1',
+        amount: 25,
+        templateId: 'tpl-2',
+        idempotencyKey: 'k-rw-2',
+      })
+
+      expect(result.success).toBe(true)
+      // 余额应增加 amount
+      expect(result.balance).toBe(105)
+      expect(result.frozenAmount).toBe(25)
+      // LedgerService.reward 应被调用，amount > 0
+      expect(ledger.reward).toHaveBeenCalledWith(expect.objectContaining({ amount: 25 }))
+    })
+
+    it('reward 关联 templateId 透传到 LedgerService', async () => {
+      ledger.reward.mockResolvedValue({
+        balance: 200,
+        frozen: 0,
+        tx: { id: 'rw3' } as PointTransaction,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+
+      await service.reward({
+        userId: 'u1',
+        amount: 50,
+        templateId: 'tpl-uuid-3',
+        idempotencyKey: 'k-rw-3',
+        description: '模板被使用奖励',
+      })
+
+      // 透传 templateId 用于写入流水 templateId 字段
+      expect(ledger.reward).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateId: 'tpl-uuid-3',
+          description: '模板被使用奖励',
+        }),
+      )
+    })
+  })
 
   // -------------------- 幂等：DB 中已存在流水 --------------------
 
@@ -374,17 +464,17 @@ describe('BillingService', () => {
         amount: -10,
         balance: 90,
         type: PointTransactionType.FREEZE,
-      };
-      ledger.findByIdempotencyKey.mockResolvedValue(existing as PointTransaction);
+      }
+      ledger.findByIdempotencyKey.mockResolvedValue(existing as PointTransaction)
 
       const result = await service.freeze({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k-existing',
-      });
+      })
 
-      expect(result.transactionId).toBe('old-tx');
-      expect(ledger.freeze).not.toHaveBeenCalled();
-    });
-  });
-});
+      expect(result.transactionId).toBe('old-tx')
+      expect(ledger.freeze).not.toHaveBeenCalled()
+    })
+  })
+})

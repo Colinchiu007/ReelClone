@@ -6,29 +6,19 @@
  * - PUT    /api/v1/users/me          更新用户信息（需 JWT）
  * - POST   /api/v1/users/bind-mobile 绑定手机号（需 JWT）
  * - PUT    /api/v1/users/password    修改密码（需 JWT）
+ * - GET    /api/v1/users/:id/profile 公开用户主页（无需 JWT）
  * - POST   /api/v1/sms/send          发送短信验证码（需 JWT + 限流）
  *
  * 注意：全局前缀 `api/v1` 在 main.ts 中设置，此处仅声明子路径。
  */
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Put,
-} from '@nestjs/common';
-import {
-  CurrentUser,
-  RateLimit,
-} from '@reelclone/common';
-import { UserService } from './user.service';
-import { SmsService } from './sms.service';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { BindMobileDto } from './dto/bind-mobile.dto';
-import { SendSmsDto } from './dto/send-sms.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common'
+import { CurrentUser, Public, RateLimit } from '@reelclone/common'
+import { UserService } from './user.service'
+import { SmsService } from './sms.service'
+import { UpdateUserDto } from './dto/update-user.dto'
+import { BindMobileDto } from './dto/bind-mobile.dto'
+import { SendSmsDto } from './dto/send-sms.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
 
 @Controller()
 export class UserController {
@@ -45,7 +35,7 @@ export class UserController {
    */
   @Get('users/me')
   async getCurrentUser(@CurrentUser('userId') userId: string) {
-    return this.userService.getCurrentUser(userId);
+    return this.userService.getCurrentUser(userId)
   }
 
   /**
@@ -53,11 +43,22 @@ export class UserController {
    * 更新当前用户信息
    */
   @Put('users/me')
-  async updateUser(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: UpdateUserDto,
-  ) {
-    return this.userService.updateUser(userId, dto);
+  async updateUser(@CurrentUser('userId') userId: string, @Body() dto: UpdateUserDto) {
+    return this.userService.updateUser(userId, dto)
+  }
+
+  // -------------------- 公开用户主页 --------------------
+
+  /**
+   * GET /api/v1/users/:id/profile
+   * 公开用户主页（无需 JWT）
+   *
+   * 用于模板广场展示上传者信息，返回昵称、头像及模板统计。
+   */
+  @Public()
+  @Get('users/:id/profile')
+  async getPublicProfile(@Param('id') id: string) {
+    return this.userService.findPublicProfile(id)
   }
 
   // -------------------- 绑定手机号 --------------------
@@ -68,11 +69,8 @@ export class UserController {
    */
   @Post('users/bind-mobile')
   @HttpCode(HttpStatus.OK)
-  async bindMobile(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: BindMobileDto,
-  ) {
-    return this.userService.bindMobile(userId, dto);
+  async bindMobile(@CurrentUser('userId') userId: string, @Body() dto: BindMobileDto) {
+    return this.userService.bindMobile(userId, dto)
   }
 
   // -------------------- 修改密码 --------------------
@@ -82,11 +80,8 @@ export class UserController {
    * 修改密码：已设置密码用旧密码验证，未设置密码用短信验证码验证
    */
   @Put('users/password')
-  async changePassword(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: ChangePasswordDto,
-  ) {
-    return this.userService.changePassword(userId, dto);
+  async changePassword(@CurrentUser('userId') userId: string, @Body() dto: ChangePasswordDto) {
+    return this.userService.changePassword(userId, dto)
   }
 
   // -------------------- 短信验证码 --------------------
@@ -103,13 +98,13 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   @RateLimit(10, 60)
   async sendSmsCode(@Body() dto: SendSmsDto) {
-    const code = await this.smsService.sendCode(dto.mobile, dto.purpose);
+    const code = await this.smsService.sendCode(dto.mobile, dto.purpose)
     return {
       mobile: dto.mobile,
       purpose: dto.purpose,
       expireSeconds: 300,
       // Mock 模式下返回验证码方便测试，真实模式不返回
       ...(this.smsService.isMockMode() ? { mockCode: code } : {}),
-    };
+    }
   }
 }

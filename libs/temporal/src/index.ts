@@ -51,6 +51,7 @@ export {
 // ============================================================
 export { videoGenerationWorkflow } from './workflows/video-generation.workflow'
 export { benchmarkAnalysisWorkflow } from './workflows/benchmark-analysis.workflow'
+export { templateGenerationWorkflow } from './workflows/template-generation.workflow'
 
 // ============================================================
 // Activity 实现集合（供 Worker 注册）
@@ -61,6 +62,7 @@ export { mediaActivities } from './activities/media.activities'
 export { analyzerActivities } from './activities/analyzer.activities'
 export { notificationActivities } from './activities/notification.activities'
 export { ossActivities } from './activities/oss.activities'
+export { templateActivities } from './activities/template.activities'
 
 // ============================================================
 // Activity 个别函数（供测试或直接调用）
@@ -89,3 +91,13 @@ export {
   sendSubscribeMessage,
 } from './activities/notification.activities'
 export { uploadToOSS, generateSignedUrl } from './activities/oss.activities'
+export {
+  downloadAssetVideo,
+  extractVideoMeta,
+  generateTemplateThumbnail,
+  analyzeTemplateVideo,
+  summarizeTemplate,
+  uploadThumbnail,
+  finalizeTemplate,
+  markTemplateFailed,
+} from './activities/template.activities'

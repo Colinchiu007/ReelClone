@@ -25,6 +25,10 @@ function buildMockDeps(): ActivityDependencies {
     llmProvider: {
       complete: jest.fn(),
     } as unknown as ActivityDependencies['llmProvider'],
+    ossService: {
+      upload: jest.fn(),
+      download: jest.fn(),
+    } as unknown as ActivityDependencies['ossService'],
   }
 }
 
@@ -52,6 +56,7 @@ describe('activity-context', () => {
     expect(retrieved.videoAnalyzer).toBe(deps.videoAnalyzer)
     expect(retrieved.ffmpegService).toBe(deps.ffmpegService)
     expect(retrieved.llmProvider).toBe(deps.llmProvider)
+    expect(retrieved.ossService).toBe(deps.ossService)
   })
 
   it('多次注入以最后一次为准', () => {
@@ -66,7 +71,7 @@ describe('activity-context', () => {
     expect(retrieved).not.toBe(deps1)
   })
 
-  it('依赖对象包含全部 5 个 Provider 字段', () => {
+  it('依赖对象包含全部 6 个 Provider 字段', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { setActivityDependencies, getActivityDependencies } = require('./activity-context')
     const deps = buildMockDeps()
@@ -76,6 +81,7 @@ describe('activity-context', () => {
       [
         'ffmpegService',
         'llmProvider',
+        'ossService',
         'seedanceProvider',
         'videoAnalyzer',
         'videoDownloader',

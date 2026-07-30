@@ -7,40 +7,60 @@
  * - 绑定手机号（校验验证码 → 更新 mobile）
  * - 修改密码（旧密码模式 / 短信验证码模式）
  */
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import Redis from 'ioredis';
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import * as bcrypt from 'bcrypt'
+import Redis from 'ioredis'
 import {
   User,
   UserStatus,
   SmsCodePurpose,
+  Template,
+  TemplateStatus,
   DATABASE_CONNECTIONS,
   REDIS_CLIENT,
-} from '@reelclone/database';
-import {
-  BusinessException,
-  ErrorCode,
-} from '@reelclone/common';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { BindMobileDto } from './dto/bind-mobile.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { SmsService } from './sms.service';
+} from '@reelclone/database'
+import { BusinessException, ErrorCode } from '@reelclone/common'
+import { UpdateUserDto } from './dto/update-user.dto'
+import { BindMobileDto } from './dto/bind-mobile.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
+import { SmsService } from './sms.service'
 
 /** bcrypt 加密轮次 */
-const BCRYPT_ROUNDS = 10;
+const BCRYPT_ROUNDS = 10
 
 /** 修改密码后吊销 Token 的 Redis Key 前缀 */
-const PASSWORD_CHANGED_KEY_PREFIX = 'user:password-changed';
+const PASSWORD_CHANGED_KEY_PREFIX = 'user:password-changed'
+
+/**
+ * 公开用户主页信息
+ *
+ * 用于模板广场展示上传者信息，仅暴露非敏感字段 + 模板统计。
+ */
+export interface PublicUserProfile {
+  /** 用户 ID */
+  userId: string
+  /** 昵称 */
+  nickname: string
+  /** 头像 URL（可能为 null） */
+  avatarUrl: string | null
+  /** 用户上传模板数（status 为 ACTIVE / ANALYZING） */
+  templateUploadCount: number
+  /** 用户已上线模板累计被使用次数（status 为 ACTIVE） */
+  templateUsedCount: number
+}
 
 @Injectable()
 export class UserService {
-  private readonly logger = new Logger(UserService.name);
+  private readonly logger = new Logger(UserService.name)
 
   constructor(
     @InjectRepository(User, DATABASE_CONNECTIONS.MAIN)
     private readonly userRepository: Repository<User>,
+    // template 库的 Template 仓储（用于公开主页聚合查询模板统计）
+    @InjectRepository(Template, DATABASE_CONNECTIONS.TEMPLATE)
+    private readonly templateRepository: Repository<Template>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly smsService: SmsService,
   ) {}
@@ -49,33 +69,88 @@ export class UserService {
    * 获取当前用户完整信息（不含 password）
    */
   async getCurrentUser(userId: string): Promise<Omit<User, 'password'>> {
-    const user = await this.findUserById(userId);
-    return this.sanitizeUser(user);
+    const user = await this.findUserById(userId)
+    return this.sanitizeUser(user)
+  }
+
+  /**
+   * 获取公开用户主页信息
+   *
+   * 用于模板广场展示上传者信息，包含：
+   * - 用户基本信息（id/nickname/avatarUrl，来自 main 库）
+   * - 模板上传数（template 库聚合：status IN ACTIVE/ANALYZING 的模板数量）
+   * - 模板被使用次数（template 库聚合：status = ACTIVE 的 use_count 总和）
+   *
+   * @param userId 用户 ID
+   * @throws BusinessException 用户不存在时抛出 NOT_FOUND
+   */
+  async findPublicProfile(userId: string): Promise<PublicUserProfile> {
+    // 1. 从 main 库查询用户基本信息（仅取公开字段）
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'nickname', 'avatarUrl'],
+    })
+
+    if (!user) {
+      throw BusinessException.notFound('用户')
+    }
+
+    // 2. 从 template 库聚合查询模板上传数
+    //    COUNT(*) WHERE user_id = ? AND status IN ('ACTIVE', 'ANALYZING')
+    const uploadRow = await this.templateRepository
+      .createQueryBuilder('t')
+      .select('COUNT(*)', 'count')
+      .where('t.userId = :userId', { userId })
+      .andWhere('t.status IN (:...statuses)', {
+        statuses: [TemplateStatus.ACTIVE, TemplateStatus.ANALYZING],
+      })
+      .getRawOne()
+
+    // 3. 从 template 库聚合查询模板被使用次数
+    //    SUM(use_count) WHERE user_id = ? AND status = 'ACTIVE'
+    const usedRow = await this.templateRepository
+      .createQueryBuilder('t')
+      .select('SUM(t.useCount)', 'sum')
+      .where('t.userId = :userId', { userId })
+      .andWhere('t.status = :status', { status: TemplateStatus.ACTIVE })
+      .getRawOne()
+
+    // Postgres 聚合结果以字符串返回，SUM 无数据时返回 null，统一转换为 number
+    const templateUploadCount = Number(uploadRow?.count ?? 0)
+    const templateUsedCount = Number(usedRow?.sum ?? 0)
+
+    return {
+      userId: user.id,
+      nickname: user.nickname,
+      avatarUrl: user.avatarUrl,
+      templateUploadCount,
+      templateUsedCount,
+    }
   }
 
   /**
    * 更新用户信息
    */
   async updateUser(userId: string, dto: UpdateUserDto): Promise<Omit<User, 'password'>> {
-    const user = await this.findUserById(userId);
+    const user = await this.findUserById(userId)
 
     // 按需更新字段
     if (dto.nickname !== undefined) {
-      user.nickname = dto.nickname;
+      user.nickname = dto.nickname
     }
     if (dto.avatarUrl !== undefined) {
-      user.avatarUrl = dto.avatarUrl;
+      user.avatarUrl = dto.avatarUrl
     }
     if (dto.email !== undefined) {
-      user.email = dto.email;
+      user.email = dto.email
     }
     if (dto.industryPreferences !== undefined) {
-      user.industryPreferences = dto.industryPreferences;
+      user.industryPreferences = dto.industryPreferences
     }
 
-    const saved = await this.userRepository.save(user);
-    this.logger.log(`User ${userId} updated profile`);
-    return this.sanitizeUser(saved);
+    const saved = await this.userRepository.save(user)
+    this.logger.log(`User ${userId} updated profile`)
+    return this.sanitizeUser(saved)
   }
 
   /**
@@ -89,7 +164,7 @@ export class UserService {
    * @throws BusinessException 验证码错误 / 手机号已被绑定 / 用户已绑定手机号
    */
   async bindMobile(userId: string, dto: BindMobileDto): Promise<Omit<User, 'password'>> {
-    const user = await this.findUserById(userId);
+    const user = await this.findUserById(userId)
 
     // 用户已绑定手机号
     if (user.mobile) {
@@ -97,30 +172,28 @@ export class UserService {
         ErrorCode.VALIDATION_ERROR,
         '您已绑定手机号，如需更换请联系客服',
         { currentMobile: user.mobile },
-      );
+      )
     }
 
     // 校验验证码
-    await this.smsService.verifyCode(dto.mobile, SmsCodePurpose.BIND_MOBILE, dto.code);
+    await this.smsService.verifyCode(dto.mobile, SmsCodePurpose.BIND_MOBILE, dto.code)
 
     // 检查手机号是否已被其他用户绑定
     const existingUser = await this.userRepository.findOne({
       where: { mobile: dto.mobile },
       select: ['id'],
-    });
+    })
     if (existingUser && existingUser.id !== userId) {
-      throw new BusinessException(
-        ErrorCode.VALIDATION_ERROR,
-        '该手机号已被其他账号绑定',
-        { mobile: dto.mobile },
-      );
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, '该手机号已被其他账号绑定', {
+        mobile: dto.mobile,
+      })
     }
 
     // 更新手机号
-    user.mobile = dto.mobile;
-    const saved = await this.userRepository.save(user);
-    this.logger.log(`User ${userId} bound mobile ${dto.mobile}`);
-    return this.sanitizeUser(saved);
+    user.mobile = dto.mobile
+    const saved = await this.userRepository.save(user)
+    this.logger.log(`User ${userId} bound mobile ${dto.mobile}`)
+    return this.sanitizeUser(saved)
   }
 
   /**
@@ -132,29 +205,22 @@ export class UserService {
    *
    * 修改成功后，将 userId 写入 Redis 触发其他服务校验现有 Token
    */
-  async changePassword(
-    userId: string,
-    dto: ChangePasswordDto,
-  ): Promise<{ success: boolean }> {
-    const user = await this.findUserById(userId);
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ success: boolean }> {
+    const user = await this.findUserById(userId)
 
     if (user.password) {
       // ---- 旧密码模式 ----
       if (!dto.oldPassword) {
-        throw new BusinessException(
-          ErrorCode.VALIDATION_ERROR,
-          '请输入旧密码',
-          { field: 'oldPassword' },
-        );
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, '请输入旧密码', {
+          field: 'oldPassword',
+        })
       }
 
-      const isOldPasswordValid = await bcrypt.compare(dto.oldPassword, user.password);
+      const isOldPasswordValid = await bcrypt.compare(dto.oldPassword, user.password)
       if (!isOldPasswordValid) {
-        throw new BusinessException(
-          ErrorCode.VALIDATION_ERROR,
-          '旧密码不正确',
-          { field: 'oldPassword' },
-        );
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, '旧密码不正确', {
+          field: 'oldPassword',
+        })
       }
     } else {
       // ---- 短信验证码模式 ----
@@ -163,27 +229,23 @@ export class UserService {
           ErrorCode.VALIDATION_ERROR,
           '首次设置密码需通过短信验证码验证，请提供 mobile 和 code',
           { required: ['mobile', 'code'] },
-        );
+        )
       }
 
       // 校验验证码（用途为 RESET_PASSWORD）
-      await this.smsService.verifyCode(
-        dto.mobile,
-        SmsCodePurpose.RESET_PASSWORD,
-        dto.code,
-      );
+      await this.smsService.verifyCode(dto.mobile, SmsCodePurpose.RESET_PASSWORD, dto.code)
     }
 
     // 哈希新密码并保存
-    const hashedPassword = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
-    user.password = hashedPassword;
-    await this.userRepository.save(user);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS)
+    user.password = hashedPassword
+    await this.userRepository.save(user)
 
     // 吊销所有现有 Token：将 userId 写入 Redis
-    await this.revokeAllTokens(userId);
+    await this.revokeAllTokens(userId)
 
-    this.logger.log(`User ${userId} changed password`);
-    return { success: true };
+    this.logger.log(`User ${userId} changed password`)
+    return { success: true }
   }
 
   /**
@@ -191,10 +253,10 @@ export class UserService {
    * 在 Redis 中写入标记，其他服务可通过检查此标记使现有 Token 失效
    */
   private async revokeAllTokens(userId: string): Promise<void> {
-    const key = `${PASSWORD_CHANGED_KEY_PREFIX}:${userId}`;
-    const now = Date.now();
+    const key = `${PASSWORD_CHANGED_KEY_PREFIX}:${userId}`
+    const now = Date.now()
     // Token 最长有效期 7 天（与 refresh token 对齐），过期后自动清理
-    await this.redis.set(key, now, 'EX', 7 * 24 * 60 * 60);
+    await this.redis.set(key, now, 'EX', 7 * 24 * 60 * 60)
   }
 
   /**
@@ -203,24 +265,24 @@ export class UserService {
   private async findUserById(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-    });
+    })
 
     if (!user) {
-      throw BusinessException.notFound('用户');
+      throw BusinessException.notFound('用户')
     }
 
     if (user.status === UserStatus.FROZEN) {
-      throw BusinessException.forbidden('账号已被冻结');
+      throw BusinessException.forbidden('账号已被冻结')
     }
 
-    return user;
+    return user
   }
 
   /**
    * 过滤敏感字段（password），返回安全用户对象
    */
   private sanitizeUser(user: User): Omit<User, 'password'> {
-    const { password: _, ...rest } = user;
-    return rest;
+    const { password: _, ...rest } = user
+    return rest
   }
 }

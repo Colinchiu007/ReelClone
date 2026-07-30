@@ -24,12 +24,14 @@ export * from './filters/all-exceptions.filter'
 export * from './guards/jwt-auth.guard'
 export * from './guards/rate-limit.guard'
 export * from './guards/roles.guard'
+export * from './guards/internal-api-key.guard'
 
 // -------------------- 装饰器 --------------------
 export * from './decorators/current-user.decorator'
 export * from './decorators/public.decorator'
 export * from './decorators/rate-limit.decorator'
 export * from './decorators/roles.decorator'
+export * from './decorators/internal-api.decorator'
 
 // -------------------- Pipe --------------------
 export * from './pipes/validation.pipe'

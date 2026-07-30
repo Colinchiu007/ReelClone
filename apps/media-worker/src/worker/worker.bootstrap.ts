@@ -19,6 +19,7 @@ import {
   VideoAnalyzerService,
   VideoDownloaderService,
 } from '@reelclone/ai'
+import { OSSService } from '@reelclone/oss'
 import { setActivityDependencies, startWorker, stopWorker } from '@reelclone/temporal'
 import { buildActivities } from './activities.container'
 
@@ -74,15 +75,17 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
   const videoAnalyzer = app.get(VideoAnalyzerService)
   const ffmpegService = app.get(FfmpegService)
   const llmProvider = app.get(LlmProvider)
+  const ossService = app.get(OSSService)
   setActivityDependencies({
     seedanceProvider,
     videoDownloader,
     videoAnalyzer,
     ffmpegService,
     llmProvider,
+    ossService,
   })
   logger.log(
-    '已注入 Activity 依赖: SeedanceProvider, VideoDownloaderService, VideoAnalyzerService, FfmpegService, LlmProvider',
+    '已注入 Activity 依赖: SeedanceProvider, VideoDownloaderService, VideoAnalyzerService, FfmpegService, LlmProvider, OSSService',
   )
 
   logger.log(

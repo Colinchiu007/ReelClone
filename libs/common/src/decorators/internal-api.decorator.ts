@@ -1,7 +1,7 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata } from '@nestjs/common'
 
 /** 标记内部 API 的 metadata key */
-export const IS_INTERNAL_API_KEY = 'isInternalApi';
+export const IS_INTERNAL_API_KEY = 'isInternalApi'
 
 /**
  * @InternalApi() 装饰器
@@ -18,4 +18,4 @@ export const IS_INTERNAL_API_KEY = 'isInternalApi';
  * ```
  */
 export const InternalApi = (): MethodDecorator & ClassDecorator =>
-  SetMetadata(IS_INTERNAL_API_KEY, true);
+  SetMetadata(IS_INTERNAL_API_KEY, true)

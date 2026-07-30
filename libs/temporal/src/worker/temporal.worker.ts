@@ -20,6 +20,7 @@ import { mediaActivities } from '../activities/media.activities'
 import { analyzerActivities } from '../activities/analyzer.activities'
 import { notificationActivities } from '../activities/notification.activities'
 import { ossActivities } from '../activities/oss.activities'
+import { templateActivities } from '../activities/template.activities'
 
 /** 所有 Activity 实现集合 */
 export const allActivities = {
@@ -29,6 +30,7 @@ export const allActivities = {
   ...analyzerActivities,
   ...notificationActivities,
   ...ossActivities,
+  ...templateActivities,
 }
 
 /** Worker 配置选项 */

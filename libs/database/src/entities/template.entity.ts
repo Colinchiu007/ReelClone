@@ -15,6 +15,10 @@ export enum TemplateStatus {
   OFFLINE = 'OFFLINE',
   PENDING_REVIEW = 'PENDING_REVIEW',
   REJECTED = 'REJECTED',
+  /** 分析中（用户上传视频转模板，Temporal 工作流执行中） */
+  ANALYZING = 'ANALYZING',
+  /** 分析失败（视频分析异常，允许用户重试） */
+  ANALYSIS_FAILED = 'ANALYSIS_FAILED',
 }
 
 /**
@@ -108,6 +112,26 @@ export class Template {
   /** 审核时间 */
   @Column({ type: 'timestamptz', nullable: true })
   reviewedAt: Date | null
+
+  /** 来源资产 ID（用户上传视频转模板时关联的 asset 记录） */
+  @Column({ type: 'varchar', length: 36, nullable: true })
+  sourceAssetId: string | null
+
+  /** 视频元数据（分辨率/时长/编码等，由 FfmpegService.getMetadata 生成） */
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  videoMeta: Record<string, unknown>
+
+  /** 视频分析报告（4 维度分析结果，由 VideoAnalyzerService 生成） */
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  analysisReport: Record<string, unknown>
+
+  /** Temporal 工作流 ID（用户上传转模板时关联的工作流） */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  workflowId: string | null
+
+  /** 分析失败原因（status=ANALYSIS_FAILED 时记录） */
+  @Column({ type: 'text', nullable: true })
+  failureReason: string | null
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date

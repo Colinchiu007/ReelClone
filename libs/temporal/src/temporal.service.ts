@@ -8,7 +8,13 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Client } from '@temporalio/client'
 import { getClient, closeClient } from './client/temporal.client'
-import { TASK_QUEUE, WORKFLOW_ID_PREFIX, type BenchmarkParams, type VideoGenParams } from './types'
+import {
+  TASK_QUEUE,
+  WORKFLOW_ID_PREFIX,
+  type BenchmarkParams,
+  type TemplateGenerationInput,
+  type VideoGenParams,
+} from './types'
 
 @Injectable()
 export class TemporalService {
@@ -77,6 +83,35 @@ export class TemporalService {
     this.logger.log(
       `对标解析工作流已启动 benchmarkId=${params.benchmarkId} workflowId=${workflowId}`,
     )
+    return workflowId
+  }
+
+  /**
+   * 启动模板生成工作流（用户上传视频转模板）
+   *
+   * @param params 模板生成入参（templateId / userId / ossKey / title）
+   * @returns 工作流 ID
+   */
+  async startTemplateGeneration(params: TemplateGenerationInput): Promise<string> {
+    const client = await this.getClient()
+    const workflowId = `${WORKFLOW_ID_PREFIX.TEMPLATE}-${params.templateId}`
+
+    await client.workflow.start('templateGenerationWorkflow', {
+      workflowId,
+      taskQueue: TASK_QUEUE.TEMPLATE_GENERATION,
+      args: [params],
+      // 视频分析 + LLM 汇总耗时较长，整体超时放宽到 15 分钟
+      workflowExecutionTimeout: '15 minutes',
+      retry: {
+        initialInterval: '10 seconds',
+        maximumInterval: '1 minute',
+        backoffCoefficient: 2,
+        // 工作流内部已处理失败路径（标记 ANALYSIS_FAILED），不重试整个工作流
+        maximumAttempts: 1,
+      },
+    })
+
+    this.logger.log(`模板生成工作流已启动 templateId=${params.templateId} workflowId=${workflowId}`)
     return workflowId
   }
 

@@ -7,7 +7,7 @@
  */
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { User, SmsCode, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { User, SmsCode, Template, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { UserController } from './user.controller'
 import { UserService } from './user.service'
 import { SmsService } from './sms.service'
@@ -17,6 +17,8 @@ import { JwtStrategy } from '../auth/jwt.strategy'
   imports: [
     // 注册 main 库的 User + SmsCode 实体仓储
     TypeOrmModule.forFeature([User, SmsCode], DATABASE_CONNECTIONS.MAIN),
+    // 注册 template 库的 Template 实体仓储（用于公开主页聚合查询模板统计）
+    TypeOrmModule.forFeature([Template], DATABASE_CONNECTIONS.TEMPLATE),
   ],
   controllers: [UserController],
   providers: [UserService, SmsService, JwtStrategy],

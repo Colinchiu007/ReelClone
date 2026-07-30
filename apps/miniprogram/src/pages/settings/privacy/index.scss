@@ -18,7 +18,7 @@
 
     // RichText 内部标签样式覆盖
     // 由于小程序 RichText 渲染为原生组件，部分样式需通过类选择器作用域
-    /deep/ {
+    & ::v-deep {
       h1 {
         font-size: $font-xl;
         font-weight: 700;

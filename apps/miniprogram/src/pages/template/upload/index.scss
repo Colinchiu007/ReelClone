@@ -1,0 +1,354 @@
+// 上传视频转模板样式
+// variables/mixins 由 sass.resource 自动注入
+
+.upload-tpl {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  padding: 0;
+  padding-bottom: calc(#{$spacing-2xl} + env(safe-area-inset-bottom));
+
+  // -------------------- 顶部导航 --------------------
+  &__nav {
+    @include flex-between;
+    padding: $spacing-md;
+    padding-top: calc(#{$spacing-md} + env(safe-area-inset-top));
+    border-bottom: 1px solid $border-primary;
+  }
+
+  &__back {
+    width: 40px;
+    height: 40px;
+    @include flex-center;
+    font-size: $font-xl;
+    color: $text-primary;
+  }
+
+  &__nav-title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__nav-placeholder {
+    width: 40px;
+  }
+
+  // -------------------- 内容区 --------------------
+  &__body {
+    @include flex-column;
+    padding: $spacing-md;
+    gap: $spacing-md;
+  }
+
+  // -------------------- 步骤通用 --------------------
+  &__step {
+    @include flex-column;
+    gap: $spacing-md;
+  }
+
+  // -------------------- 选择视频 --------------------
+  &__select-area {
+    @include flex-column;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    padding: $spacing-2xl $spacing-md;
+    background-color: $bg-secondary;
+    border: 2px dashed $border-secondary;
+    border-radius: $radius-xl;
+    transition: border-color 0.2s ease;
+
+    &:active {
+      border-color: $brand-secondary;
+    }
+  }
+
+  &__select-icon {
+    width: 56px;
+    height: 56px;
+    @include flex-center;
+    font-size: 40px;
+    color: $text-tertiary;
+    background: $brand-gradient-light;
+    border-radius: $radius-full;
+    margin-bottom: $spacing-sm;
+  }
+
+  &__select-text {
+    font-size: $font-md;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__select-hint {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    text-align: center;
+  }
+
+  &__error-text {
+    font-size: $font-sm;
+    color: $error;
+    text-align: center;
+  }
+
+  // -------------------- 上传进度 --------------------
+  &__progress {
+    width: 100%;
+    height: 8px;
+    background-color: $bg-tertiary;
+    border-radius: $radius-full;
+    overflow: hidden;
+    margin-top: $spacing-md;
+  }
+
+  &__progress-bar {
+    height: 100%;
+    background: $brand-gradient;
+    border-radius: $radius-full;
+    transition: width 0.3s ease;
+  }
+
+  &__progress-text {
+    font-size: $font-sm;
+    color: $text-secondary;
+    text-align: center;
+  }
+
+  // -------------------- 视频信息行 --------------------
+  &__video-info {
+    @include flex-between;
+    padding: $spacing-md;
+    background-color: $bg-secondary;
+    border-radius: $radius-lg;
+  }
+
+  &__video-info-text {
+    font-size: $font-sm;
+    color: $text-secondary;
+  }
+
+  &__video-info-change {
+    font-size: $font-sm;
+    color: $brand-secondary;
+  }
+
+  // -------------------- 表单元素 --------------------
+  &__section {
+    @include flex-column;
+    gap: $spacing-sm;
+  }
+
+  &__label {
+    font-size: $font-sm;
+    color: $text-secondary;
+    font-weight: 600;
+  }
+
+  &__required {
+    color: $error;
+    margin-left: $spacing-xs;
+  }
+
+  &__input-wrap {
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-lg;
+    padding: $spacing-md;
+  }
+
+  &__input {
+    width: 100%;
+    font-size: $font-md;
+    color: $text-primary;
+    line-height: 1.5;
+  }
+
+  &__textarea-wrap {
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-lg;
+    padding: $spacing-md;
+    min-height: 160px;
+  }
+
+  &__textarea {
+    width: 100%;
+    min-height: 120px;
+    font-size: $font-md;
+    color: $text-primary;
+    line-height: 1.6;
+  }
+
+  &__placeholder {
+    color: $text-tertiary;
+    font-size: $font-md;
+  }
+
+  // -------------------- Chip 选项 --------------------
+  &__row {
+    @include flex-start;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+  }
+
+  &__chip {
+    padding: $spacing-xs $spacing-md;
+    background-color: $bg-secondary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-full;
+    font-size: $font-sm;
+    color: $text-secondary;
+
+    &--on {
+      background: $brand-gradient;
+      border-color: transparent;
+      color: $text-primary;
+      font-weight: 600;
+    }
+  }
+
+  // -------------------- 标签输入 --------------------
+  &__tag-input {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
+  &__tag-input-field {
+    flex: 1;
+  }
+
+  &__tag-add {
+    flex-shrink: 0;
+    @include flex-center;
+    padding: $spacing-sm $spacing-lg;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-sm;
+    font-weight: 600;
+    border-radius: $radius-full;
+    box-shadow: $shadow-glow;
+
+    &--disabled {
+      @include disabled;
+      box-shadow: none;
+      background: $bg-elevated;
+    }
+  }
+
+  &__tag-list {
+    @include flex-start;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+    margin-top: $spacing-sm;
+  }
+
+  &__tag-item {
+    @include flex-start;
+    gap: $spacing-xs;
+    padding: $spacing-xs $spacing-sm $spacing-xs $spacing-md;
+    background-color: rgba($brand-secondary, 0.15);
+    border: 1px solid rgba($brand-secondary, 0.4);
+    border-radius: $radius-full;
+  }
+
+  &__tag-text {
+    font-size: $font-sm;
+    color: $text-primary;
+  }
+
+  &__tag-remove {
+    font-size: $font-md;
+    color: $text-tertiary;
+    padding: 0 $spacing-xs;
+  }
+
+  // -------------------- 提交按钮 --------------------
+  &__submit {
+    @include flex-center;
+    background: $brand-gradient;
+    color: $text-primary;
+    font-size: $font-md;
+    font-weight: 600;
+    padding: $spacing-md;
+    border-radius: $radius-full;
+    box-shadow: $shadow-glow;
+    margin-top: $spacing-md;
+
+    &--disabled {
+      @include disabled;
+      box-shadow: none;
+      background: $bg-elevated;
+    }
+  }
+
+  // -------------------- 状态卡片（分析中/成功/失败） --------------------
+  &__status-card {
+    @include flex-column;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-2xl $spacing-lg;
+    background-color: $bg-secondary;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    text-align: center;
+  }
+
+  &__status-icon {
+    width: 72px;
+    height: 72px;
+    @include flex-center;
+    font-size: 48px;
+    background: $brand-gradient-light;
+    border-radius: $radius-full;
+    margin-bottom: $spacing-sm;
+
+    &--success {
+      background: linear-gradient(135deg, $success 0%, #34d399 100%);
+      color: $text-primary;
+      font-size: 40px;
+      font-weight: 700;
+    }
+  }
+
+  &__status-title {
+    font-size: $font-lg;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__status-desc {
+    font-size: $font-sm;
+    color: $text-secondary;
+    line-height: 1.6;
+  }
+
+  &__status-hint {
+    font-size: $font-xs;
+    color: $text-tertiary;
+    margin-top: $spacing-sm;
+  }
+
+  &__status-actions {
+    @include flex-start;
+    gap: $spacing-md;
+    margin-top: $spacing-lg;
+  }
+
+  &__status-btn {
+    @include flex-center;
+    padding: $spacing-sm $spacing-xl;
+    background-color: $bg-tertiary;
+    border: 1px solid $border-primary;
+    border-radius: $radius-full;
+    font-size: $font-sm;
+    color: $text-primary;
+
+    &--primary {
+      background: $brand-gradient;
+      border-color: transparent;
+      font-weight: 600;
+      box-shadow: $shadow-glow;
+    }
+  }
+}

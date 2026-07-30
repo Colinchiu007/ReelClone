@@ -111,10 +111,24 @@
     }
   }
 
+  &__sortbar-actions {
+    @include flex-start;
+    gap: $spacing-sm;
+  }
+
   &__sortbar-action {
     padding: $spacing-xs $spacing-sm;
     font-size: $font-xs;
     color: $brand-secondary;
+
+    &:first-child {
+      padding: $spacing-xs $spacing-md;
+      background: $brand-gradient;
+      border-radius: $radius-full;
+      color: $text-primary;
+      font-weight: 600;
+      box-shadow: $shadow-glow;
+    }
   }
 
   // -------------------- 列表区 --------------------

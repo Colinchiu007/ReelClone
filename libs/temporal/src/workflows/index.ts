@@ -7,3 +7,4 @@
 
 export { videoGenerationWorkflow } from './video-generation.workflow'
 export { benchmarkAnalysisWorkflow } from './benchmark-analysis.workflow'
+export { templateGenerationWorkflow } from './template-generation.workflow'

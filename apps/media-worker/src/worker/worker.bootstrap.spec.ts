@@ -39,6 +39,16 @@ jest.mock('@reelclone/temporal', () => {
       sendSubscribeMessage: fn(),
     },
     ossActivities: { uploadToOSS: fn(), generateSignedUrl: fn() },
+    templateActivities: {
+      downloadAssetVideo: fn(),
+      extractVideoMeta: fn(),
+      generateTemplateThumbnail: fn(),
+      analyzeTemplateVideo: fn(),
+      summarizeTemplate: fn(),
+      uploadThumbnail: fn(),
+      finalizeTemplate: fn(),
+      markTemplateFailed: fn(),
+    },
   }
 })
 

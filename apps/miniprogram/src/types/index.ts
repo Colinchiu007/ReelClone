@@ -159,6 +159,9 @@ export interface Benchmark {
 
 // -------------------- Template --------------------
 
+/** 模板状态枚举（与后端 TemplateStatus 对齐） */
+export type TemplateStatus = 'ACTIVE' | 'ANALYZING' | 'ANALYSIS_FAILED' | 'PENDING_REVIEW'
+
 export interface Template {
   id: string
   title: string
@@ -169,10 +172,24 @@ export interface Template {
   coverUrl: string
   videoUrl: string
   author: string
+  /** 上传者用户 ID（用户上传视频转模板时有值） */
+  authorId?: string
+  /** 上传者头像 URL */
+  authorAvatar?: string
+  /** 上传者已上传模板数（聚合统计） */
+  authorUploadCount?: number
+  /** 上传者模板被使用总数（聚合统计） */
+  authorUsedCount?: number
   playCount: number
   iqScore: number
   heat: number
   published: boolean
+  /** 模板状态：默认 ACTIVE，用户上传转模板时有 ANALYZING/ANALYSIS_FAILED */
+  status?: TemplateStatus
+  /** 分析失败原因（status=ANALYSIS_FAILED 时有值） */
+  failureReason?: string
+  /** Temporal 工作流 ID（用户上传转模板时有值） */
+  workflowId?: string
   createdAt: string
 }
 
@@ -181,6 +198,41 @@ export interface Favorite {
   userId: string
   templateId: string
   createdAt: string
+}
+
+/** 提交视频转模板参数（对应后端 UploadTemplateDto） */
+export interface UploadTemplateParams {
+  assetId: string
+  title: string
+  description?: string
+  category?: string
+  industry?: string
+  platform?: string
+  tags?: string[]
+}
+
+/** 提交视频转模板响应 */
+export interface UploadResult {
+  templateId: string
+  workflowId: string
+  status: TemplateStatus
+}
+
+/** 查询转模板进度响应 */
+export interface UploadStatusResult {
+  templateId: string
+  workflowId: string
+  status: TemplateStatus
+  failureReason?: string
+}
+
+/** 公开用户主页信息（GET /users/:id/profile） */
+export interface UserProfile {
+  userId: string
+  nickname: string
+  avatarUrl: string
+  templateUploadCount: number
+  templateUsedCount: number
 }
 
 // -------------------- Billing --------------------

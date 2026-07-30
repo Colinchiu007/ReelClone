@@ -18,13 +18,13 @@
     "@nestjs/config": "^3.2.0",
     "ali-oss": "^6.21.0",
     "mime-types": "^2.1.35",
-    "uuid": "^10.0.0"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/ali-oss": "^6.16.11",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^20.14.0",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^8.3.4",
     "ts-jest": "^29.2.0",
     "typescript": "^5.5.4"
   },

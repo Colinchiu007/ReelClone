@@ -40,6 +40,8 @@ export interface WriteTransactionParams {
   description: string
   workId?: string | null
   orderId?: string | null
+  /** 关联模板 ID（REWARD 类型时填充） */
+  templateId?: string | null
 }
 
 /** 流水写入结果 */
@@ -163,6 +165,7 @@ export class LedgerService {
       balance: params.balanceAfter,
       workId: params.workId ?? null,
       orderId: params.orderId ?? null,
+      templateId: params.templateId ?? null,
       idempotencyKey: params.idempotencyKey,
       description: params.description || '',
     })
@@ -409,6 +412,58 @@ export class LedgerService {
       idempotencyKey,
       description: description || `套餐赠送 ${amount} 积分（package: ${packageId}）`,
       orderId,
+    })
+
+    const frozen = await this.getFrozenBalance(userId)
+
+    return {
+      balance: result.newBalance,
+      frozen,
+      tx,
+    }
+  }
+
+  // -------------------- 业务操作：REWARD --------------------
+
+  /**
+   * 奖励积分（模板被使用时奖励上传者）
+   *
+   * 逻辑：
+   *  - 悲观锁锁定 User
+   *  - currentPoints += amount
+   *  - totalPoints += amount
+   *  - 写入 REWARD 流水（amount = +amount, balance = currentPoints, templateId 填充）
+   *
+   * 与 grant 的区别：不需要 orderId/packageId，关联字段为 templateId。
+   */
+  async reward(params: {
+    userId: string
+    amount: number
+    idempotencyKey: string
+    templateId: string
+    description?: string
+  }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
+    const { userId, amount, idempotencyKey, templateId, description } = params
+
+    const result = await this.mainDataSource.transaction(async (manager) => {
+      const user = await this.lockUser(manager, userId)
+
+      const newBalance = user.currentPoints + amount
+      user.currentPoints = newBalance
+      user.totalPoints += amount
+      await manager.getRepository(User).save(user)
+
+      return { user, newBalance }
+    })
+
+    const tx = await this.writeTransaction({
+      userId,
+      type: PointTransactionType.REWARD,
+      amount: +amount,
+      balanceAfter: result.newBalance,
+      idempotencyKey,
+      description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
+      templateId,
     })
 
     const frozen = await this.getFrozenBalance(userId)

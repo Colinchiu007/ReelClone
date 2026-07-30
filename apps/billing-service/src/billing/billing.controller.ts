@@ -5,17 +5,17 @@
  *
  * 端点分组：
  *  - 外部 API（@CurrentUser 注入 JWT 用户）：balance / transactions
- *  - 内部 API（@Public + @InternalApi，x-api-key 鉴权）：freeze / settle / release / grant
+ *  - 内部 API（@Public + @InternalApi，x-api-key 鉴权）：freeze / settle / release / grant / reward
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { CurrentUser, Public } from '@reelclone/common';
-import { BillingService } from './billing.service';
-import { FreezePointsDto } from './dto/freeze-points.dto';
-import { GrantPointsDto } from './dto/grant-points.dto';
-import { ListTransactionsDto } from './dto/list-transactions.dto';
-import { ReleasePointsDto } from './dto/release-points.dto';
-import { SettlePointsDto } from './dto/settle-points.dto';
-import { InternalApi } from './guards/internal-api.decorator';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
+import { CurrentUser, InternalApi, Public } from '@reelclone/common'
+import { BillingService } from './billing.service'
+import { FreezePointsDto } from './dto/freeze-points.dto'
+import { GrantPointsDto } from './dto/grant-points.dto'
+import { ListTransactionsDto } from './dto/list-transactions.dto'
+import { ReleasePointsDto } from './dto/release-points.dto'
+import { RewardPointsDto } from './dto/reward-points.dto'
+import { SettlePointsDto } from './dto/settle-points.dto'
 
 @Controller('points')
 export class BillingController {
@@ -29,7 +29,7 @@ export class BillingController {
    */
   @Get('balance')
   async getBalance(@CurrentUser('userId') userId: string) {
-    return this.billing.getBalance(userId);
+    return this.billing.getBalance(userId)
   }
 
   /**
@@ -37,11 +37,8 @@ export class BillingController {
    * 积分流水（分页 + 筛选）
    */
   @Get('transactions')
-  async listTransactions(
-    @CurrentUser('userId') userId: string,
-    @Query() dto: ListTransactionsDto,
-  ) {
-    return this.billing.listTransactions(userId, dto);
+  async listTransactions(@CurrentUser('userId') userId: string, @Query() dto: ListTransactionsDto) {
+    return this.billing.listTransactions(userId, dto)
   }
 
   /**
@@ -49,11 +46,8 @@ export class BillingController {
    * 单笔流水详情
    */
   @Get('transactions/:id')
-  async getTransaction(
-    @CurrentUser('userId') userId: string,
-    @Param('id') id: string,
-  ) {
-    return this.billing.getTransaction(userId, id);
+  async getTransaction(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+    return this.billing.getTransaction(userId, id)
   }
 
   // -------------------- 内部 API（API Key 鉴权） --------------------
@@ -66,7 +60,7 @@ export class BillingController {
   @InternalApi()
   @Post('freeze')
   async freeze(@Body() dto: FreezePointsDto) {
-    return this.billing.freeze(dto);
+    return this.billing.freeze(dto)
   }
 
   /**
@@ -77,7 +71,7 @@ export class BillingController {
   @InternalApi()
   @Post('settle')
   async settle(@Body() dto: SettlePointsDto) {
-    return this.billing.settle(dto);
+    return this.billing.settle(dto)
   }
 
   /**
@@ -88,7 +82,7 @@ export class BillingController {
   @InternalApi()
   @Post('release')
   async release(@Body() dto: ReleasePointsDto) {
-    return this.billing.release(dto);
+    return this.billing.release(dto)
   }
 
   /**
@@ -99,6 +93,17 @@ export class BillingController {
   @InternalApi()
   @Post('grant')
   async grant(@Body() dto: GrantPointsDto) {
-    return this.billing.grant(dto);
+    return this.billing.grant(dto)
+  }
+
+  /**
+   * POST /api/v1/points/reward
+   * 奖励积分（模板被使用时奖励上传者，由 template-service 调用）
+   */
+  @Public()
+  @InternalApi()
+  @Post('reward')
+  async reward(@Body() dto: RewardPointsDto) {
+    return this.billing.reward(dto)
   }
 }

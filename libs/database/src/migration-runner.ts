@@ -7,8 +7,10 @@ import { AddSystemConfig1700000000005 } from './migrations/main/0004_add_system_
 import { AddAuditLog1700000000006 } from './migrations/main/0005_add_audit_log'
 import { AddWorksDeletedStatus1700000000007 } from './migrations/main/0006_add_works_deleted_status'
 import { InitBilling1700000000001 } from './migrations/billing/0001_init_billing'
+import { AddRewardType1700000000008 } from './migrations/billing/0002_add_reward_type'
 import { InitTemplate1700000000002 } from './migrations/template/0001_init_template'
 import { AddUgcFields1700000000003 } from './migrations/template/0002_add_ugc_fields'
+import { AddTemplateUploadFields1700000000007 } from './migrations/template/0003_add_template_upload_fields'
 import { InitBenchmark1700000000003 } from './migrations/benchmark/0001_init_benchmark'
 
 /** 构造运行迁移用的数据源配置（不需要实体元数据） */
@@ -50,12 +52,18 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
   },
   {
     name: 'billing',
-    ds: new DataSource(buildOptions('reelclone_billing', [InitBilling1700000000001])),
+    ds: new DataSource(
+      buildOptions('reelclone_billing', [InitBilling1700000000001, AddRewardType1700000000008]),
+    ),
   },
   {
     name: 'template',
     ds: new DataSource(
-      buildOptions('reelclone_template', [InitTemplate1700000000002, AddUgcFields1700000000003]),
+      buildOptions('reelclone_template', [
+        InitTemplate1700000000002,
+        AddUgcFields1700000000003,
+        AddTemplateUploadFields1700000000007,
+      ]),
     ),
   },
   {

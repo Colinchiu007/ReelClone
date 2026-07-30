@@ -2,6 +2,7 @@
  * @reelclone/temporal 类型定义
  * 工作流参数、返回值、Activity 接口、状态枚举等
  */
+import type { VideoMetaInfo } from '@reelclone/ai'
 
 // ============================================================
 // 通用枚举
@@ -265,6 +266,32 @@ export interface BenchmarkResult {
 }
 
 // ============================================================
+// 用户上传视频转模板工作流类型
+// ============================================================
+
+/** 模板生成工作流入参 */
+export interface TemplateGenerationInput {
+  /** 模板 ID */
+  templateId: string
+  /** 用户 ID */
+  userId: string
+  /** 视频在 OSS 中的 Key */
+  ossKey: string
+  /** 模板标题 */
+  title: string
+}
+
+/** 模板生成工作流返回值 */
+export interface TemplateGenerationResult {
+  /** 模板 ID */
+  templateId: string
+  /** 最终状态：ACTIVE（成功）/ ANALYSIS_FAILED（失败） */
+  status: 'ACTIVE' | 'ANALYSIS_FAILED'
+  /** 失败原因（失败时返回） */
+  failureReason?: string
+}
+
+// ============================================================
 // Activity 接口契约（用于 proxyActivities 类型推导）
 // ============================================================
 
@@ -345,7 +372,11 @@ export interface AnalyzerActivities {
 /** 通知 Activity 接口 */
 export interface NotificationActivities {
   /** 更新 Work 业务状态 */
-  updateWorkStatus(workId: string, status: WorkStatus, data?: Record<string, unknown>): Promise<boolean>
+  updateWorkStatus(
+    workId: string,
+    status: WorkStatus,
+    data?: Record<string, unknown>,
+  ): Promise<boolean>
   /** 更新 Benchmark 业务状态 */
   updateBenchmarkStatus(
     benchmarkId: string,
@@ -353,7 +384,11 @@ export interface NotificationActivities {
     data?: Record<string, unknown>,
   ): Promise<boolean>
   /** 通过 Redis Pub/Sub 推送事件给用户 */
-  notifyUser(userId: string, type: NotificationType, data: Record<string, unknown>): Promise<boolean>
+  notifyUser(
+    userId: string,
+    type: NotificationType,
+    data: Record<string, unknown>,
+  ): Promise<boolean>
   /** 发送微信订阅消息 */
   sendSubscribeMessage(
     userId: string,
@@ -370,6 +405,36 @@ export interface OssActivities {
   generateSignedUrl(key: string): Promise<string>
 }
 
+/** 模板生成 Activity 接口（用户上传视频转模板） */
+export interface TemplateActivities {
+  /** 从 OSS 下载视频到本地临时目录 */
+  downloadAssetVideo(ossKey: string): Promise<string>
+  /** 提取视频元数据（分辨率/时长/编码） */
+  extractVideoMeta(videoPath: string): Promise<VideoMetaInfo>
+  /** 截取封面（第 1 秒），返回本地封面文件路径 */
+  generateTemplateThumbnail(videoPath: string): Promise<string>
+  /** 视频分析（4 维度：场景/ASR/OCR/VLM） */
+  analyzeTemplateVideo(videoPath: string): Promise<AnalysisReport>
+  /** LLM 生成模板建议 */
+  summarizeTemplate(report: AnalysisReport): Promise<StructuredReport>
+  /** 上传封面到 OSS，返回 coverKey */
+  uploadThumbnail(params: {
+    thumbnailPath: string
+    userId: string
+    templateId: string
+  }): Promise<string>
+  /** 完成模板：更新 Template 状态为 ACTIVE */
+  finalizeTemplate(params: {
+    templateId: string
+    meta: VideoMetaInfo
+    analysisReport: AnalysisReport
+    templateSuggestion: StructuredReport
+    coverKey: string
+  }): Promise<void>
+  /** 标记模板失败：更新 Template 状态为 ANALYSIS_FAILED */
+  markTemplateFailed(params: { templateId: string; reason: string }): Promise<void>
+}
+
 // ============================================================
 // Temporal 元信息
 // ============================================================
@@ -380,6 +445,8 @@ export const TASK_QUEUE = {
   VIDEO_GENERATION: 'video-generation',
   /** 对标解析队列 */
   BENCHMARK_ANALYSIS: 'benchmark-analysis',
+  /** 模板生成队列（用户上传视频转模板） */
+  TEMPLATE_GENERATION: 'template-generation',
   /** 默认队列 */
   DEFAULT: 'reelclone-default',
 } as const
@@ -388,6 +455,7 @@ export const TASK_QUEUE = {
 export const WORKFLOW_ID_PREFIX = {
   VIDEO_GEN: 'video-gen',
   BENCHMARK: 'benchmark',
+  TEMPLATE: 'template',
 } as const
 
 /** 视频生成轮询配置 */

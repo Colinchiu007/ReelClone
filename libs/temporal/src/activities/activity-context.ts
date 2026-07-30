@@ -14,6 +14,7 @@
  *     videoAnalyzer: app.get(VideoAnalyzerService),
  *     ffmpegService: app.get(FfmpegService),
  *     llmProvider: app.get(LlmProvider),
+ *     ossService: app.get(OSSService),
  *   })
  *
  *   // Activity 内部（真实模式）
@@ -29,6 +30,7 @@ import type {
   VideoAnalyzerService,
   VideoDownloaderService,
 } from '@reelclone/ai'
+import type { OSSService } from '@reelclone/oss'
 
 /** Activity 依赖集合（由 Worker 启动时注入） */
 export interface ActivityDependencies {
@@ -42,6 +44,8 @@ export interface ActivityDependencies {
   ffmpegService: FfmpegService
   /** LLM 大模型（用于对标解析汇总） */
   llmProvider: LlmProvider
+  /** OSS 对象存储（上传/下载/签名 URL） */
+  ossService: OSSService
 }
 
 /** 当前注入的依赖（Worker 启动前为 null） */

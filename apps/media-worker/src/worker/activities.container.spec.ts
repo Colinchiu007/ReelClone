@@ -1,15 +1,12 @@
 /**
  * Activity 容器装配单元测试
  *
- * 验证 buildActivities() 将 6 组 Activity（共 19 个函数）正确聚合为单一对象。
+ * 验证 buildActivities() 将 7 组 Activity（共 27 个函数）正确聚合为单一对象。
  * 通过 mock @reelclone/temporal 提供 Activity 组，专注验证容器的装配逻辑。
  */
-import {
-  buildActivities,
-  ACTIVITY_NAMES,
-} from './activities.container'
+import { buildActivities, ACTIVITY_NAMES } from './activities.container'
 
-// Mock @reelclone/temporal：提供 6 组 Activity 的桩实现
+// Mock @reelclone/temporal：提供 7 组 Activity 的桩实现
 // 避免加载真实 libs/temporal（其 Activity 在模块顶层调用 Context.current()，须在 Worker 上下文内执行）
 jest.mock('@reelclone/temporal', () => {
   const fn = () => jest.fn()
@@ -45,6 +42,16 @@ jest.mock('@reelclone/temporal', () => {
       uploadToOSS: fn(),
       generateSignedUrl: fn(),
     },
+    templateActivities: {
+      downloadAssetVideo: fn(),
+      extractVideoMeta: fn(),
+      generateTemplateThumbnail: fn(),
+      analyzeTemplateVideo: fn(),
+      summarizeTemplate: fn(),
+      uploadThumbnail: fn(),
+      finalizeTemplate: fn(),
+      markTemplateFailed: fn(),
+    },
   }
 })
 
@@ -55,7 +62,7 @@ function expectFunction(value: unknown): void {
 
 describe('activities.container', () => {
   describe('buildActivities', () => {
-    it('返回包含全部 19 个 Activity 的对象', () => {
+    it('返回包含全部 27 个 Activity 的对象', () => {
       const activities = buildActivities()
 
       expect(activities).toBeDefined()
@@ -115,6 +122,18 @@ describe('activities.container', () => {
       expectFunction(activities.generateSignedUrl)
     })
 
+    it('包含 template 组的全部 Activity', () => {
+      const activities = buildActivities()
+      expectFunction(activities.downloadAssetVideo)
+      expectFunction(activities.extractVideoMeta)
+      expectFunction(activities.generateTemplateThumbnail)
+      expectFunction(activities.analyzeTemplateVideo)
+      expectFunction(activities.summarizeTemplate)
+      expectFunction(activities.uploadThumbnail)
+      expectFunction(activities.finalizeTemplate)
+      expectFunction(activities.markTemplateFailed)
+    })
+
     it('多次调用返回的对象包含相同的 Activity 引用', () => {
       const a = buildActivities()
       const b = buildActivities()
@@ -125,8 +144,8 @@ describe('activities.container', () => {
   })
 
   describe('ACTIVITY_NAMES', () => {
-    it('包含 19 个 Activity 名称', () => {
-      expect(ACTIVITY_NAMES).toHaveLength(19)
+    it('包含 27 个 Activity 名称', () => {
+      expect(ACTIVITY_NAMES).toHaveLength(27)
     })
 
     it('所有名称均唯一', () => {
