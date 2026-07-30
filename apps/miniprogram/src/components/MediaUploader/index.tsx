@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image } from '@tarojs/components';
-import Taro from '@tarojs/taro';
-import { uploadFile } from '@/services/upload';
-import './index.scss';
+import { useEffect, useState, useCallback } from 'react'
+import { View, Text, Image } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { uploadFile } from '@/services/upload'
+import './index.scss'
 
 /**
  * MediaUploader 媒体上传组件
@@ -11,20 +11,20 @@ import './index.scss';
  */
 
 export interface MediaUploaderProps {
-  type: 'image' | 'video' | 'audio';
-  maxCount: number;
+  type: 'image' | 'video' | 'audio'
+  maxCount: number
   /** 视频时长限制（秒），仅 type=video 生效 */
-  maxDuration?: number;
+  maxDuration?: number
   /** 已上传的 asset key 数组 */
-  value?: string[];
-  onChange?: (keys: string[]) => void;
-  onUploadStart?: () => void;
-  onUploadEnd?: () => void;
+  value?: string[]
+  onChange?: (keys: string[]) => void
+  onUploadStart?: () => void
+  onUploadEnd?: () => void
 }
 
 interface UploadItem {
-  key: string;
-  thumbUrl?: string;
+  key: string
+  thumbUrl?: string
 }
 
 export default function MediaUploader({
@@ -36,147 +36,130 @@ export default function MediaUploader({
   onUploadStart,
   onUploadEnd,
 }: MediaUploaderProps) {
-  const [items, setItems] = useState<UploadItem[]>(
-    value.map((k) => ({ key: k }))
-  );
-  const [uploading, setUploading] = useState(false);
+  const [items, setItems] = useState<UploadItem[]>(value.map((k) => ({ key: k })))
+  const [uploading, setUploading] = useState(false)
 
   // 外部 value 变化时同步内部 state（仅在长度或 key 不一致时更新）
   useEffect(() => {
-    const current = items.map((i) => i.key);
-    const same =
-      current.length === value.length &&
-      current.every((k, i) => k === value[i]);
+    const current = items.map((i) => i.key)
+    const same = current.length === value.length && current.every((k, i) => k === value[i])
     if (!same) {
-      setItems(value.map((k) => ({ key: k })));
+      setItems(value.map((k) => ({ key: k })))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value])
 
   const notifyChange = useCallback(
     (next: UploadItem[]) => {
-      onChange?.(next.map((t) => t.key));
+      onChange?.(next.map((t) => t.key))
     },
-    [onChange]
-  );
+    [onChange],
+  )
 
   const handleChoose = useCallback(async () => {
     try {
-      let filePath = '';
-      let fileSize = 0;
-      let localThumb: string | undefined;
+      let filePath = ''
+      let fileSize = 0
+      let localThumb: string | undefined
 
       if (type === 'image') {
         const res = await Taro.chooseImage({
           count: 1,
           sourceType: ['album', 'camera'],
-        });
-        filePath = res.tempFilePaths[0];
+        })
+        filePath = res.tempFilePaths[0]
         // chooseImage 返回的 tempFiles 含 size 信息
-        const tempFile = res.tempFiles?.[0];
-        fileSize = tempFile?.size ?? 0;
-        localThumb = filePath;
+        const tempFile = res.tempFiles?.[0]
+        fileSize = tempFile?.size ?? 0
+        localThumb = filePath
       } else if (type === 'video') {
         const res = await Taro.chooseVideo({
           sourceType: ['album', 'camera'],
           maxDuration,
           compressed: true,
-        });
-        filePath = res.tempFilePath;
-        fileSize = res.size;
+        })
+        filePath = res.tempFilePath
+        fileSize = res.size
         // Taro 类型缺失 thumbTempFilePath（WeChat 实际返回该字段），做安全访问
         localThumb =
-          (res as Taro.chooseVideo.SuccessCallbackResult & {
-            thumbTempFilePath?: string;
-          }).thumbTempFilePath || filePath;
+          (
+            res as Taro.chooseVideo.SuccessCallbackResult & {
+              thumbTempFilePath?: string
+            }
+          ).thumbTempFilePath || filePath
       } else {
         const res = await Taro.chooseMessageFile({
           count: 1,
           type: 'file',
           extension: ['mp3', 'wav', 'm4a', 'aac'],
-        });
-        filePath = res.tempFiles[0].path;
-        fileSize = res.tempFiles[0].size;
+        })
+        filePath = res.tempFiles[0].path
+        fileSize = res.tempFiles[0].size
       }
 
-      setUploading(true);
-      onUploadStart?.();
+      setUploading(true)
+      onUploadStart?.()
       try {
         // 复用项目统一的 uploadFile 服务：内部完成 STS Token 获取 + OSS 直传
-        const result = await uploadFile({ path: filePath, size: fileSize }, type);
+        const result = await uploadFile({ path: filePath, size: fileSize }, type)
         const next: UploadItem[] = [
           ...items,
           { key: result.key, thumbUrl: localThumb || result.url },
-        ];
-        setItems(next);
-        notifyChange(next);
+        ]
+        setItems(next)
+        notifyChange(next)
       } finally {
-        setUploading(false);
-        onUploadEnd?.();
+        setUploading(false)
+        onUploadEnd?.()
       }
     } catch (err) {
-      setUploading(false);
-      onUploadEnd?.();
+      setUploading(false)
+      onUploadEnd?.()
       // eslint-disable-next-line no-console
-      console.warn('[MediaUploader] upload failed:', err);
+      console.warn('[MediaUploader] upload failed:', err)
     }
-  }, [
-    type,
-    maxDuration,
-    items,
-    onUploadStart,
-    onUploadEnd,
-    notifyChange,
-  ]);
+  }, [type, maxDuration, items, onUploadStart, onUploadEnd, notifyChange])
 
   const handleDelete = useCallback(
     (idx: number, e: { stopPropagation?: () => void }) => {
-      e?.stopPropagation?.();
-      const next = items.filter((_, i) => i !== idx);
-      setItems(next);
-      notifyChange(next);
+      e?.stopPropagation?.()
+      const next = items.filter((_, i) => i !== idx)
+      setItems(next)
+      notifyChange(next)
     },
-    [items, notifyChange]
-  );
+    [items, notifyChange],
+  )
 
-  const reached = items.length >= maxCount;
-  const typeLabel = type === 'image' ? '图片' : type === 'video' ? '视频' : '音频';
+  const reached = items.length >= maxCount
+  const typeLabel = type === 'image' ? '图片' : type === 'video' ? '视频' : '音频'
 
   return (
-    <View className='media-uploader'>
+    <View className="media-uploader">
       {items.map((item, idx) => (
-        <View className='media-uploader__item' key={item.key + idx}>
+        <View className="media-uploader__item" key={item.key + idx}>
           {item.thumbUrl ? (
-            <Image
-              className='media-uploader__thumb'
-              src={item.thumbUrl}
-              mode='aspectFill'
-            />
+            <Image className="media-uploader__thumb" src={item.thumbUrl} mode="aspectFill" />
           ) : (
-            <View className='media-uploader__thumb media-uploader__thumb--placeholder'>
-              <Text className='media-uploader__type-tag'>{typeLabel}</Text>
+            <View className="media-uploader__thumb media-uploader__thumb--placeholder">
+              <Text className="media-uploader__type-tag">{typeLabel}</Text>
             </View>
           )}
-          <View
-            className='media-uploader__delete'
-            onClick={(e) => handleDelete(idx, e)}
-          >
+          <View className="media-uploader__delete" onClick={(e) => handleDelete(idx, e)}>
             <Text>×</Text>
           </View>
         </View>
       ))}
       {!reached ? (
-        <View className='media-uploader__add' onClick={handleChoose}>
+        <View className="media-uploader__add" onClick={handleChoose}>
           {uploading ? (
-            <View className='media-uploader__spinner' />
+            <View className="media-uploader__spinner" />
           ) : (
             <>
-              <Text className='media-uploader__plus'>+</Text>
-              <Text className='media-uploader__label'>添加{typeLabel}</Text>
+              <Text className="media-uploader__plus">+</Text>
+              <Text className="media-uploader__label">添加{typeLabel}</Text>
             </>
           )}
         </View>
       ) : null}
     </View>
-  );
+  )
 }

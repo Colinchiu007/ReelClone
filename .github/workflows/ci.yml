@@ -67,6 +67,9 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Miniprogram unit tests
+        run: npm run test:miniprogram
+
       - name: Build
         run: npm run build
 

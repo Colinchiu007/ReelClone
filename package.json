@@ -13,6 +13,7 @@
     "lint": "eslint \"apps/**/src/**/*.ts\" \"libs/**/src/**/*.ts\" --quiet",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "test:unit": "jest --passWithNoTests",
+    "test:miniprogram": "jest --config apps/miniprogram/jest.config.js",
     "test:integration": "jest --passWithNoTests --config jest.integration.config.js",
     "test:e2e": "cd tests/integration && jest --config jest.config.js",
     "test:e2e:flows": "cd tests/integration && jest --config jest.config.js --testPathPattern=flows",

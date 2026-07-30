@@ -959,3 +959,100 @@ for (const item of injectTokensRaw ?? []) {
 **置信度**: 10/10（95 个 E2E 测试验证）
 **来源**: observed
 **关联文件**: [package.json](file:///d:/Data/projects/ReelClone/package.json), [libs/common/package.json](file:///d:/Data/projects/ReelClone/libs/common/package.json)
+
+---
+
+## 2026-07-31 复盘批次（前端小程序测试基线建设）
+
+### L-038 [pattern] 轻量级 renderHook 工具（无 @testing-library/react 依赖）
+
+**场景**: 小程序 Hooks 测试需要 renderHook 工具，但 @testing-library/react 对 Taro 小程序环境兼容性差（jsdom + Taro mock 冲突），且引入整个 RTL 包过重。
+
+**模式**: 自行实现轻量级 renderHook，核心 3 要点：
+
+1. **useState 必须在 TestComponent 内部调用**（React Hooks 规则），不能在工具函数顶层调用
+2. **用 forceUpdateRef 保存 setState 引用**，外部 rerender 通过它触发更新（避免直接 root.render 重新挂载）
+3. **propsRef 用普通对象在闭包中共享**，避免 useState 在工具函数顶层调用
+
+```typescript
+export function renderHook<P, R>(
+  callback: (props: P) => R,
+  options: RenderHookOptions<P> = {},
+): RenderHookResult<R, P> {
+  const result: React.MutableRefObject<R> = { current: undefined as unknown as R }
+  const propsRef: { current: P | undefined } = { current: options.initialProps }
+  const forceUpdateRef: { current: (() => void) | null } = { current: null }
+
+  function TestComponent() {
+    const [, setTick] = useState(0)
+    forceUpdateRef.current = () => setTick((t) => t + 1)
+    result.current = callback((propsRef.current as P) ?? (undefined as unknown as P))
+    return null
+  }
+  // ... render / rerender / unmount
+}
+```
+
+**置信度**: 10/10（44 个 Hooks 测试验证）
+**来源**: observed
+**关联文件**: [renderHook.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/test/renderHook.tsx)
+
+---
+
+### L-039 [pitfall] jsdom 环境下 setImmediate 未定义 + act() 弃用警告
+
+**场景**: Taro 小程序测试使用 jest-environment-jsdom，遇到两个兼容性问题：
+
+1. `setImmediate is not defined` — jsdom 环境不提供 Node.js 的 setImmediate
+2. `ReactDOMTestUtils.act is deprecated` — React 18 弃用了 react-dom/test-utils 的 act
+
+**根因**:
+
+1. jsdom 只实现浏览器 API，setImmediate 是 Node.js 特有
+2. React 18 将 act 迁移到 `react` 包，`react-dom/test-utils` 的 act 标记为 deprecated
+
+**修复**:
+
+1. `flushAsync` 中用 `setTimeout(resolve, 0)` 替代 `setImmediate(resolve)`
+2. 从 `react` 导入 `act`（而非 `react-dom/test-utils`）
+3. 在 jest.setup.ts 中设置 `(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true` 消除警告
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [jest.setup.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.setup.ts), [renderHook.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/test/renderHook.tsx)
+
+---
+
+### L-040 [pattern] Taro 小程序 API mock 模式（存储 + 网络 + 选择器）
+
+**场景**: 小程序单元测试需要 mock Taro 的 Storage、Request、chooseImage 等原生 API，但 Taro API 数量多且行为复杂。
+
+**模式**: 在 `__mocks__/taro.ts` 中按类别 mock：
+
+1. **存储类**（getStorageSync/setStorageSync/removeStorageSync）→ 内存 Map 实现 + `__resetMockStorage` 重置函数
+2. **网络类**（request/uploadFile/downloadFile）→ jest.fn() mock，测试中按需 mockResolvedValue
+3. **交互类**（showToast/showModal/showLoading）→ jest.fn() 仅记录调用
+4. **媒体类**（chooseImage/chooseVideo/chooseMedia）→ jest.fn() mock 返回固定路径
+5. **登录类**（login）→ jest.fn() mock 返回 code
+
+**关键**: 导出 `__resetAll` 和 `__resetMockStorage` 供 beforeEach 调用，确保测试隔离。在 jest.setup.ts 的 afterEach 中调用 `jest.clearAllMocks()` + `__resetMockStorage()`。
+
+**置信度**: 10/10（132 个测试验证）
+**来源**: observed
+**关联文件**: [**mocks**/taro.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/__mocks__/taro.ts), [jest.setup.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.setup.ts)
+
+---
+
+### L-041 [pitfall] eslint-disable 注释引用未安装的插件规则导致 lint error
+
+**场景**: `MediaUploader/index.tsx:53` 有 `// eslint-disable-next-line react-hooks/exhaustive-deps`，但项目未安装 `eslint-plugin-react-hooks`，ESLint 报 error: "Definition for rule 'react-hooks/exhaustive-deps' was not found"。
+
+**根因**: eslint-disable 注释引用的规则名对应插件未安装时，ESLint 将其视为配置错误（error），而非 warning。
+
+**修复**: 移除无效的 eslint-disable 注释。检查发现该 useEffect 的 deps `[value]` 实际正确（items 来自 state，setItems 是稳定 setter），disable 注释本身多余。
+
+**预防**: 添加 eslint-disable 注释时，确保对应插件已安装且规则存在。CI lint 应作为门禁，避免预存 error 累积。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [MediaUploader/index.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/components/MediaUploader/index.tsx)
