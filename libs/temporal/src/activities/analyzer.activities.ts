@@ -11,7 +11,7 @@
  * summarizeReport 调用 LLM 将多源结果汇总为结构化报告。
  */
 import { Context } from '@temporalio/activity'
-import { validateLlmStructuredReport } from '@reelclone/ai'
+import { validateLlmStructuredReport, sanitizePromptInput } from '@reelclone/ai'
 import {
   type AnalyzerActivities,
   type AnalysisReport,
@@ -311,17 +311,20 @@ export async function summarizeReport(report: AnalysisReport): Promise<Structure
 
 /** 构建结构化汇总提示词（要求 LLM 返回 JSON） */
 function buildSummaryPrompt(report: AnalysisReport): string {
+  // B5: 对 OCR/ASR/VLM 文本进行 Prompt Injection 脱敏
   const shotsText = report.scenes
     .map(
       (s) =>
-        `  ${s.index}. [${s.start.toFixed(1)}-${s.end.toFixed(1)}s] ${s.description ?? '未知镜头'}（${s.duration.toFixed(1)}s）`,
+        `  ${s.index}. [${s.start.toFixed(1)}-${s.end.toFixed(1)}s] ${sanitizePromptInput(s.description ?? '未知镜头')}（${s.duration.toFixed(1)}s）`,
     )
     .join('\n')
   const transcriptText = report.asr.segments
-    .map((t) => `  [${t.start.toFixed(1)}s] ${t.text}`)
+    .map((t) => `  [${t.start.toFixed(1)}s] ${sanitizePromptInput(t.text)}`)
     .join('\n')
-  const ocrText = report.ocr.items.map((o) => `  ${o.text}`).join('\n')
-  const vlmText = report.vlm.descriptions.map((v) => `  ${v.description}`).join('\n')
+  const ocrText = report.ocr.items.map((o) => `  ${sanitizePromptInput(o.text)}`).join('\n')
+  const vlmText = report.vlm.descriptions
+    .map((v) => `  ${sanitizePromptInput(v.description)}`)
+    .join('\n')
 
   return [
     '以下是对标视频的多维度分析结果，请汇总为结构化报告：',

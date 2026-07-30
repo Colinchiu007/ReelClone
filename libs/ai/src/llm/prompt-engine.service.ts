@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { LlmProvider } from './llm.provider'
 import { CopyGenerationParams } from './llm.types'
 import { AnalysisInputs } from '../analyzer/analyzer.types'
+import { sanitizeAnalysisInputs, sanitizePromptInput } from './prompt-sanitizer'
 
 /** 一键复刻建议参数 */
 export interface CloneSuggestion {
@@ -130,15 +131,21 @@ export class PromptEngineService {
 
   /**
    * 汇总对标解析报告
+   *
+   * B5: 入口处对 OCR/ASR/VLM 文本进行 Prompt Injection 脱敏，
+   * 防止用户上传视频中的恶意内容劫持 LLM。
+   *
    * @param inputs 多源分析结果（镜头/ASR/OCR/VLM）
    * @returns 结构化汇总文本（Markdown）
    */
   async summarizeAnalysis(inputs: AnalysisInputs): Promise<string> {
+    // B5: 脱敏用户可控输入（OCR/ASR/VLM 文本）
+    const sanitizedInputs = sanitizeAnalysisInputs(inputs)
     this.logger.log(
-      `汇总对标解析 shots=${inputs.shots.length} transcript=${inputs.transcript.length} ocr=${inputs.ocr.length} vlm=${inputs.visualDescription.length}`,
+      `汇总对标解析 shots=${sanitizedInputs.shots.length} transcript=${sanitizedInputs.transcript.length} ocr=${sanitizedInputs.ocr.length} vlm=${sanitizedInputs.visualDescription.length}`,
     )
 
-    const prompt = this.buildSummaryPrompt(inputs)
+    const prompt = this.buildSummaryPrompt(sanitizedInputs)
     const system =
       '你是一位短视频内容策略分析师，擅长从镜头、口播、画面文字、视觉描述中提炼可复用的创作模板。'
     const text = await this.llm.complete(
@@ -157,11 +164,27 @@ export class PromptEngineService {
    * @returns 复刻建议（prompt + 推荐参数）
    */
   async generateClonePrompt(report: StructuredReport): Promise<CloneSuggestion> {
+    // B5: shotList 中的 visual/voiceover/onScreenText 源自原始 OCR/ASR，需脱敏
+    const sanitizedReport: StructuredReport = {
+      ...report,
+      shotList: report.shotList.map((shot) => ({
+        ...shot,
+        visual: sanitizePromptInput(shot.visual),
+        voiceover: sanitizePromptInput(shot.voiceover),
+        onScreenText: sanitizePromptInput(shot.onScreenText),
+      })),
+      copywriting: {
+        hook: sanitizePromptInput(report.copywriting.hook),
+        body: sanitizePromptInput(report.copywriting.body),
+        cta: sanitizePromptInput(report.copywriting.cta),
+      },
+      sellingPoints: report.sellingPoints.map((sp) => sanitizePromptInput(sp)),
+    }
     this.logger.log(
-      `生成复刻提示词 style=${report.style.slice(0, 20)} shots=${report.shotList.length}`,
+      `生成复刻提示词 style=${sanitizedReport.style.slice(0, 20)} shots=${sanitizedReport.shotList.length}`,
     )
 
-    const prompt = this.buildClonePrompt(report)
+    const prompt = this.buildClonePrompt(sanitizedReport)
     const system =
       '你是一位短视频复刻提示词工程师，擅长基于对标视频的结构化分析报告生成可直接用于文生视频模型的中文提示词。'
     const text = await this.llm.complete(

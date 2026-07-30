@@ -37,6 +37,11 @@ export {
   type ValidationResult,
 } from './llm/structured-report.validator'
 export {
+  sanitizePromptInput,
+  sanitizePromptInputs,
+  sanitizeAnalysisInputs,
+} from './llm/prompt-sanitizer'
+export {
   LlmProvider as LlmProviderEnum,
   type LlmMessage,
   type LlmRole,
