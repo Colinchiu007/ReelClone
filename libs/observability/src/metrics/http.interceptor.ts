@@ -28,10 +28,7 @@ import {
 import { type Observable, throwError } from 'rxjs'
 import { catchError, tap } from 'rxjs/operators'
 import { type Counter, type Histogram } from 'prom-client'
-import {
-  HTTP_REQUEST_DURATION_SECONDS,
-  HTTP_REQUESTS_TOTAL,
-} from './metrics.module'
+import { HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL } from './metrics.constants'
 
 /** 请求对象的最小结构 */
 interface MetricRequest {
@@ -68,20 +65,14 @@ export class HttpMetricsInterceptor implements NestInterceptor {
         this.record(method, route, response.statusCode ?? 200, start)
       }),
       catchError((error: unknown) => {
-        const status =
-          (error as { status?: number })?.status ?? 500
+        const status = (error as { status?: number })?.status ?? 500
         this.record(method, route, status, start)
         return throwError(() => error)
       }),
     )
   }
 
-  private record(
-    method: string,
-    route: string,
-    status: number,
-    start: bigint,
-  ): void {
+  private record(method: string, route: string, status: number, start: bigint): void {
     const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9
     const labels = { method, route, status: String(status) }
     this.requestsTotal.inc(labels)

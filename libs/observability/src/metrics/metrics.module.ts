@@ -21,20 +21,13 @@
  * default metrics 还包含：eventloop lag、GC duration、heap space 等标准指标。
  */
 import { type DynamicModule, Global, Module, type Provider } from '@nestjs/common'
-import {
-  Counter,
-  Histogram,
-  collectDefaultMetrics,
-  register,
-} from 'prom-client'
+import { Counter, Histogram, collectDefaultMetrics, register } from 'prom-client'
 import { HttpMetricsInterceptor } from './http.interceptor'
 import { MetricsController } from './metrics.controller'
+import { HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS } from './metrics.constants'
 
-/** HTTP 请求总数 Counter 的注入 Token */
-export const HTTP_REQUESTS_TOTAL = 'http_requests_total'
-
-/** HTTP 请求耗时 Histogram 的注入 Token */
-export const HTTP_REQUEST_DURATION_SECONDS = 'http_request_duration_seconds'
+// 重新导出常量以保持向后兼容（其他模块可能从 metrics.module 导入）
+export { HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS }
 
 export interface MetricsModuleOptions {
   /** 服务名（保留用于后续按服务标签区分，当前可选） */
@@ -42,11 +35,7 @@ export interface MetricsModuleOptions {
 }
 
 /** 获取或创建 Counter，避免重复注册（HMR / 多次 forRoot 场景） */
-function getOrCreateCounter(
-  name: string,
-  help: string,
-  labelNames: string[],
-): Counter<string> {
+function getOrCreateCounter(name: string, help: string, labelNames: string[]): Counter<string> {
   const existing = register.getSingleMetric(name)
   if (existing) {
     return existing as Counter<string>

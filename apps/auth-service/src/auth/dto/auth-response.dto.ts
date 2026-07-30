@@ -80,21 +80,6 @@ export class RefreshTokenResultDto {
   refreshToken: string
 }
 
-/** 管理员登录响应 */
-export class AdminLoginResultDto {
-  @ApiProperty({ description: 'Access Token', example: 'eyJ...' })
-  accessToken: string
-
-  @ApiProperty({ description: 'Refresh Token', example: 'eyJ...' })
-  refreshToken: string
-
-  @ApiProperty({
-    description: '管理员用户信息',
-    type: () => AdminUserInfoDto,
-  })
-  user: AdminUserInfoDto
-}
-
 /** 管理员登录响应中的用户信息 */
 export class AdminUserInfoDto {
   @ApiProperty({ description: '用户 ID', example: 'uuid-xxx' })
@@ -109,6 +94,21 @@ export class AdminUserInfoDto {
     example: UserRole.ADMIN,
   })
   role: UserRole
+}
+
+/** 管理员登录响应 */
+export class AdminLoginResultDto {
+  @ApiProperty({ description: 'Access Token', example: 'eyJ...' })
+  accessToken: string
+
+  @ApiProperty({ description: 'Refresh Token', example: 'eyJ...' })
+  refreshToken: string
+
+  @ApiProperty({
+    description: '管理员用户信息',
+    type: () => AdminUserInfoDto,
+  })
+  user: AdminUserInfoDto
 }
 
 /** 登出响应 */
