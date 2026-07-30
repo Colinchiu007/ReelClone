@@ -840,6 +840,79 @@ CI 校验脚本：
 
 ---
 
+### L-034 [pitfall] NestJS v10+ self:paramtypes 元数据格式变更
+
+**场景**: 离线提取 OpenAPI 时，需要为 Controller 的构造函数依赖生成 mock providers。读取 `Reflect.getMetadata('self:paramtypes', target)` 获取 @Inject token。
+
+**问题**: NestJS v10+ 将 `self:paramtypes` 的存储格式从简单 token 数组 `['main_UserRepository']` 改为 `ParamData[]` 对象数组 `[{ index: 0, param: 'main_UserRepository' }]`。旧代码直接读取数组元素作为 token，实际拿到的是 `{ index, param }` 对象，导致 mock provider 注册失败（`Nest can't resolve dependencies ... "main_UserRepository" at index [0]`）。
+
+**根因**: 假设了 NestJS 内部元数据格式的稳定性。NestJS 在 v10 升级时改用 `ParamData` 接口（含 `index` 字段），以支持参数位置不连续的注入场景。
+
+**修复**: 在读取 `self:paramtypes` 后添加归一化逻辑——检测 `{ index, param }` 结构，按 `index` 字段对齐到参数位置：
+
+```typescript
+const injectTokens: (unknown | undefined)[] = []
+for (const item of injectTokensRaw ?? []) {
+  if (item === null || item === undefined) continue
+  if (typeof item === 'object' && 'param' in item && 'index' in item) {
+    const pd = item as { index: number; param: unknown }
+    injectTokens[pd.index] = pd.param // 按 index 对齐
+  } else {
+    injectTokens.push(item) // 旧格式兜底
+  }
+}
+```
+
+**预防**: 读取框架内部元数据时，先 console.log 打印实际结构，不要凭文档假设格式。框架大版本升级时优先检查 metadata schema 变更。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [scripts/extract-openapi.ts](file:///d:/Data/projects/ReelClone/scripts/extract-openapi.ts)
+
+---
+
+### L-035 [pitfall] TypeScript 装饰器 TDZ：类定义顺序敏感
+
+**场景**: NestJS DTO 文件中，`AdminLoginResultDto` 通过 `@ApiProperty({ type: () => AdminUserInfoDto })` 引用同文件中后定义的 `AdminUserInfoDto`。
+
+**问题**: 运行时抛出 `ReferenceError: Cannot access 'AdminUserInfoDto' before initialization`。
+
+**根因**: TypeScript 启用 `emitDecoratorMetadata` 后，类字段的 `Reflect.metadata("design:type", X)` 在类定义时同步求值。即使装饰器用了 `type: () => X` 惰性箭头函数，TS 编译器仍会为字段类型注解生成 `Reflect.metadata`，此时 `X` 若在文件后续位置定义，则处于 TDZ（Temporal Dead Zone）。
+
+**与 L-032 区别**: L-032 是导入语法问题；L-035 是同文件内类定义顺序问题。
+
+**修复**: 被引用的类必须定义在引用者之前。将 `AdminUserInfoDto` 移到 `AdminLoginResultDto` 之前。
+
+**通用规则**: 当 A 类的字段类型注解引用 B 类，且 B 在同文件中定义时，B 必须出现在 A 之前。这与 C/C++ 的前向声明问题类似。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [apps/auth-service/src/auth/dto/auth-response.dto.ts](file:///d:/Data/projects/ReelClone/apps/auth-service/src/auth/dto/auth-response.dto.ts)
+
+---
+
+### L-036 [pattern] 离线 OpenAPI 提取：MockModule + 递归依赖收集
+
+**场景**: 需要从 NestJS 微服务提取 OpenAPI JSON，但环境无 Docker/DB/Redis，无法启动完整服务。
+
+**方案**: 通过动态 `require(AppModule)` + `Reflect.getMetadata` 递归扫描 `@Module` 装饰器的 `controllers` 数组（跳过 DatabaseModule 等基础设施模块），构建只含 Controllers + mock providers 的轻量 `MockModule`，再用 `NestFactory.create(MockModule, { abortOnError: false })` + `SwaggerModule.createDocument()` 生成 OpenAPI 文档。
+
+**关键点**:
+
+1. Swagger 只读取装饰器元数据（@ApiTags/@ApiOperation/@ApiProperty），不需要真实 Controller 实例
+2. `app.init()` 会实例化 controllers，因此需要为构造函数依赖生成 `{ provide: X, useValue: {} }` mock providers
+3. 递归收集依赖时需处理 `@InjectRepository` 的字符串 token（如 `main_UserRepository`）—— 见 L-034
+4. 跨服务提取时需清除 `prom-client` 全局 register，避免 `collectDefaultMetrics` 重复注册
+5. ts-node CJS 模式运行（非 tsx/esbuild），因为 esbuild 不支持 `emitDecoratorMetadata`
+
+**优势**: 无需启动服务、无需 DB/Redis、CI 友好、生成结果确定性可校验
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [scripts/extract-openapi.ts](file:///d:/Data/projects/ReelClone/scripts/extract-openapi.ts)
+
+---
+
 ## Skillify 检查（B3-B8 批次）
 
 | 候选模式                          | 出现次数 | 是否生成 skill        |
