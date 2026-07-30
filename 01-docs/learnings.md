@@ -211,3 +211,132 @@ for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
 - 引用文件已被删除 → 标记 STALE
 - 同 key 矛盾内容 → 标记 CONFLICT
 - 超过 90 天未引用 → 标记 AGED
+
+---
+
+## 2026-07-30 复盘批次（E2E 集成测试打通）
+
+### L-011 [pitfall] E2E tsconfig 缺少装饰器配置导致 TypeORM 实体编译失败
+
+**场景**: E2E 测试独立 tsconfig（`tests/integration/tsconfig.json`）未启用 `experimentalDecorators` 和 `emitDecoratorMetadata`，导致 TypeORM 实体类（User/Work 等）的 `@Column`/`@OneToMany` 装饰器编译报错 "Unable to resolve signature of property decorator when called as an expression"。
+
+**根因**: E2E tsconfig 从基础配置复制时遗漏了装饰器相关选项。根 tsconfig.base.json 有这两个选项，但 E2E 独立配置未同步。
+
+**修复**: 在 `tests/integration/tsconfig.json` 中添加 `experimentalDecorators: true` + `emitDecoratorMetadata: true` + `baseUrl` + `paths`（与 tsconfig.base.json 对齐）。
+
+**置信度**: 10/10（修复后 10 套件 95 测试全通过）
+**来源**: observed
+**关联文件**: [tsconfig.json](file:///d:/Data/projects/ReelClone/tests/integration/tsconfig.json), [tsconfig.base.json](file:///d:/Data/projects/ReelClone/tsconfig.base.json)
+
+---
+
+### L-012 [pitfall] SMS 60 秒限流键不区分 purpose 导致跨用例冲突
+
+**场景**: user.api.spec.ts 中「绑定手机号」测试发送 `BIND_MOBILE` 验证码后，「设置密码」测试对同一手机号发送 `RESET_PASSWORD` 验证码，触发 60 秒限流（`sms:lockout:{mobile}` 键不区分 purpose）。
+
+**根因**: SmsService 的限流键为 `sms:lockout:{mobile}`，不包含 purpose 维度。同一手机号 60 秒内只能发送一次验证码，无论用途是否相同。
+
+**修复**: E2E 测试中「设置密码」用例使用独立的新手机号（`randomMobile()`），避免与前序测试的限流冲突。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [sms.service.ts](file:///d:/Data/projects/ReelClone/apps/user-service/src/user/sms.service.ts), [user.api.spec.ts](file:///d:/Data/projects/ReelClone/tests/integration/api/user.api.spec.ts)
+
+---
+
+### L-013 [pitfall] 改密踢下线机制导致后续测试 JWT 失效
+
+**场景**: user.api.spec.ts 中「设置密码」测试触发 `revokeAllTokens()`，在 Redis 写入 `user:password-changed:{userId}` 键（TTL 7 天）。后续「行业偏好」测试使用同一 JWT token 请求，被 JwtStrategy 的改密检查拦截返回 401。
+
+**根因**: `changePassword()` 方法在保存新密码后立即设置 Redis 黑名单键，使当前 token 失效。如果密码修改测试不是最后一个需要认证的用例，后续测试都会 401。
+
+**修复**: 调整测试执行顺序 — 将「行业偏好」describe 块移到「PUT /users/password」之前，确保密码修改是最后一个使用当前 token 的测试。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [jwt.strategy.ts](file:///d:/Data/projects/ReelClone/apps/user-service/src/auth/jwt.strategy.ts), [user.service.ts](file:///d:/Data/projects/ReelClone/apps/user-service/src/user/user.service.ts)
+
+---
+
+### L-014 [pattern] Mock 模式应立即标记任务 COMPLETED 而非 RUNNING
+
+**场景**: workbench-service 和 benchmark-service 的 Mock 模式原本只设置 `providerTaskId` 但保持状态为 RUNNING，导致 E2E 测试轮询任务状态超时。
+
+**模式**: Mock 模式下不调用 Temporal，应立即：
+
+1. 更新 GenerationTask 状态为 COMPLETED + 设置 startedAt/completedAt
+2. 更新 Work 状态为 COMPLETED + 填充 mock resultUrl/thumbnailKey
+3. 对于 benchmark，写入 mock analysisResult
+
+这样 E2E 测试可以同步验证完整流程，无需轮询等待。
+
+**置信度**: 10/10（E2E 全部通过）
+**来源**: observed
+**关联文件**: [generation.service.ts](file:///d:/Data/projects/ReelClone/apps/workbench-service/src/workbench/generation.service.ts), [benchmark.service.ts](file:///d:/Data/projects/ReelClone/apps/benchmark-service/src/benchmark/benchmark.service.ts)
+
+---
+
+### L-015 [pitfall] TypeORM jsonb 列 update 时不应使用 as unknown as Record cast
+
+**场景**: `benchmark.service.ts` 中 `repo.update()` 调用对 `analysisResult` 字段使用了 `as unknown as Record<string, unknown>` 强制转换，导致 TS2322 类型错误：`Record<string, unknown>` 不兼容 TypeORM 的 `_QueryDeepPartialEntity` 类型。
+
+**根因**: TypeORM 的 `update()` 方法对 jsonb 列类型有严格的 `QueryDeepPartialEntity` 泛型约束，`Record<string, unknown>` 的索引签名类型无法满足。内联对象字面量（如 `{ step: 'freeze', message: '...' }`）可以自动推断兼容。
+
+**修复**: 移除 `as unknown as Record<string, unknown>` cast，直接传递对象变量。TypeScript 会推断具体类型，自动兼容 `QueryDeepPartialEntity`。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [benchmark.service.ts](file:///d:/Data/projects/ReelClone/apps/benchmark-service/src/benchmark/benchmark.service.ts)
+
+---
+
+### L-016 [architecture] 跨库实体关系用逻辑 ID 字段而非 TypeORM 装饰器
+
+**场景**: User/Work 实体通过 `@ManyToOne`/`@OneToMany` 关联跨库的 Benchmark/Favorite/PointTransaction 实体，导致 TypeORM 启动报错 "Entity metadata for Work#benchmark was not found"。
+
+**模式**: 多数据库架构下，跨库实体关联应：
+
+1. 移除所有跨库 `@ManyToOne`/`@OneToMany`/`@JoinColumn` 装饰器
+2. 保留逻辑关联 ID 字段（如 `benchmarkId: string | null`）
+3. 在代码注释中标注跨库逻辑关联
+4. 应用层通过服务间调用（HTTP/gRPC）补全关联数据
+
+同库内的实体关系（如 User ↔ Work，均在 main 库）可正常使用 TypeORM 装饰器。
+
+**置信度**: 10/10（5 个实体修复后全部通过）
+**来源**: observed
+**关联文件**: [user.entity.ts](file:///d:/Data/projects/ReelClone/libs/database/src/entities/user.entity.ts), [work.entity.ts](file:///d:/Data/projects/ReelClone/libs/database/src/entities/work.entity.ts), [benchmark.entity.ts](file:///d:/Data/projects/ReelClone/libs/database/src/entities/benchmark.entity.ts)
+
+---
+
+### L-017 [operational] 微服务重启前必须清理残留端口进程
+
+**场景**: E2E 测试重启微服务时，旧进程仍占用 3001-3009 端口，导致新进程 EADDRINUSE 启动失败。start-e2e.ps1 的健康检查误判为"OK"（实际是旧进程在监听），但旧进程运行的是过期代码。
+
+**模式**: 每次重启微服务前，先执行端口清理脚本 `kill-e2e-ports.ps1`：
+
+```powershell
+$ports = 3001..3009
+foreach ($port in $ports) {
+    $conns = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue
+    foreach ($conn in $conns) {
+        Stop-Process -Id $conn.OwningProcess -Force
+    }
+}
+```
+
+**置信度**: 10/10（多次验证）
+**来源**: observed
+**关联文件**: [kill-e2e-ports.ps1](file:///d:/Data/projects/ReelClone/tools/kill-e2e-ports.ps1)
+
+---
+
+## Skillify 检查（E2E 批次）
+
+| 候选模式                  | 出现次数                    | 是否生成 skill        |
+| ------------------------- | --------------------------- | --------------------- |
+| Mock 立即完成模式 (L-014) | 2 次（workbench+benchmark） | ❌ 项目特定，不通用   |
+| 跨库逻辑 ID 关联 (L-016)  | 5 个实体                    | ❌ TypeORM 通用知识   |
+| 端口清理脚本 (L-017)      | 多次                        | ❌ 运维操作，非 skill |
+
+**结论**: 本次无 skillify 候选。
