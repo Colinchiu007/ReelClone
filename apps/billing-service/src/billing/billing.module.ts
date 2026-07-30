@@ -13,6 +13,8 @@
  */
 import { Module } from '@nestjs/common'
 import { ScheduleModule } from '@nestjs/schedule'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { DATABASE_CONNECTIONS, PointTransaction, User } from '@reelclone/database'
 import { BillingController } from './billing.controller'
 import { BillingService } from './billing.service'
 import { LedgerService } from './ledger.service'
@@ -20,7 +22,12 @@ import { ReconciliationCron } from './reconciliation.cron'
 import { ReconciliationService } from './reconciliation.service'
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [
+    ScheduleModule.forRoot(),
+    // 导出 main / billing DataSource 供 LedgerService / BillingService / ReconciliationService 注入
+    TypeOrmModule.forFeature([User], DATABASE_CONNECTIONS.MAIN),
+    TypeOrmModule.forFeature([PointTransaction], DATABASE_CONNECTIONS.BILLING),
+  ],
   controllers: [BillingController],
   providers: [LedgerService, BillingService, ReconciliationService, ReconciliationCron],
   exports: [BillingService, LedgerService, ReconciliationService],

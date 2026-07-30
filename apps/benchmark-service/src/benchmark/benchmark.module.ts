@@ -10,15 +10,22 @@
  *  - BenchmarkController：API 端点
  */
 import { Module } from '@nestjs/common'
+import { TypeOrmModule } from '@nestjs/typeorm'
 import { AiModule } from '@reelclone/ai'
 import { ConfigStoreModule } from '@reelclone/common'
+import { Benchmark, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { BillingClient } from './billing-client'
 import { TemporalAdapter } from './temporal-adapter'
 import { BenchmarkController } from './benchmark.controller'
 import { BenchmarkService } from './benchmark.service'
 
 @Module({
-  imports: [AiModule, ConfigStoreModule],
+  imports: [
+    AiModule,
+    ConfigStoreModule,
+    // 导出 benchmark DataSource 供 BenchmarkService 注入
+    TypeOrmModule.forFeature([Benchmark], DATABASE_CONNECTIONS.BENCHMARK),
+  ],
   controllers: [BenchmarkController],
   providers: [BillingClient, TemporalAdapter, BenchmarkService],
   exports: [BenchmarkService],

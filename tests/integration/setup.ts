@@ -9,16 +9,15 @@
  *
  * 若环境不满足，快速失败并给出清晰指引，避免后续测试全部报错。
  */
-import { SERVICE_BASE_URL } from './helpers/test-client';
-import { cleanupAllTables, seedPackages, withDb } from './helpers/db-helper';
-import { waitForHealthy } from './helpers/wait';
+import { SERVICE_BASE_URL } from './helpers/test-client'
+import { cleanupAllTables, seedPackages, withDb } from './helpers/db-helper'
+import { waitForHealthy } from './helpers/wait'
 
 /** 是否跳过服务健康检查（CI 中服务可能由外部编排启动） */
-const SKIP_HEALTH_CHECK =
-  process.env.E2E_SKIP_HEALTH_CHECK === 'true';
+const SKIP_HEALTH_CHECK = process.env.E2E_SKIP_HEALTH_CHECK === 'true'
 
 /** 是否跳过数据库清理（手动指定保留数据） */
-const SKIP_DB_CLEANUP = process.env.E2E_SKIP_DB_CLEANUP === 'true';
+const SKIP_DB_CLEANUP = process.env.E2E_SKIP_DB_CLEANUP === 'true'
 
 /** Mock 模式必须为 true 的环境变量 */
 const REQUIRED_MOCK_VARS = [
@@ -26,7 +25,7 @@ const REQUIRED_MOCK_VARS = [
   'SMS_MOCK_MODE',
   'WECHAT_PAY_MOCK_MODE',
   'TEMPORAL_MOCK_MODE',
-];
+]
 
 /** 各服务的 health 端点 */
 const SERVICE_HEALTH_ENDPOINTS: Array<{ name: string; url: string }> = [
@@ -38,12 +37,12 @@ const SERVICE_HEALTH_ENDPOINTS: Array<{ name: string; url: string }> = [
   { name: 'workbench', url: `${SERVICE_BASE_URL.workbench}/api/v1/works/health` },
   { name: 'notification', url: `${SERVICE_BASE_URL.notification}/api/v1/notifications/health` },
   { name: 'order', url: `${SERVICE_BASE_URL.order}/api/v1/orders/health` },
-];
+]
 
 /** 简易彩色日志（避免引入额外依赖） */
 function log(message: string): void {
   // eslint-disable-next-line no-console
-  console.log(`\n[setup] ${message}`);
+  console.log(`\n[setup] ${message}`)
 }
 
 /**
@@ -54,21 +53,17 @@ function log(message: string): void {
  * 因为服务可能通过 .env 文件加载而非进程环境变量）。
  */
 function checkMockMode(): void {
-  const warnings: string[] = [];
+  const warnings: string[] = []
   for (const varName of REQUIRED_MOCK_VARS) {
     if (process.env[varName] !== 'true') {
-      warnings.push(varName);
+      warnings.push(varName)
     }
   }
   if (warnings.length > 0) {
-    log(
-      `⚠️  测试进程未检测到以下 Mock 变量（请确认服务侧已配置）：${warnings.join(', ')}`,
-    );
-    log(
-      '   若服务通过 .env 文件加载，可忽略此警告；否则测试可能调用真实第三方接口。',
-    );
+    log(`⚠️  测试进程未检测到以下 Mock 变量（请确认服务侧已配置）：${warnings.join(', ')}`)
+    log('   若服务通过 .env 文件加载，可忽略此警告；否则测试可能调用真实第三方接口。')
   } else {
-    log('✅ Mock 模式环境变量已确认');
+    log('✅ Mock 模式环境变量已确认')
   }
 }
 
@@ -79,25 +74,25 @@ async function checkAndCleanDb(): Promise<void> {
   try {
     await withDb(async (ds) => {
       const result = (await ds.query('SELECT 1 as ok')) as Array<{
-        ok: number;
-      }>;
+        ok: number
+      }>
       if (result[0]?.ok !== 1) {
-        throw new Error('SELECT 1 未返回预期结果');
+        throw new Error('SELECT 1 未返回预期结果')
       }
-    });
-    log('✅ 数据库连接正常');
+    })
+    log('✅ 数据库连接正常')
 
     if (!SKIP_DB_CLEANUP) {
-      await cleanupAllTables();
-      log('✅ 数据库残留数据已清理（保留 package 表）');
+      await cleanupAllTables()
+      log('✅ 数据库残留数据已清理（保留 package 表）')
     } else {
-      log('⏭️  跳过数据库清理（E2E_SKIP_DB_CLEANUP=true）');
+      log('⏭️  跳过数据库清理（E2E_SKIP_DB_CLEANUP=true）')
     }
   } catch (err) {
     throw new Error(
       `数据库连接失败，请确认 PostgreSQL 已启动（docker compose -f docker/docker-compose.yml up -d）。\n` +
         `错误: ${(err as Error).message}`,
-    );
+    )
   }
 }
 
@@ -106,11 +101,11 @@ async function checkAndCleanDb(): Promise<void> {
  */
 async function seedData(): Promise<void> {
   if (SKIP_DB_CLEANUP) {
-    log('⏭️  跳过种子数据（保留现有 package）');
-    return;
+    log('⏭️  跳过种子数据（保留现有 package）')
+    return
   }
-  await seedPackages();
-  log('✅ 种子套餐数据已就绪');
+  await seedPackages()
+  log('✅ 种子套餐数据已就绪')
 }
 
 /**
@@ -121,29 +116,29 @@ async function seedData(): Promise<void> {
  */
 async function checkServicesHealth(): Promise<void> {
   if (SKIP_HEALTH_CHECK) {
-    log('⏭️  跳过服务健康检查（E2E_SKIP_HEALTH_CHECK=true）');
-    return;
+    log('⏭️  跳过服务健康检查（E2E_SKIP_HEALTH_CHECK=true）')
+    return
   }
 
-  log('🔍 检查微服务健康状态...');
-  const failed: string[] = [];
+  log('🔍 检查微服务健康状态...')
+  const failed: string[] = []
 
   for (const { name, url } of SERVICE_HEALTH_ENDPOINTS) {
     try {
-      await waitForHealthy(url, 30000);
-      log(`  ✅ ${name} 服务就绪`);
+      await waitForHealthy(url, 30000)
+      log(`  ✅ ${name} 服务就绪`)
     } catch {
       // 退一步：尝试直接 TCP 连接，区分「服务未启动」与「无 /health 端点」
       try {
-        const resp = await fetch(url).catch(() => null);
+        const resp = await fetch(url).catch(() => null)
         if (resp && (resp.status === 404 || resp.status === 401)) {
-          log(`  ✅ ${name} 服务已响应（${resp.status}，可能未实现 /health）`);
-          continue;
+          log(`  ✅ ${name} 服务已响应（${resp.status}，可能未实现 /health）`)
+          continue
         }
       } catch {
         // 忽略，归入失败
       }
-      failed.push(name);
+      failed.push(name)
     }
   }
 
@@ -151,28 +146,23 @@ async function checkServicesHealth(): Promise<void> {
     throw new Error(
       `以下服务未就绪: ${failed.join(', ')}\n` +
         '请启动所有微服务，或设置 E2E_SKIP_HEALTH_CHECK=true 跳过检查。',
-    );
+    )
   }
-  log('✅ 所有微服务就绪');
+  log('✅ 所有微服务就绪')
 }
 
 /**
  * 全局 setup（每个测试文件前执行）
+ *
+ * 由 jest setupFilesAfterEnv 调用并 await，无需手动执行。
  */
 export default async function setup(): Promise<void> {
-  log('=== ReelClone E2E 测试环境初始化 ===');
+  log('=== ReelClone E2E 测试环境初始化 ===')
 
-  checkMockMode();
-  await checkAndCleanDb();
-  await seedData();
-  await checkServicesHealth();
+  checkMockMode()
+  await checkAndCleanDb()
+  await seedData()
+  await checkServicesHealth()
 
-  log('=== 初始化完成，开始执行测试 ===\n');
+  log('=== 初始化完成，开始执行测试 ===\n')
 }
-
-// 直接执行（setupFilesAfterEnv 支持 async 函数返回 Promise）
-setup().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('\n[setup] ❌ 测试环境初始化失败:', err.message);
-  process.exit(1);
-});

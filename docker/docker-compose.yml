@@ -7,7 +7,7 @@ services:
     container_name: reelclone-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: reelclone
       POSTGRES_PASSWORD: reelclone_dev
@@ -17,7 +17,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U reelclone -d reelclone_main"]
+      test: ['CMD-SHELL', 'pg_isready -U reelclone -d reelclone_main']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -33,12 +33,12 @@ services:
     container_name: reelclone-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '6379:6379'
     command: redis-server --appendonly yes
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -55,9 +55,10 @@ services:
     container_name: reelclone-temporal
     restart: unless-stopped
     ports:
-      - "7233:7233"
+      - '7233:7233'
     environment:
-      DBPLUGIN: postgres
+      # 数据库配置（auto-setup 镜像要求 DB=postgres，而非 DBPLUGIN）
+      DB: postgres
       DB_PORT: 5432
       POSTGRES_USER: temporal
       POSTGRES_PWD: temporal

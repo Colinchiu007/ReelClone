@@ -196,11 +196,12 @@ describe('GenerationService', () => {
       await service.create('user-1', makeDto())
 
       expect(temporalService.startVideoGeneration).not.toHaveBeenCalled()
-      // 任务应被更新为 RUNNING（模拟）
+      // Mock 模式下任务应被直接标记为 COMPLETED
       expect(taskRepo.update).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          status: GenerationTaskStatus.RUNNING,
+          status: GenerationTaskStatus.COMPLETED,
+          providerTaskId: expect.stringContaining('mock-video-gen-'),
         }),
       )
     })

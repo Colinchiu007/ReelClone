@@ -5,7 +5,10 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "strict": true,
+    "strictPropertyInitialization": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -13,7 +16,20 @@
     "sourceMap": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "baseUrl": "../..",
+    "paths": {
+      "@reelclone/common": ["libs/common/src/index.ts"],
+      "@reelclone/common/*": ["libs/common/src/*"],
+      "@reelclone/database": ["libs/database/src/index.ts"],
+      "@reelclone/database/*": ["libs/database/src/*"],
+      "@reelclone/ai": ["libs/ai/src/index.ts"],
+      "@reelclone/ai/*": ["libs/ai/src/*"],
+      "@reelclone/temporal": ["libs/temporal/src/index.ts"],
+      "@reelclone/temporal/*": ["libs/temporal/src/*"],
+      "@reelclone/oss": ["libs/oss/src/index.ts"],
+      "@reelclone/oss/*": ["libs/oss/src/*"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "coverage"]

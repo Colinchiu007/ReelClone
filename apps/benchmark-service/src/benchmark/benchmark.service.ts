@@ -19,6 +19,7 @@
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { InjectDataSource } from '@nestjs/typeorm'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
 import { BusinessException, ErrorCode, generateIdempotencyKey } from '@reelclone/common'
@@ -84,7 +85,7 @@ export class BenchmarkService {
 
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    @Inject(DATABASE_CONNECTIONS.BENCHMARK)
+    @InjectDataSource(DATABASE_CONNECTIONS.BENCHMARK)
     private readonly benchmarkDataSource: DataSource,
     private readonly billingClient: BillingClient,
     private readonly temporalAdapter: TemporalAdapter,
@@ -181,12 +182,46 @@ export class BenchmarkService {
     // 5. 启动 Temporal 工作流
     const workflowId = `${WORKFLOW_ID_PREFIX}-${benchmark.id}`
     if (this.mockMode) {
-      // Mock 模式：跳过 Temporal，直接更新状态为 ANALYZING
+      // Mock 模式：跳过 Temporal，直接更新状态为 COMPLETED 并写入 mock 解析结果
       this.logger.log(
-        `Mock 模式：跳过 Temporal 调用，直接更新状态为 ANALYZING benchmarkId=${benchmark.id}`,
+        `Mock 模式：跳过 Temporal 调用，直接更新状态为 COMPLETED benchmarkId=${benchmark.id}`,
       )
+      const mockAnalysisResult = {
+        style: '节奏紧凑，画面切换频繁',
+        pacing: '快节奏，前 3 秒强钩子',
+        shotList: [
+          {
+            sceneIndex: 1,
+            duration: 3,
+            visual: '产品特写镜头',
+            voiceover: '一句话卖点',
+            onScreenText: '突出痛点',
+          },
+          {
+            sceneIndex: 2,
+            duration: 5,
+            visual: '使用场景演示',
+            voiceover: '解决方案说明',
+            onScreenText: '产品名 + 核心优势',
+          },
+        ],
+        copywriting: {
+          hook: '震惊！你还在用旧方案吗？',
+          body: '这款新品采用创新技术，效率提升 3 倍',
+          cta: '立即点击下方链接购买',
+        },
+        sellingPoints: ['效率提升 3 倍', '操作简单', '性价比高'],
+        templateSuggestion: '痛点钩子 → 解决方案 → 产品演示 → 行动号召',
+        summaryMs: 120,
+        // 兼容字段：部分老测试读取 script / keywords
+        script:
+          '震惊！你还在用旧方案吗？这款新品采用创新技术，效率提升 3 倍。立即点击下方链接购买。',
+        keywords: ['产品演示', '效率提升', '创新技术', '行动号召'],
+      }
       await repo.update(benchmark.id, {
-        status: BenchmarkStatus.ANALYZING,
+        status: BenchmarkStatus.COMPLETED,
+        analysisResult: mockAnalysisResult,
+        completedAt: new Date(),
       })
     } else {
       try {

@@ -6,7 +6,8 @@
  *  2. findOne: 查询作品详情（校验所有权）
  *  3. delete: 软删除作品（status=DELETED，保留 OSS 文件 30 天后清理）
  */
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
+import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
 import { DATABASE_CONNECTIONS, Work, WorkStatus } from '@reelclone/database'
@@ -30,7 +31,7 @@ export class WorkService {
   private readonly logger = new Logger(WorkService.name)
 
   constructor(
-    @Inject(DATABASE_CONNECTIONS.MAIN)
+    @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly dataSource: DataSource,
     private readonly templateClient: TemplateClient,
   ) {}

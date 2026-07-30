@@ -4,25 +4,22 @@
  * 组合：ConfigModule + DatabaseModule + RedisModule + JwtModule + PassportModule + UserModule
  * 全局守卫（JwtAuthGuard + RateLimitGuard）在 main.ts 中通过 useGlobalGuards 注册。
  */
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import type { StringValue } from 'ms'
+import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
 import {
-  DatabaseModule,
-  RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
-} from '@reelclone/database';
-import {
+  JwtAuthGuard,
   RateLimitGuard,
   REDIS_CLIENT as COMMON_REDIS_CLIENT,
   configuration,
   databaseConfig,
   jwtConfig,
   redisConfig,
-} from '@reelclone/common';
-import { JwtStrategy } from './auth/jwt.strategy';
-import { UserModule } from './user/user.module';
+} from '@reelclone/common'
+import { UserModule } from './user/user.module'
 
 @Module({
   imports: [
@@ -47,7 +44,7 @@ import { UserModule } from './user/user.module';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: config.get<string>('jwt.expiresIn'),
+          expiresIn: config.get<string>('jwt.expiresIn') as StringValue,
           issuer: config.get<string>('jwt.issuer'),
           audience: config.get<string>('jwt.audience'),
         },
@@ -58,7 +55,8 @@ import { UserModule } from './user/user.module';
     UserModule,
   ],
   providers: [
-    JwtStrategy,
+    // JwtAuthGuard — main.ts 通过 app.get(JwtAuthGuard) 获取
+    JwtAuthGuard,
     // RateLimitGuard 需注入 common 的 REDIS_CLIENT
     RateLimitGuard,
     // 桥接：将 database 的 REDIS_CLIENT 暴露为 common 的 REDIS_CLIENT

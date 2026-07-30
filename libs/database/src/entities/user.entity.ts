@@ -13,9 +13,11 @@ import { AvatarGroup } from './avatar-group.entity'
 import { Order } from './order.entity'
 import { UserPackage } from './user-package.entity'
 import { Notification } from './notification.entity'
-import { Benchmark } from './benchmark.entity'
-import { PointTransaction } from './point-transaction.entity'
-import { Favorite } from './favorite.entity'
+
+// 跨库实体仅用于类型参考，不在此文件中建立 TypeORM 关系装饰器
+// import { Benchmark } from './benchmark.entity'
+// import { PointTransaction } from './point-transaction.entity'
+// import { Favorite } from './favorite.entity'
 
 /** 用户状态 */
 export enum UserStatus {
@@ -126,21 +128,8 @@ export class User {
   @OneToMany(() => Notification, (notification) => notification.user)
   notifications: Notification[]
 
-  /** 用户的对标解析（跨库 benchmark，仅逻辑关联，不建外键） */
-  @OneToMany(() => Benchmark, (benchmark) => benchmark.user, {
-    createForeignKeyConstraints: false,
-  })
-  benchmarks: Benchmark[]
-
-  /** 用户的积分流水（跨库 billing，仅逻辑关联，不建外键） */
-  @OneToMany(() => PointTransaction, (tx) => tx.user, {
-    createForeignKeyConstraints: false,
-  })
-  pointTransactions: PointTransaction[]
-
-  /** 用户的模板收藏（跨库 template，仅逻辑关联，不建外键） */
-  @OneToMany(() => Favorite, (favorite) => favorite.user, {
-    createForeignKeyConstraints: false,
-  })
-  favorites: Favorite[]
+  // -------------------- 跨库逻辑关联（仅保留 ID 字段，不用 TypeORM 关系装饰器） --------------------
+  // benchmarks: 跨 benchmark 库，通过 benchmark.user_id 逻辑关联
+  // pointTransactions: 跨 billing 库，通过 point_transaction.user_id 逻辑关联
+  // favorites: 跨 template 库，通过 favorite.user_id 逻辑关联
 }

@@ -13,6 +13,7 @@
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import Redis from 'ioredis'
 import { v4 as uuidv4 } from 'uuid'
@@ -95,7 +96,7 @@ export class GenerationService {
 
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    @Inject(DATABASE_CONNECTIONS.MAIN)
+    @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly dataSource: DataSource,
     private readonly billingClient: BillingClient,
     private readonly templateClient: TemplateClient,
@@ -427,28 +428,52 @@ export class GenerationService {
     points: number,
   ): Promise<void> {
     const taskRepo = this.dataSource.getRepository(GenerationTask)
+    const workRepo = this.dataSource.getRepository(Work)
 
-    // Mock 模式：模拟 workflowId，不调用 Temporal
+    // Mock 模式：模拟 workflowId，不调用 Temporal，并立即标记完成
     if (this.isMockMode()) {
       const mockWorkflowId = `mock-video-gen-${work.id}`
+      const now = new Date()
       await taskRepo.update(task.id, {
         providerTaskId: mockWorkflowId,
-        status: GenerationTaskStatus.RUNNING,
-        startedAt: new Date(),
+        status: GenerationTaskStatus.COMPLETED,
+        startedAt: now,
+        completedAt: now,
       })
-      this.logger.log(`[Mock] 模拟工作流已启动 workId=${work.id} taskId=${task.id}`)
+      // Mock 模式下立即把 Work 标记为 COMPLETED，写入 mock 结果 URL
+      const mockResultKey = `mock/results/${work.id}.mp4`
+      const mockResultUrl = `https://mock.example.com/results/${work.id}.mp4`
+      const mockThumbnailKey = `mock/thumbnails/${work.id}.jpg`
+      await workRepo.update(work.id, {
+        status: WorkStatus.COMPLETED,
+        resultKey: mockResultKey,
+        resultUrl: mockResultUrl,
+        thumbnailKey: mockThumbnailKey,
+      })
+      this.logger.log(`[Mock] 模拟工作流已立即完成 workId=${work.id} taskId=${task.id}`)
       return
     }
 
     // 文本/图片生成无视频工作流，Mock 处理
     if (!isVideoType(dto.generationType)) {
       const mockWorkflowId = `mock-${work.id}`
+      const now = new Date()
       await taskRepo.update(task.id, {
         providerTaskId: mockWorkflowId,
-        status: GenerationTaskStatus.RUNNING,
-        startedAt: new Date(),
+        status: GenerationTaskStatus.COMPLETED,
+        startedAt: now,
+        completedAt: now,
       })
-      this.logger.log(`非视频类型，直接标记运行中 workId=${work.id} taskId=${task.id}`)
+      // 非视频类型同样立即完成
+      const ext = dto.generationType === GenerationType.IMAGE_GENERATE ? 'png' : 'txt'
+      const mockResultKey = `mock/results/${work.id}.${ext}`
+      const mockResultUrl = `https://mock.example.com/results/${work.id}.${ext}`
+      await workRepo.update(work.id, {
+        status: WorkStatus.COMPLETED,
+        resultKey: mockResultKey,
+        resultUrl: mockResultUrl,
+      })
+      this.logger.log(`非视频类型，直接标记完成 workId=${work.id} taskId=${task.id}`)
       return
     }
 

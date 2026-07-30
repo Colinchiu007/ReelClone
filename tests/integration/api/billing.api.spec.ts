@@ -84,8 +84,8 @@ describe('计费 API（billing-service）', () => {
       const payload = buildGrantPointsPayload(
         userId,
         amount,
-        'order_test_grant',
-        'pkg_test_starter',
+        '00000000-0000-4000-8000-000000000010',
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       )
 
       const result = await internalClient.post<{
@@ -108,8 +108,8 @@ describe('计费 API（billing-service）', () => {
       const payload = buildGrantPointsPayload(
         userId,
         amount,
-        'order_test_grant_idem',
-        'pkg_test_starter',
+        '00000000-0000-4000-8000-000000000011',
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
         { idempotencyKey: idemKey },
       )
 
@@ -132,7 +132,12 @@ describe('计费 API（billing-service）', () => {
       if (before.currentPoints < 10) {
         await internalClient.post(
           '/points/grant',
-          buildGrantPointsPayload(userId, 100, 'order_freeze_prep', 'pkg_test_starter'),
+          buildGrantPointsPayload(
+            userId,
+            100,
+            '00000000-0000-4000-8000-000000000012',
+            'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+          ),
           { internal: true },
         )
       }
@@ -191,15 +196,15 @@ describe('计费 API（billing-service）', () => {
   describe('GET /points/balance（JWT）', () => {
     test('查询积分余额', async () => {
       const balance = await billingClient.get<{
-        currentPoints: number
-        frozenPoints: number
-        totalPoints: number
+        balance: number
+        frozen: number
+        total: number
       }>('/points/balance')
 
-      expect(typeof balance.currentPoints).toBe('number')
-      expect(typeof balance.frozenPoints).toBe('number')
-      expect(typeof balance.totalPoints).toBe('number')
-      expect(balance.totalPoints).toBeGreaterThanOrEqual(balance.currentPoints)
+      expect(typeof balance.balance).toBe('number')
+      expect(typeof balance.frozen).toBe('number')
+      expect(typeof balance.total).toBe('number')
+      expect(balance.total).toBeGreaterThanOrEqual(balance.balance)
     })
   })
 

@@ -127,11 +127,11 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
   test('4. 模拟支付回调（POST /webhooks/wechat-pay，Mock 模式直接 PAID）', async () => {
     const callbackPayload = buildWechatPayCallbackPayload(orderNo)
 
-    // webhook 端点是公开的，无需 JWT；直接用 orderClient 的 raw 模式
+    // webhook 端点是公开的，无需 JWT
     const result = await orderClient.post<{ code: string; message: string }>(
       '/webhooks/wechat-pay',
       callbackPayload.body,
-      { headers: callbackPayload.headers, raw: true },
+      { headers: callbackPayload.headers },
     )
 
     // 微信回调规范：返回 { code: 'SUCCESS' }
@@ -162,7 +162,6 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
     const callbackPayload = buildWechatPayCallbackPayload(orderNo)
     await orderClient.post('/webhooks/wechat-pay', callbackPayload.body, {
       headers: callbackPayload.headers,
-      raw: true,
     })
 
     // 等待一小段确认积分无变化
@@ -175,15 +174,15 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
 
   test('7. 查询积分余额（GET /points/balance）', async () => {
     const balance = await billingClient.get<{
-      currentPoints: number
-      frozenPoints: number
-      totalPoints: number
+      balance: number
+      frozen: number
+      total: number
     }>('/points/balance')
 
     const expected = initialPoints + selectedPackage.points + selectedPackage.bonusPoints
-    expect(balance.currentPoints).toBe(expected)
-    expect(balance.totalPoints).toBe(expected)
-    expect(typeof balance.frozenPoints).toBe('number')
+    expect(balance.balance).toBe(expected)
+    expect(balance.total).toBe(expected)
+    expect(typeof balance.frozen).toBe('number')
   })
 
   test('8. 查询积分流水包含 RECHARGE / GRANT 记录', async () => {

@@ -13,23 +13,17 @@
  *  - JwtAuthGuard：默认所有路由需 JWT，@Public() 跳过
  *  - InternalApiKeyGuard：@InternalApi() 标记的路由需 x-api-key
  */
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import {
-  JwtAuthGuard,
-  jwtConfig,
-  configuration,
-} from '@reelclone/common';
-import {
-  DatabaseModule,
-  RedisModule,
-} from '@reelclone/database';
-import { BillingModule } from './billing/billing.module';
-import { InternalApiKeyGuard } from './billing/guards/internal-api-key.guard';
-import { JwtStrategy } from './billing/guards/jwt.strategy';
+import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { APP_GUARD } from '@nestjs/core'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import type { StringValue } from 'ms'
+import { JwtAuthGuard, jwtConfig, configuration } from '@reelclone/common'
+import { DatabaseModule, RedisModule } from '@reelclone/database'
+import { BillingModule } from './billing/billing.module'
+import { InternalApiKeyGuard } from './billing/guards/internal-api-key.guard'
+import { JwtStrategy } from './billing/guards/jwt.strategy'
 
 @Module({
   imports: [
@@ -49,7 +43,7 @@ import { JwtStrategy } from './billing/guards/jwt.strategy';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('jwt.secret') ?? process.env.JWT_SECRET,
         signOptions: {
-          expiresIn: config.get<string>('jwt.expiresIn') ?? '1h',
+          expiresIn: (config.get<string>('jwt.expiresIn') ?? '1h') as StringValue,
           issuer: config.get<string>('jwt.issuer') ?? 'reelclone',
           audience: config.get<string>('jwt.audience') ?? 'reelclone-client',
         },

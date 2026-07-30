@@ -6,9 +6,11 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './user.entity';
-import { Template } from './template.entity';
+} from 'typeorm'
+import { Template } from './template.entity'
+
+// 跨库实体仅用于类型参考，不在此文件中建立 TypeORM 关系装饰器
+// import { User } from './user.entity';
 
 /**
  * 模板收藏实体
@@ -18,32 +20,27 @@ import { Template } from './template.entity';
 @Index(['userId', 'templateId'], { unique: true })
 export class Favorite {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id: string
 
   /** 用户 ID（跨库 main，仅存 ID） */
   @Column({ type: 'uuid' })
-  userId: string;
+  userId: string
 
   /** 模板 ID */
   @Column({ type: 'uuid' })
-  templateId: string;
+  templateId: string
 
   @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  createdAt: Date
 
   // ---------------- 关联关系 ----------------
 
-  /** 收藏者（跨库 main，仅逻辑关联，不建外键） */
-  @ManyToOne(() => User, (user) => user.favorites, {
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  // 跨库逻辑关联：user 跨 main 库，通过 user_id 逻辑关联（不用 TypeORM 关系装饰器）
 
   /** 收藏的模板（template 库内多对一） */
   @ManyToOne(() => Template, (template) => template.favorites, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'template_id' })
-  template: Template;
+  template: Template
 }

@@ -9,6 +9,8 @@
  *  - GenerationController / WorkController
  */
 import { Module } from '@nestjs/common'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { DATABASE_CONNECTIONS, GenerationTask, Work } from '@reelclone/database'
 import { GenerationController } from './generation.controller'
 import { WorkController } from './work.controller'
 import { GenerationService } from './generation.service'
@@ -17,6 +19,10 @@ import { BillingClient } from './billing.client'
 import { TemplateClient } from './template.client'
 
 @Module({
+  imports: [
+    // 导出 main DataSource 供 GenerationService / WorkService 注入
+    TypeOrmModule.forFeature([Work, GenerationTask], DATABASE_CONNECTIONS.MAIN),
+  ],
   controllers: [GenerationController, WorkController],
   providers: [BillingClient, TemplateClient, GenerationService, WorkService],
   exports: [GenerationService, WorkService, BillingClient, TemplateClient],

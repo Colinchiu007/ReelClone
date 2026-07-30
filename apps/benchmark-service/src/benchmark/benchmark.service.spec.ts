@@ -161,10 +161,17 @@ describe('BenchmarkService', () => {
           benchmarkId: 'bench-001',
         }),
       )
-      // Mock 模式下应更新状态为 ANALYZING
-      expect(repo.update).toHaveBeenCalledWith('bench-001', {
-        status: BenchmarkStatus.ANALYZING,
-      })
+      // Mock 模式下应直接更新状态为 COMPLETED 并写入分析结果
+      expect(repo.update).toHaveBeenCalledWith(
+        'bench-001',
+        expect.objectContaining({
+          status: BenchmarkStatus.COMPLETED,
+          analysisResult: expect.objectContaining({
+            style: expect.any(String),
+            shotList: expect.any(Array),
+          }),
+        }),
+      )
       // 不应调用 Temporal
       expect(temporalAdapter.startBenchmarkAnalysis).not.toHaveBeenCalled()
     })

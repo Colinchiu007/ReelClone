@@ -9,15 +9,16 @@
  *
  * 全局注册 JwtAuthGuard（通过 APP_GUARD），公开接口使用 @Public() 装饰器跳过鉴权。
  */
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { APP_GUARD } from '@nestjs/core';
-import { DatabaseModule } from '@reelclone/database';
-import { JwtAuthGuard, resolveJwtSecret } from '@reelclone/common';
-import { TemplateModule } from './template/template.module';
-import { JwtStrategy } from './auth/jwt.strategy';
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { PassportModule } from '@nestjs/passport'
+import { JwtModule } from '@nestjs/jwt'
+import { APP_GUARD } from '@nestjs/core'
+import type { StringValue } from 'ms'
+import { DatabaseModule } from '@reelclone/database'
+import { JwtAuthGuard, resolveJwtSecret } from '@reelclone/common'
+import { TemplateModule } from './template/template.module'
+import { JwtStrategy } from './auth/jwt.strategy'
 
 @Module({
   imports: [
@@ -26,13 +27,10 @@ import { JwtStrategy } from './auth/jwt.strategy';
     PassportModule,
     JwtModule.register({
       secret: resolveJwtSecret(),
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+      signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as StringValue },
     }),
     TemplateModule,
   ],
-  providers: [
-    JwtStrategy,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-  ],
+  providers: [JwtStrategy, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

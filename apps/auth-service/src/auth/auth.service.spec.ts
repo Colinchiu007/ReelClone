@@ -25,6 +25,7 @@
 import { Test, type TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import type { Repository } from 'typeorm'
+import { ConfigService } from '@nestjs/config'
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 import type { Redis } from 'ioredis'
@@ -137,6 +138,15 @@ describe('AuthService', () => {
         { provide: WechatService, useValue: wechatService },
         { provide: JwtCustomService, useValue: jwtService },
         { provide: REDIS_CLIENT, useValue: redis },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'NEW_USER_BONUS_POINTS') return '100'
+              return undefined
+            }),
+          },
+        },
       ],
     }).compile()
 
@@ -187,6 +197,10 @@ describe('AuthService', () => {
       expect(result.user.id).toBe('new-user-id')
       expect(result.user.openId).toBe('openid_abc')
       expect(result.user.nickname).toBe('小白')
+      // 验证新用户赠送积分（ConfigService mock 返回 '100'）
+      const createArg = userRepo.create.mock.calls[0][0] as Partial<User>
+      expect(createArg.currentPoints).toBe(100)
+      expect(createArg.totalPoints).toBe(100)
     })
 
     it('老用户：应更新 lastLoginAt 并返回 isNewUser=false', async () => {

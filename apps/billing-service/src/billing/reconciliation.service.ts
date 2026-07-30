@@ -20,7 +20,8 @@
  *  - frozen 代表"当前被冻结的总量"，FREEZE 增、SETTLE/RELEASE 减
  *  - 故 expectedBalance = totalPoints - frozen 即"理论上应可用的余额"
  */
-import { Inject, Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
+import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import { DATABASE_CONNECTIONS, PointTransaction, User } from '@reelclone/database'
 import { LedgerService } from './ledger.service'
@@ -70,9 +71,9 @@ export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name)
 
   constructor(
-    @Inject(DATABASE_CONNECTIONS.MAIN)
+    @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly mainDataSource: DataSource,
-    @Inject(DATABASE_CONNECTIONS.BILLING)
+    @InjectDataSource(DATABASE_CONNECTIONS.BILLING)
     private readonly billingDataSource: DataSource,
     private readonly ledger: LedgerService,
   ) {}

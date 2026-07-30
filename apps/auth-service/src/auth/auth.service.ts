@@ -13,6 +13,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import * as bcrypt from 'bcrypt'
@@ -76,7 +77,17 @@ export class AuthService {
     private readonly wechatService: WechatService,
     private readonly jwtService: JwtCustomService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * 读取新用户赠送积分配置（默认 0，E2E 环境配置 100）
+   */
+  private getNewUserBonusPoints(): number {
+    const raw = this.configService.get<string>('NEW_USER_BONUS_POINTS')
+    const n = raw ? parseInt(raw, 10) : 0
+    return Number.isFinite(n) && n > 0 ? n : 0
+  }
 
   /**
    * 微信小程序登录
@@ -100,21 +111,24 @@ export class AuthService {
     let isNewUser = false
 
     if (!user) {
-      // 新用户
+      // 新用户：读取赠送积分配置（E2E 环境配置 100，生产环境可配置为 0 或正值）
+      const bonusPoints = this.getNewUserBonusPoints()
       user = this.userRepo.create({
         openId: session.openid,
         unionId: session.unionid ?? null,
         nickname: dto.nickname?.trim() || `用户${session.openid.slice(-6)}`,
         avatarUrl: dto.avatarUrl ?? null,
         status: UserStatus.ACTIVE,
-        currentPoints: 0,
-        totalPoints: 0,
+        currentPoints: bonusPoints,
+        totalPoints: bonusPoints,
         industryPreferences: [],
         lastLoginAt: new Date(),
       })
       user = await this.userRepo.save(user)
       isNewUser = true
-      this.logger.log(`New user registered: userId=${user.id} openId=${user.openId}`)
+      this.logger.log(
+        `New user registered: userId=${user.id} openId=${user.openId} bonusPoints=${bonusPoints}`,
+      )
     } else {
       // 老用户：更新登录时间 + 可选字段
       user.lastLoginAt = new Date()

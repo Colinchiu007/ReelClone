@@ -77,6 +77,8 @@ project.config.json
 __pycache__/
 _tmp_*
 *.tmp
+.e2e-logs/
+*-test-output.txt
 
 # ==================== 其他 ====================
 .eslintcache

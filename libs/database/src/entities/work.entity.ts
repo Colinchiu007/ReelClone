@@ -8,11 +8,13 @@ import {
   OneToMany,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { User } from './user.entity';
-import { GenerationTask } from './generation-task.entity';
-import { Benchmark } from './benchmark.entity';
-import { Template } from './template.entity';
+} from 'typeorm'
+import { User } from './user.entity'
+import { GenerationTask } from './generation-task.entity'
+
+// 跨库实体仅用于类型参考，不在此文件中建立 TypeORM 关系装饰器
+// import { Benchmark } from './benchmark.entity';
+// import { Template } from './template.entity';
 
 /** 作品类型 */
 export enum WorkType {
@@ -41,100 +43,88 @@ export enum WorkStatus {
 @Index(['userId', 'type'])
 export class Work {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id: string
 
   /** 创作者用户 ID */
   @Column({ type: 'uuid' })
-  userId: string;
+  userId: string
 
   /** 作品类型 */
   @Column({ type: 'enum', enum: WorkType })
-  type: WorkType;
+  type: WorkType
 
   /** 标题 */
   @Column({ type: 'varchar', length: 255, nullable: true })
-  title: string | null;
+  title: string | null
 
   /** 提示词 */
   @Column({ type: 'text', nullable: true })
-  prompt: string | null;
+  prompt: string | null
 
   /** 负向提示词 */
   @Column({ type: 'text', nullable: true })
-  negativePrompt: string | null;
+  negativePrompt: string | null
 
   /** 模型配置（JSON） */
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
-  modelConfig: Record<string, unknown>;
+  modelConfig: Record<string, unknown>
 
   /** 结果文件 OSS Key */
   @Column({ type: 'varchar', length: 512, nullable: true })
-  resultKey: string | null;
+  resultKey: string | null
 
   /** 结果文件访问 URL */
   @Column({ type: 'varchar', length: 1024, nullable: true })
-  resultUrl: string | null;
+  resultUrl: string | null
 
   /** 缩略图 OSS Key */
   @Column({ type: 'varchar', length: 512, nullable: true })
-  thumbnailKey: string | null;
+  thumbnailKey: string | null
 
   /** 作品状态 */
   @Column({ type: 'enum', enum: WorkStatus, default: WorkStatus.PENDING })
-  status: WorkStatus;
+  status: WorkStatus
 
   /** 消耗积分 */
   @Column({ type: 'int', default: 0 })
-  cost: number;
+  cost: number
 
   /** 错误日志（JSON） */
   @Column({ type: 'jsonb', nullable: true })
-  errorLog: Record<string, unknown> | null;
+  errorLog: Record<string, unknown> | null
 
   /** 来源对标解析 ID（跨库 benchmark，可空） */
   @Index()
   @Column({ type: 'uuid', nullable: true })
-  benchmarkId: string | null;
+  benchmarkId: string | null
 
   /** 来源模板 ID（跨库 template，可空） */
   @Index()
   @Column({ type: 'uuid', nullable: true })
-  templateId: string | null;
+  templateId: string | null
 
   /** 内容审核结果（JSON） */
   @Column({ type: 'jsonb', nullable: true })
-  moderationResult: Record<string, unknown> | null;
+  moderationResult: Record<string, unknown> | null
 
   @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  createdAt: Date
 
   @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
+  updatedAt: Date
 
   // ---------------- 关联关系 ----------------
 
   /** 创作者（main 库内多对一） */
   @ManyToOne(() => User, (user) => user.works)
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: User
 
   /** 生成任务（main 库内一对多） */
   @OneToMany(() => GenerationTask, (task) => task.work)
-  generationTasks: GenerationTask[];
+  generationTasks: GenerationTask[]
 
-  /** 来源对标解析（跨库 benchmark，仅逻辑关联，不建外键） */
-  @ManyToOne(() => Benchmark, {
-    nullable: true,
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({ name: 'benchmark_id' })
-  benchmark: Benchmark | null;
-
-  /** 来源模板（跨库 template，仅逻辑关联，不建外键） */
-  @ManyToOne(() => Template, {
-    nullable: true,
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({ name: 'template_id' })
-  template: Template | null;
+  // -------------------- 跨库逻辑关联（仅保留 ID 字段，不用 TypeORM 关系装饰器） --------------------
+  // benchmark: 跨 benchmark 库，通过 benchmark_id 逻辑关联
+  // template: 跨 template 库，通过 template_id 逻辑关联
 }

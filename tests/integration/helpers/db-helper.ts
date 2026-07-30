@@ -37,19 +37,18 @@ export function getDbConfig(): DbConfig {
 
 /** main 库涉及的核心表（按清理顺序，先清理依赖方） */
 const MAIN_TABLES = [
-  'point_transaction',
-  'generation_task',
-  'work',
-  'notification',
-  'user_package',
-  'order',
-  'asset',
-  'avatar_group',
-  'benchmark',
-  'favorite',
-  'sms_code',
-  'user',
-  'package',
+  'generation_tasks',
+  'works',
+  'notifications',
+  'user_packages',
+  'orders',
+  'assets',
+  'avatar_groups',
+  'audit_log',
+  'system_config',
+  'sms_codes',
+  'users',
+  'packages',
 ]
 
 /**
@@ -100,22 +99,47 @@ export async function withDb<T>(fn: (ds: DataSource) => Promise<T>, config?: DbC
  */
 export async function cleanupUser(userId: string): Promise<void> {
   await withDb(async (ds) => {
-    // 按外键依赖顺序删除
-    await ds.query('DELETE FROM point_transaction WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM generation_task WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM work WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM notification WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM user_package WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM "order" WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM asset WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM avatar_group WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM benchmark WHERE user_id = $1', [userId])
-    await ds.query('DELETE FROM favorite WHERE user_id = $1', [userId])
+    // main 库表（按外键依赖顺序删除）
     await ds.query(
-      'DELETE FROM sms_code WHERE mobile IN (SELECT mobile FROM "user" WHERE id = $1)',
+      'DELETE FROM generation_tasks WHERE work_id IN (SELECT id FROM works WHERE user_id = $1)',
       [userId],
     )
-    await ds.query('DELETE FROM "user" WHERE id = $1', [userId])
+    await ds.query('DELETE FROM works WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM notifications WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM user_packages WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM orders WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM assets WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM avatar_groups WHERE user_id = $1', [userId])
+    await ds.query(
+      'DELETE FROM sms_codes WHERE mobile IN (SELECT mobile FROM users WHERE id = $1)',
+      [userId],
+    )
+    await ds.query('DELETE FROM users WHERE id = $1', [userId])
+  })
+  // 跨库表（billing/benchmark/template）通过各自库连接清理
+  await withDb(
+    async (ds) => {
+      await ds.query('DELETE FROM point_transactions WHERE user_id = $1', [userId])
+    },
+    { ...getDbConfig(), database: process.env.DATABASE_BILLING_NAME ?? 'reelclone_billing' },
+  ).catch(() => {
+    // billing 库清理失败不阻断（可能无数据）
+  })
+  await withDb(
+    async (ds) => {
+      await ds.query('DELETE FROM benchmarks WHERE user_id = $1', [userId])
+    },
+    { ...getDbConfig(), database: process.env.DATABASE_BENCHMARK_NAME ?? 'reelclone_benchmark' },
+  ).catch(() => {
+    // benchmark 库清理失败不阻断
+  })
+  await withDb(
+    async (ds) => {
+      await ds.query('DELETE FROM favorites WHERE user_id = $1', [userId])
+    },
+    { ...getDbConfig(), database: process.env.DATABASE_TEMPLATE_NAME ?? 'reelclone_template' },
+  ).catch(() => {
+    // template 库清理失败不阻断
   })
 }
 
@@ -124,7 +148,7 @@ export async function cleanupUser(userId: string): Promise<void> {
  */
 export async function cleanupUserByOpenId(openId: string): Promise<void> {
   const userId = await withDb(async (ds) => {
-    const rows = (await ds.query('SELECT id FROM "user" WHERE open_id = $1', [openId])) as Array<{
+    const rows = (await ds.query('SELECT id FROM users WHERE open_id = $1', [openId])) as Array<{
       id: string
     }>
     return rows[0]?.id
@@ -143,12 +167,12 @@ export async function cleanupUserByOpenId(openId: string): Promise<void> {
 export async function cleanupAllTables(): Promise<void> {
   await withDb(async (ds) => {
     for (const table of MAIN_TABLES) {
-      if (table === 'package') continue
+      if (table === 'packages') continue
       await ds.query(`DELETE FROM ${table}`)
     }
     // 重置序列
     await ds
-      .query(`SELECT setval(pg_get_serial_sequence('"' || $1 || '"', 'id'), 1, false)`, ['user'])
+      .query(`SELECT setval(pg_get_serial_sequence('"' || $1 || '"', 'id'), 1, false)`, ['users'])
       .catch(() => {
         // 序列重置失败不影响测试（部分表可能用 uuid 无序列）
       })
@@ -166,6 +190,7 @@ export interface SeedPackage {
   bonusPoints: number
   duration: number // 天
   status: string
+  type: string // SUBSCRIPTION | ONE_TIME
   sort: number
 }
 
@@ -180,23 +205,25 @@ export interface SeedPackage {
 export async function seedPackages(): Promise<SeedPackage[]> {
   const packages: SeedPackage[] = [
     {
-      id: 'pkg_test_starter',
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       name: '测试入门套餐',
       price: 9.9,
       points: 100,
       bonusPoints: 0,
       duration: 30,
       status: 'ACTIVE',
+      type: 'SUBSCRIPTION',
       sort: 1,
     },
     {
-      id: 'pkg_test_pro',
+      id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
       name: '测试专业套餐',
       price: 99,
       points: 1000,
       bonusPoints: 200,
       duration: 30,
       status: 'ACTIVE',
+      type: 'SUBSCRIPTION',
       sort: 2,
     },
   ]
@@ -204,8 +231,8 @@ export async function seedPackages(): Promise<SeedPackage[]> {
   await withDb(async (ds) => {
     for (const pkg of packages) {
       await ds.query(
-        `INSERT INTO package (id, name, price, points, bonus_points, duration, status, sort, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        `INSERT INTO packages (id, name, price, points, bonus_points, duration, status, type, sort, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name,
            price = EXCLUDED.price,
@@ -213,6 +240,7 @@ export async function seedPackages(): Promise<SeedPackage[]> {
            bonus_points = EXCLUDED.bonus_points,
            duration = EXCLUDED.duration,
            status = EXCLUDED.status,
+           type = EXCLUDED.type,
            sort = EXCLUDED.sort`,
         [
           pkg.id,
@@ -222,6 +250,7 @@ export async function seedPackages(): Promise<SeedPackage[]> {
           pkg.bonusPoints,
           pkg.duration,
           pkg.status,
+          pkg.type,
           pkg.sort,
         ],
       )
@@ -259,7 +288,7 @@ export async function getOrderStatus(
   orderNo: string,
 ): Promise<{ status: string; transactionId: string | null } | null> {
   return withDb(async (ds) => {
-    const rows = (await ds.query('SELECT status, transaction_id FROM "order" WHERE order_no = $1', [
+    const rows = (await ds.query('SELECT status, transaction_id FROM orders WHERE order_no = $1', [
       orderNo,
     ])) as Array<{ status: string; transaction_id: string | null }>
     return rows[0] ? { status: rows[0].status, transactionId: rows[0].transaction_id } : null

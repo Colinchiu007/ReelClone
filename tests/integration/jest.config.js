@@ -14,7 +14,6 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   moduleFileExtensions: ['js', 'json', 'ts'],
-  testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
@@ -22,14 +21,11 @@ module.exports = {
   globalTeardown: '<rootDir>/teardown.ts',
   testTimeout: 60000,
   // 顺序：先跑用户路径（flows），再跑 API 单元集成（api）
-  testMatch: [
-    '**/flows/**/*.spec.ts',
-    '**/api/**/*.spec.ts',
-  ],
+  testMatch: ['**/flows/**/*.spec.ts', '**/api/**/*.spec.ts'],
   // 按 spec 文件名顺序执行（001 → 002 → ...），保证依赖前置
   collectCoverageFrom: ['helpers/**/*.ts', 'flows/**/*.ts', 'api/**/*.ts'],
   coverageDirectory: './coverage',
   // 强制串行执行（E2E 共享 DB / Redis，并行会互相干扰）
   maxWorkers: 1,
   verbose: true,
-};
+}
