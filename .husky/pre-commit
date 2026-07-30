@@ -3,5 +3,29 @@
 # 在提交前运行 lint-staged 对暂存区文件执行 lint/format
 . "$(dirname -- "$0")/_/husky.sh"
 
-# 直接调用本地 lint-staged，避免依赖全局 npx（fnm/node PATH 在 git 子 shell 中不可见）
+# L-005 根治：git 子 shell 中 node/npm 可能不在 PATH，显式补充常见位置
+# 优先使用 fnm 管理的 node，其次 hermes 内置 node，最后全局 npm
+if ! command -v node >/dev/null 2>&1; then
+  # 尝试 fnm（Windows 下用户级安装）
+  if [ -d "$HOME/.fnm" ]; then
+    # shellcheck disable=SC1090
+    eval "$(fnm env --shell sh 2>/dev/null)" 2>/dev/null || true
+  fi
+  # 兜底：补充常见 node 安装路径（按优先级）
+  if ! command -v node >/dev/null 2>&1; then
+    NODE_PATHS="
+      $HOME/AppData/Local/hermes/node
+      /c/Users/$USER/AppData/Local/hermes/node
+      /c/Users/$USER/AppData/Local/fnm_multishells/current
+      /d/Program Files/npm-global
+    "
+    for p in $NODE_PATHS; do
+      if [ -d "$p" ]; then
+        export PATH="$p:$PATH"
+      fi
+    done
+  fi
+fi
+
+# 直接调用本地 lint-staged，避免依赖全局 npx
 node_modules/.bin/lint-staged
