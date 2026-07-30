@@ -14,12 +14,22 @@
  *   { code: 0, message: 'success', data: <返回值>, traceId }
  */
 import { Body, Controller, Get, Post } from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Public, CurrentUser, type CurrentUserPayload } from '@reelclone/common'
+import { ApiOkResponseWithWrapper } from '@reelclone/swagger'
 import { AuthService } from './auth.service'
 import { WechatLoginDto } from './dto/wechat-login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { AdminLoginDto } from './dto/admin-login.dto'
+import {
+  WxLoginResultDto,
+  RefreshTokenResultDto,
+  AdminLoginResultDto,
+  LogoutResultDto,
+  HealthResultDto,
+} from './dto/auth-response.dto'
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -32,6 +42,8 @@ export class AuthController {
    */
   @Public()
   @Post('admin-login')
+  @ApiOperation({ summary: '管理员登录（手机号 + 密码）' })
+  @ApiOkResponseWithWrapper(AdminLoginResultDto)
   async adminLogin(@Body() dto: AdminLoginDto): ReturnType<AuthService['adminLogin']> {
     return this.authService.adminLogin(dto)
   }
@@ -44,6 +56,8 @@ export class AuthController {
    */
   @Public()
   @Post('wechat-login')
+  @ApiOperation({ summary: '微信小程序登录' })
+  @ApiOkResponseWithWrapper(WxLoginResultDto)
   async wxLogin(@Body() dto: WechatLoginDto): ReturnType<AuthService['wxLogin']> {
     return this.authService.wxLogin(dto)
   }
@@ -56,6 +70,8 @@ export class AuthController {
    */
   @Public()
   @Post('refresh-token')
+  @ApiOperation({ summary: '刷新 Token' })
+  @ApiOkResponseWithWrapper(RefreshTokenResultDto)
   async refreshToken(@Body() dto: RefreshTokenDto): ReturnType<AuthService['refreshToken']> {
     return this.authService.refreshToken(dto.refreshToken)
   }
@@ -67,6 +83,8 @@ export class AuthController {
    * 响应：{ success: true }
    */
   @Post('logout')
+  @ApiOperation({ summary: '登出（将当前 Token 加入黑名单）' })
+  @ApiOkResponseWithWrapper(LogoutResultDto)
   async logout(@CurrentUser() user: CurrentUserPayload): Promise<{ success: true }> {
     await this.authService.logout(user)
     return { success: true }
@@ -78,6 +96,8 @@ export class AuthController {
    */
   @Public()
   @Get('health')
+  @ApiOperation({ summary: '健康检查' })
+  @ApiOkResponseWithWrapper(HealthResultDto)
   health(): { status: string; service: string; timestamp: string } {
     return {
       status: 'ok',

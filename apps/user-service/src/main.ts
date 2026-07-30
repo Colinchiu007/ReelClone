@@ -5,45 +5,62 @@
  * 全局前缀：api/v1
  * 全局组件：ValidationPipe + ResponseInterceptor + AllExceptionsFilter + JwtAuthGuard + RateLimitGuard
  */
-import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { NestFactory } from '@nestjs/core'
+import { Logger } from '@nestjs/common'
+import { AppModule } from './app.module'
 import {
   AllExceptionsFilter,
   AppValidationPipe,
   JwtAuthGuard,
   RateLimitGuard,
   ResponseInterceptor,
-} from '@reelclone/common';
+} from '@reelclone/common'
+import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 
 async function bootstrap(): Promise<void> {
-  const logger = new Logger('UserService');
+  const logger = new Logger('UserService')
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
-  });
+  })
 
   // 全局前缀
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1')
 
   // 全局 Pipe（参数校验）
-  app.useGlobalPipes(AppValidationPipe);
+  app.useGlobalPipes(AppValidationPipe)
 
   // 全局拦截器（统一响应格式）
-  app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalInterceptors(new ResponseInterceptor())
 
   // 全局异常过滤器
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter())
 
   // 全局守卫：JWT 鉴权 + 限流
-  const jwtAuthGuard = app.get(JwtAuthGuard);
-  app.useGlobalGuards(jwtAuthGuard, app.get(RateLimitGuard));
+  const jwtAuthGuard = app.get(JwtAuthGuard)
+  app.useGlobalGuards(jwtAuthGuard, app.get(RateLimitGuard))
 
   // CORS
-  app.enableCors();
+  app.enableCors()
 
-  const port = parseInt(process.env.PORT || '3002', 10);
-  await app.listen(port);
-  logger.log(`user-service listening on http://localhost:${port}`);
+  // Swagger 文档（非生产环境挂载）
+  const nodeEnv = process.env.NODE_ENV || 'development'
+  if (nodeEnv !== 'production') {
+    const swaggerConfig = createSwaggerConfig({
+      title: 'User Service API',
+      description: '用户服务：用户信息管理、绑定手机号、短信验证码、修改密码',
+      version: '0.1.0',
+      tag: 'user',
+    })
+    setupSwagger(app, swaggerConfig, '/api/docs')
+  }
+
+  const port = parseInt(process.env.PORT || '3002', 10)
+  await app.listen(port)
+  logger.log(`user-service listening on http://localhost:${port}`)
+  if (nodeEnv !== 'production') {
+    logger.log(`  → Swagger UI:  http://localhost:${port}/api/docs`)
+    logger.log(`  → OpenAPI JSON: http://localhost:${port}/api/docs-json`)
+  }
 }
 
-void bootstrap();
+void bootstrap()

@@ -51,6 +51,11 @@ export interface User {
 
 // -------------------- Auth --------------------
 
+/**
+ * @deprecated 使用 `@/types/generated/api-types` 中的 `WxLoginResult` 替代。
+ * 此类型保留是为了向后兼容尚未迁移到生成类型的代码。
+ * 待 auth-service 完整 OpenAPI 接入后，所有调用方应改用生成类型。
+ */
 export interface LoginResult {
   accessToken: string
   refreshToken: string

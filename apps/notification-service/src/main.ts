@@ -17,6 +17,7 @@ import {
   JwtAuthGuard,
   ResponseInterceptor,
 } from '@reelclone/common'
+import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
@@ -57,10 +58,26 @@ async function bootstrap(): Promise<void> {
   // 确保 JwtService 在容器中可被 Gateway 直接注入（显式 get 一次以触发实例化）
   app.get(JwtService)
 
+  // Swagger 文档（非生产环境挂载）
+  const nodeEnv = config.get<string>('NODE_ENV', 'development')
+  if (nodeEnv !== 'production') {
+    const swaggerConfig = createSwaggerConfig({
+      title: 'Notification Service API',
+      description: '通知服务：站内信、WebSocket 推送',
+      version: '0.1.0',
+      tag: 'notification',
+    })
+    setupSwagger(app, swaggerConfig, '/api/docs')
+  }
+
   const port = parseInt(config.get<string>('PORT') || '3008', 10)
   await app.listen(port)
 
   logger.log(`🚀 notification-service listening on http://localhost:${port}`)
+  if (nodeEnv !== 'production') {
+    logger.log(`  → Swagger UI:  http://localhost:${port}/api/docs`)
+    logger.log(`  → OpenAPI JSON: http://localhost:${port}/api/docs-json`)
+  }
   logger.log(`📡 WebSocket endpoint: ws://localhost:${port}/ws?token=<jwt>`)
   logger.log(`🔔 REST API base:      http://localhost:${port}/api/v1/notifications`)
 }

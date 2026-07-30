@@ -1,0 +1,357 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Auth Service API",
+    "description": "认证服务：微信小程序登录 / Token 刷新 / 登出（黑名单）",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/auth/admin-login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "管理员登录（手机号 + 密码）",
+        "operationId": "adminLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一响应包装",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponseWrapper" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/AdminLoginResultDto" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/wechat-login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "微信小程序登录",
+        "operationId": "wxLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WechatLoginDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一响应包装",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponseWrapper" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/WxLoginResultDto" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh-token": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "刷新 Token",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshTokenDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一响应包装",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponseWrapper" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/RefreshTokenResultDto" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "登出（将当前 Token 加入黑名单）",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "统一响应包装",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponseWrapper" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/LogoutResultDto" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/health": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "健康检查",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "统一响应包装",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponseWrapper" },
+                    {
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/HealthResultDto" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponseWrapper": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "number", "example": 0, "description": "业务错误码，0 表示成功" },
+          "message": { "type": "string", "example": "success", "description": "提示信息" },
+          "traceId": { "type": "string", "description": "链路追踪 ID，便于日志关联" }
+        },
+        "required": ["code", "message"]
+      },
+      "AdminLoginDto": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "description": "手机号（作为管理员账号）",
+            "example": "13800138000"
+          },
+          "password": {
+            "type": "string",
+            "description": "密码（至少 6 位）",
+            "example": "secret123",
+            "minLength": 6
+          }
+        },
+        "required": ["mobile", "password"]
+      },
+      "WechatLoginDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "wx.login() 返回的临时登录凭证 code（5 分钟有效）",
+            "example": "081KxF000abcDEF123",
+            "maxLength": 256
+          },
+          "nickname": {
+            "type": "string",
+            "description": "用户昵称（首次注册时使用）",
+            "example": "张三",
+            "maxLength": 64
+          },
+          "avatarUrl": {
+            "type": "string",
+            "description": "用户头像 URL（首次注册时使用）",
+            "example": "https://thirdwx.qlogo.cn/...",
+            "maxLength": 512
+          }
+        },
+        "required": ["code"]
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh Token（长效，用于换发新的 Access Token）",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "required": ["refreshToken"]
+      },
+      "AdminLoginResultDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string", "description": "Access Token", "example": "eyJ..." },
+          "refreshToken": { "type": "string", "description": "Refresh Token", "example": "eyJ..." },
+          "user": { "$ref": "#/components/schemas/AdminUserInfoDto" }
+        },
+        "required": ["accessToken", "refreshToken", "user"]
+      },
+      "AdminUserInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "用户 ID", "example": "uuid-xxx" },
+          "nickname": { "type": "string", "description": "用户昵称", "example": "admin" },
+          "role": {
+            "type": "string",
+            "enum": ["USER", "ADMIN", "SUPER_ADMIN"],
+            "description": "用户角色",
+            "example": "ADMIN"
+          }
+        },
+        "required": ["id", "nickname", "role"]
+      },
+      "WxLoginResultDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Access Token（短效，1 小时）",
+            "example": "eyJ..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh Token（长效，7 天）",
+            "example": "eyJ..."
+          },
+          "user": { "$ref": "#/components/schemas/AuthUserResponseDto" },
+          "isNewUser": {
+            "type": "boolean",
+            "description": "是否为新用户（首次注册）",
+            "example": false
+          }
+        },
+        "required": ["accessToken", "refreshToken", "user", "isNewUser"]
+      },
+      "AuthUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "用户 ID", "example": "uuid-xxx" },
+          "openId": { "type": "string", "description": "微信 OpenID", "example": "o1234567890" },
+          "unionId": {
+            "type": "string",
+            "description": "微信 UnionID（未绑定则为 null）",
+            "example": "u1234567890",
+            "nullable": true
+          },
+          "nickname": { "type": "string", "description": "用户昵称", "example": "张三" },
+          "avatarUrl": {
+            "type": "string",
+            "description": "用户头像 URL",
+            "example": "https://thirdwx.qlogo.cn/...",
+            "nullable": true
+          },
+          "mobile": {
+            "type": "string",
+            "description": "手机号（未绑定为 null）",
+            "example": "13800138000",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "FROZEN", "DELETED"],
+            "description": "用户状态",
+            "example": "ACTIVE"
+          },
+          "currentPoints": { "type": "number", "description": "当前可用积分", "example": 100 },
+          "totalPoints": { "type": "number", "description": "累计获得积分", "example": 100 }
+        },
+        "required": [
+          "id",
+          "openId",
+          "unionId",
+          "nickname",
+          "avatarUrl",
+          "mobile",
+          "status",
+          "currentPoints",
+          "totalPoints"
+        ]
+      },
+      "RefreshTokenResultDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "新的 Access Token",
+            "example": "eyJ..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "新的 Refresh Token",
+            "example": "eyJ..."
+          }
+        },
+        "required": ["accessToken", "refreshToken"]
+      },
+      "LogoutResultDto": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "description": "是否成功", "example": true }
+        },
+        "required": ["success"]
+      },
+      "HealthResultDto": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "description": "状态", "example": "ok" },
+          "service": { "type": "string", "description": "服务名", "example": "auth-service" },
+          "timestamp": {
+            "type": "string",
+            "description": "时间戳",
+            "example": "2026-07-30T00:00:00.000Z"
+          }
+        },
+        "required": ["status", "service", "timestamp"]
+      }
+    }
+  }
+}

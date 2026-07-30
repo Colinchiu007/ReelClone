@@ -35,7 +35,8 @@
   },
   "peerDependencies": {
     "@reelclone/observability": "*",
-    "@reelclone/temporal": "*"
+    "@reelclone/temporal": "*",
+    "@reelclone/swagger": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.4.0",

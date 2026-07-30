@@ -36,7 +36,8 @@
     "@reelclone/common": "*",
     "@reelclone/database": "*",
     "@reelclone/temporal": "*",
-    "@reelclone/observability": "*"
+    "@reelclone/observability": "*",
+    "@reelclone/swagger": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.0.0",

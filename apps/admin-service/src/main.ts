@@ -15,6 +15,7 @@
 import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
 import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor } from '@reelclone/common'
+import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
@@ -41,11 +42,27 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   })
 
+  // Swagger 文档（非生产环境挂载）
+  const nodeEnv = process.env.NODE_ENV || 'development'
+  if (nodeEnv !== 'production') {
+    const swaggerConfig = createSwaggerConfig({
+      title: 'Admin Service API',
+      description: '运营后台：用户/模板/订单/对账管理',
+      version: '0.1.0',
+      tag: 'admin',
+    })
+    setupSwagger(app, swaggerConfig, '/api/docs')
+  }
+
   const port = parseInt(process.env.ADMIN_SERVICE_PORT || '3011', 10)
   await app.listen(port)
 
   const logger = new Logger('admin-service')
   logger.log(`admin-service listening on http://localhost:${port}`)
+  if (nodeEnv !== 'production') {
+    logger.log(`  → Swagger UI:  http://localhost:${port}/api/docs`)
+    logger.log(`  → OpenAPI JSON: http://localhost:${port}/api/docs-json`)
+  }
 }
 
 void bootstrap()

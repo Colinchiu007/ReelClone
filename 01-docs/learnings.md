@@ -530,6 +530,7 @@ function validateLlmStructuredReport(raw: unknown): {
 ```
 
 **关键点**:
+
 1. 校验器返回 `Partial<T>`，消费方用 `??` 兜底每个字段而非整个对象
 2. shotList 数组元素缺字段时兜底为空值，保留有效字段
 3. errors 收集用于日志，不阻断流程
@@ -591,6 +592,7 @@ pollRetryCountRef.current++
 ```
 
 **分类规则**:
+
 - 4xx（客户端错误）：资源不存在/权限不足/参数错误 → 立即失败
 - 5xx（服务端错误）：服务端临时故障 → 可重试
 - 网络错误：连接超时/断网 → 可重试但限制次数
@@ -614,11 +616,19 @@ pollRetryCountRef.current++
 2. **次优方案**: 维护共享类型包（libs/types），前后端共同引用
 3. **最低要求**: 关键枚举和可空类型字段必须有同步检查脚本（CI 门禁）
 
-**当前状态**: 已手动对齐枚举和可空性，但未建立自动化同步机制，仍是技术债。
+**当前状态**: ✅ 自动化已建立（2026-07-30 第二轮）
 
-**置信度**: 8/10（手动对齐完成，自动化待建）
-**来源**: observed
-**关联文件**: [miniprogram/src/types/index.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/types/index.ts), [template.entity.ts](file:///d:/Data/projects/ReelClone/libs/database/src/entities/template.entity.ts)
+- 后端：auth-service 集成 `@nestjs/swagger`，10 个微服务 main.ts 暴露 `/api/docs-json` 端点
+- 工具链：`scripts/gen-types-local.ts` 用 `openapi-typescript` 从 OpenAPI JSON 生成 TS 类型
+- CI 门禁：`gen:types:check` 跑生成 + `git diff --exit-code` 校验一致性（CI workflow 已接入）
+- 适配层：`api-types.ts` 提供扁平别名（WxLoginResult / WechatLoginDto 等），简化前端引用
+- 稳定性：source 文件 SHA256 替代时间戳，保证 source 不变 → 生成文件完全不变
+- 已接入：auth-service（miniprogram + admin-web 的 auth.api.ts、useAuth.ts）
+- 待扩展：其他 9 个微服务（user/asset/benchmark/billing/template/workbench/notification/order/admin）
+
+**置信度**: 9/10（自动化流程闭环，CI 强制校验）
+**来源**: observed + user-stated
+**关联文件**: [miniprogram/src/types/generated/](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/types/generated/), [scripts/gen-types-local.ts](file:///d:/Data/projects/ReelClone/scripts/gen-types-local.ts), [.github/workflows/ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml)
 
 ---
 
@@ -632,29 +642,32 @@ pollRetryCountRef.current++
 class CircuitBreaker {
   private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED'
   private failureCount = 0
-  private readonly threshold: number  // 连续失败阈值，如 5
+  private readonly threshold: number // 连续失败阈值，如 5
   private readonly cooldownMs: number // 冷却时间，如 30000
 
   recordFailure() {
     this.failureCount++
     if (this.failureCount >= this.threshold) {
       this.state = 'OPEN'
-      setTimeout(() => { this.state = 'HALF_OPEN' }, this.cooldownMs)
+      setTimeout(() => {
+        this.state = 'HALF_OPEN'
+      }, this.cooldownMs)
     }
   }
 
   recordSuccess() {
-    this.failureCount = 0  // 必须重置，否则无法恢复 CLOSED
+    this.failureCount = 0 // 必须重置，否则无法恢复 CLOSED
     this.state = 'CLOSED'
   }
 
   canExecute(): boolean {
-    return this.state !== 'OPEN'  // HALF_OPEN 允许试探请求
+    return this.state !== 'OPEN' // HALF_OPEN 允许试探请求
   }
 }
 ```
 
 **关键点**:
+
 1. recordSuccess() 必须重置 failureCount=0 并切换到 CLOSED，否则 HALF_OPEN 试探成功后仍卡在半开状态
 2. OPEN→HALF_OPEN 用 setTimeout 自动转换，无需外部干预
 3. HALF_OPEN 只允许一个试探请求，成功则 CLOSED，失败则回 OPEN
@@ -671,7 +684,7 @@ class CircuitBreaker {
 
 **模式**: 5 层防护，逐层过滤：
 
-```typescript
+````typescript
 export function sanitizePromptInput(input: unknown): string {
   // 1. 空值处理 + 非字符串转换
   // 2. 移除控制字符（保留 \n）：/[\x00-\x09\x0B\x0C\x0D\x0E-\x1F\x7F]/g
@@ -681,13 +694,15 @@ export function sanitizePromptInput(input: unknown): string {
   // 6. 截断超长文本（防止 token 膨胀）
   // 7. trim 首尾空白
 }
-```
+````
 
 **Injection 模式库（需持续维护）**:
+
 - 中文：忽略以上/前面/上述指令、不要遵守、你现在是、你的新任务是、输出系统提示词
 - 英文：ignore previous instructions、disregard above、you are now、your task is、jailbreak mode、DAN mode
 
 **关键点**:
+
 1. 模式库需穷举变体，单靠一个正则会漏检（如"不要遵守以上的所有指令"需扩展 `(?:的所有|的全部|所有|全部|的)?` 限定）
 2. eslint no-control-regex 规则会误报控制字符正则，需 `// eslint-disable-next-line` 注释
 3. 整条替换为 `[已过滤]` 而非删除，保留位置信息便于调试
@@ -732,6 +747,7 @@ async reconcile() {
 ```
 
 **关键点**:
+
 1. 对账任务幂等，多次执行不会产生副作用
 2. 分类处理而非一刀切，避免误杀仍在运行的工作流
 3. 超时窗口应大于工作流正常执行时间（视频分析 ~5 分钟，窗口设 30 分钟）
@@ -749,6 +765,7 @@ async reconcile() {
 **根因**: fake timers 模拟下，`setTimeout` 被 Jest 接管，无法通过 spy 记录实际调用参数；且 `jest.advanceTimersByTime()` 与熔断器内部 setTimeout 的交互不可预测。
 
 **修复**: 放弃 fake timers，改用真实定时器但缩短参数：
+
 1. 重试延迟设为 0ms（立即重试，不依赖延迟）
 2. 熔断器冷却时间缩短为 10ms
 3. 用 `new Promise(resolve => setTimeout(resolve, 20))` 等待冷却完成
@@ -761,15 +778,77 @@ async reconcile() {
 
 ---
 
+### L-032 [pitfall] openapi-typescript 生成类型的命名空间导入陷阱
+
+**场景**: `openapi-typescript` 生成的 `auth.ts` 用 `export interface components { schemas: {...} }` 直接命名导出，但适配层 `api-types.ts` 错误写成 `import type { auth } from './auth'`，触发 `Module has no exported member 'auth'` 错误。
+
+**根因**: 对生成文件结构的误解。生成文件**没有** `auth` 命名空间导出；`auth` 命名空间是由 `index.ts` 通过 `export * as auth from './auth'` 创建的。两种错误写法：
+
+```ts
+// ❌ 错误 1：./auth 没有名为 auth 的命名导出
+import type { auth } from './auth'
+
+// ❌ 错误 2：namespace 不能用作 indexed access type（auth['components']）
+import type * as auth from './auth'
+```
+
+**修复**: 直接导入 `components` interface 并用 indexed access type：
+
+```ts
+// ✅ 正确：导入命名导出，用别名避免命名冲突
+import type { components as authComponents } from './auth'
+export type WxLoginResult = authComponents['schemas']['WxLoginResultDto']
+```
+
+**原则**: 阅读生成文件的 `export` 语句再写适配层导入；不要假设生成器会创建"服务名命名空间"。`openapi-typescript` 的输出是扁平的 named exports（paths/operations/components/webhooks/$defs），不是嵌套命名空间。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [miniprogram/src/types/generated/api-types.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/types/generated/api-types.ts), [admin-web/src/types/generated/api-types.ts](file:///d:/Data/projects/ReelClone/apps/admin-web/src/types/generated/api-types.ts)
+
+---
+
+### L-033 [pattern] CI 生成文件一致性校验（source hash 替代时间戳）
+
+**场景**: CI 需要校验"提交的生成类型文件与最新 OpenAPI 生成结果一致"，但生成器默认在文件头写入 `Generated at: <timestamp>`，导致每次重新生成文件都变化，CI 永远失败。
+
+**模式**: 用 source 文件内容的 SHA256 替代时间戳，保证 source 不变 → 生成文件完全不变：
+
+```ts
+// ❌ 反模式：时间戳每次都变
+const header = `Generated at: ${new Date().toISOString()}`
+
+// ✅ 正模式：source 内容 hash 稳定
+import * as crypto from 'node:crypto'
+const sourceHash = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12)
+const header = `Source hash: ${sourceHash}`
+```
+
+CI 校验脚本：
+
+```json
+{
+  "gen:types:check": "tsx scripts/gen-types-local.ts <fixture> && git diff --exit-code <generated-dirs>"
+}
+```
+
+**原则**: 任何"生成文件提交入库"的工作流，生成器输出必须确定性（deterministic）——相同输入产生字节级相同的输出。时间戳、随机 ID、绝对路径都是非确定性来源，必须替换为内容 hash 或相对路径。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [scripts/gen-types-local.ts](file:///d:/Data/projects/ReelClone/scripts/gen-types-local.ts), [.github/workflows/ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml)
+
+---
+
 ## Skillify 检查（B3-B8 批次）
 
-| 候选模式                     | 出现次数 | 是否生成 skill        |
-| ---------------------------- | -------- | --------------------- |
-| LLM 字段级校验 (L-024)       | 1 次     | ❌ 模式清晰但项目特定 |
-| 前端轮询错误分类 (L-026)     | 1 次     | ❌ 通用前端知识       |
-| 轻量熔断器状态机 (L-028)     | 1 次     | ❌ 通用工程模式       |
-| Prompt Injection 多层防护 (L-029) | 1 次 | ❌ 安全库，需持续维护 |
-| ANALYZING 超时对账 (L-030)   | 1 次     | ❌ Temporal 通用模式  |
+| 候选模式                          | 出现次数 | 是否生成 skill        |
+| --------------------------------- | -------- | --------------------- |
+| LLM 字段级校验 (L-024)            | 1 次     | ❌ 模式清晰但项目特定 |
+| 前端轮询错误分类 (L-026)          | 1 次     | ❌ 通用前端知识       |
+| 轻量熔断器状态机 (L-028)          | 1 次     | ❌ 通用工程模式       |
+| Prompt Injection 多层防护 (L-029) | 1 次     | ❌ 安全库，需持续维护 |
+| ANALYZING 超时对账 (L-030)        | 1 次     | ❌ Temporal 通用模式  |
 
 **结论**: 本次无 skillify 候选。
 
@@ -777,5 +856,5 @@ async reconcile() {
 
 ## 过期检测（B3-B8 批次）
 
-- L-027 当前状态标注"手动对齐完成，自动化待建"，待 OpenAPI 自动生成流程建立后需更新为闭环
+- L-027 ✅ 已闭环（2026-07-30 第二轮）：OpenAPI 自动生成 + CI 一致性校验已建立
 - L-029 Injection 模式库需定期同步 OWASP Prompt Injection Cheat Sheet，超过 90 天未更新标记 AGED
