@@ -931,3 +931,31 @@ for (const item of injectTokensRaw ?? []) {
 
 - L-027 ✅ 已闭环（2026-07-30 第二轮）：OpenAPI 自动生成 + CI 一致性校验已建立
 - L-029 Injection 模式库需定期同步 OWASP Prompt Injection Cheat Sheet，超过 90 天未更新标记 AGED
+
+---
+
+### L-037 [pitfall] NestJS monorepo 版本范围 `|| ^11.0.0` 导致 npm hoist 错误主版本
+
+**场景**: 8 个 package.json 文件中 NestJS 依赖声明为 `"@nestjs/core": "^10.0.0 || ^11.0.0"`，npm workspaces 将最高匹配版本 `@nestjs/core@11.1.28` hoist 到根 node_modules。即使根 package.json 添加了 `"overrides": {"@nestjs/core": "10.4.22"}`，npm 仍安装 11.1.28（overrides 标记为 "invalid" 但未生效）。
+
+**根因**: npm workspaces 的依赖提升逻辑优先选择 semver 范围内的最高版本。`|| ^11.0.0` 允许 11.x，npm 将 11.1.28 提升到根。npm overrides 设计上只能约束 transitive dependencies，对 workspace 包的 direct dependencies 声明范围无强制力——它只是"建议"，当 direct dep 范围允许更高版本时，overrides 的"建议"被忽略。
+
+**症状**: `TypeOrmCoreModule` 无法解析 `ModuleRef`（NestJS 内部 DI token）。原因是 `@nestjs/core@11.x` 与 `@nestjs/typeorm@10.x` 的 `ModuleRef` 类实例不兼容。6/9 微服务启动失败，错误信息：`Nest can't resolve dependencies of the TypeOrmCoreModule (TypeOrmModuleOptions, ?)`。
+
+**修复**:
+
+1. 从所有 8 个 package.json 中移除 `|| ^11.0.0`（40 处），锁定为 `"^10.0.0"`
+2. 同步移除 `@nestjs/config` 的 `|| ^4.0.0`、`@nestjs/swagger` 的 `|| ^11.0.0`
+3. 将 `@nestjs/schedule` 从根依赖移至实际使用它的服务（template-service / billing-service）
+4. 删除 `package-lock.json` + 清理所有 `node_modules/@nestjs` 目录
+5. `npm install --legacy-peer-deps` 全新安装
+
+**验证**: 根 `@nestjs/core` 从 11.1.28 降为 10.4.22；9 个微服务全部启动成功；E2E 95 测试全部通过。
+
+**预防**: monorepo 中所有 workspace 包的同一框架依赖必须使用**一致的版本范围**，且不能使用 `|| ^NEXT_MAJOR` 模式。如果项目锁定在 NestJS 10.x，所有 package.json 中的 `@nestjs/*` 依赖必须是 `^10.0.0`，不能有 `|| ^11.0.0`。CI 中应增加 `grep -r "|| \^11" apps/ libs/` 检查防止回归。
+
+**与 L-018 的区别**: L-018 是 overrides 对嵌套 node_modules 不生效（security patch 场景）；L-037 是版本范围声明本身允许了错误版本（major version pinning 场景）。两者都需删除 package-lock.json + 清理 node_modules 重装。
+
+**置信度**: 10/10（95 个 E2E 测试验证）
+**来源**: observed
+**关联文件**: [package.json](file:///d:/Data/projects/ReelClone/package.json), [libs/common/package.json](file:///d:/Data/projects/ReelClone/libs/common/package.json)
