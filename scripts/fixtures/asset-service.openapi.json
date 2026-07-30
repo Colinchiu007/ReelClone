@@ -1,0 +1,385 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/assets/upload-token": {
+      "post": {
+        "operationId": "AssetController_createUploadToken",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["asset"]
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "operationId": "AssetController_findAll",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "资产类型筛选（IMAGE/VIDEO/AUDIO）",
+            "schema": {
+              "example": "IMAGE",
+              "type": "string",
+              "enum": ["IMAGE", "VIDEO", "AUDIO"]
+            }
+          },
+          {
+            "name": "avatarGroupId",
+            "required": false,
+            "in": "query",
+            "description": "真人形象组筛选（查询组内资产）",
+            "schema": {
+              "example": "a1b2c3d4-uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "文件名关键词（模糊匹配）",
+            "schema": {
+              "example": "avatar",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "资产列表（分页 + 筛选）",
+        "tags": ["asset"]
+      },
+      "post": {
+        "operationId": "AssetController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "创建资产记录（直传 OSS 完成后登记）",
+        "tags": ["asset"]
+      }
+    },
+    "/api/v1/assets/{id}": {
+      "get": {
+        "operationId": "AssetController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["asset"]
+      },
+      "delete": {
+        "operationId": "AssetController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "删除资产",
+        "tags": ["asset"]
+      }
+    },
+    "/api/v1/avatar-groups": {
+      "post": {
+        "operationId": "AvatarGroupController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAvatarGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "创建真人形象组",
+        "tags": ["asset-avatar-group"]
+      },
+      "get": {
+        "operationId": "AvatarGroupController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["asset-avatar-group"]
+      }
+    },
+    "/api/v1/avatar-groups/{id}": {
+      "get": {
+        "operationId": "AvatarGroupController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["asset-avatar-group"]
+      },
+      "put": {
+        "operationId": "AvatarGroupController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAvatarGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["asset-avatar-group"]
+      },
+      "delete": {
+        "operationId": "AvatarGroupController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "删除真人形象组（级联删除组内资产）",
+        "tags": ["asset-avatar-group"]
+      }
+    }
+  },
+  "info": {
+    "title": "Asset Service API",
+    "description": "素材服务：上传凭证、资产管理、数字人分组",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "asset",
+      "description": "asset 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "UploadTokenDto": {
+        "type": "object",
+        "properties": {
+          "fileType": {
+            "type": "string",
+            "description": "文件类型，用于推导 OSS Key 前缀（image/video/audio）",
+            "example": "image",
+            "enum": ["image", "video", "audio"]
+          },
+          "fileName": {
+            "type": "string",
+            "description": "原始文件名（用于推断扩展名）",
+            "example": "avatar.png",
+            "maxLength": 255
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME 类型（透传给客户端，不参与 Key 生成）",
+            "example": "image/png"
+          }
+        },
+        "required": ["fileType", "fileName"]
+      },
+      "CreateAssetDto": {
+        "type": "object",
+        "properties": {
+          "ossKey": {
+            "type": "string",
+            "description": "对象存储 Key（由 upload-token 接口返回）",
+            "example": "assets/image/user-uuid/20260731-avatar.png",
+            "maxLength": 512
+          },
+          "name": {
+            "type": "string",
+            "description": "文件名",
+            "example": "avatar.png",
+            "maxLength": 255
+          },
+          "type": {
+            "type": "string",
+            "description": "资产类型（IMAGE/VIDEO/AUDIO）",
+            "example": "IMAGE",
+            "enum": ["IMAGE", "VIDEO", "AUDIO"]
+          },
+          "size": {
+            "type": "number",
+            "description": "文件大小（字节）",
+            "example": 102400,
+            "minimum": 0
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME 类型",
+            "example": "image/png",
+            "maxLength": 128
+          },
+          "duration": {
+            "type": "number",
+            "description": "音视频时长（秒）",
+            "example": 15,
+            "minimum": 0
+          },
+          "thumbnailKey": {
+            "type": "string",
+            "description": "缩略图 OSS Key",
+            "example": "thumbnails/image/user-uuid/20260731-avatar.png",
+            "maxLength": 512
+          },
+          "avatarGroupId": {
+            "type": "string",
+            "description": "所属真人形象组 ID（可空）",
+            "example": "a1b2c3d4-uuid"
+          }
+        },
+        "required": ["ossKey", "name", "type", "size"]
+      },
+      "CreateAvatarGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "组名称（同用户下唯一）",
+            "example": "我的形象组",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "描述",
+            "example": "用于短视频口播的真人形象"
+          },
+          "authorizationKey": {
+            "type": "string",
+            "description": "授权书 OSS Key（可后续补充）",
+            "example": "avatars/auth/user-uuid/authorization.pdf",
+            "maxLength": 512
+          }
+        },
+        "required": ["name"]
+      },
+      "UpdateAvatarGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "组名称（若变更需重新校验唯一性）",
+            "example": "我的形象组-改名",
+            "maxLength": 64
+          },
+          "description": {
+            "type": "string",
+            "description": "描述",
+            "example": "用于短视频口播的真人形象"
+          },
+          "authorizationKey": {
+            "type": "string",
+            "description": "授权书 OSS Key",
+            "example": "avatars/auth/user-uuid/authorization.pdf",
+            "maxLength": 512
+          }
+        }
+      }
+    }
+  }
+}

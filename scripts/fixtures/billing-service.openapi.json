@@ -1,0 +1,445 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/points/balance": {
+      "get": {
+        "operationId": "BillingController_getBalance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询当前积分余额（可用/冻结/累计）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/transactions": {
+      "get": {
+        "operationId": "BillingController_listTransactions",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，从 1 开始",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数（1-100）",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "流水类型（FREEZE/SETTLE/RELEASE/GRANT/CONSUME/REWARD）",
+            "schema": {
+              "example": "FREEZE",
+              "type": "string",
+              "enum": ["FREEZE", "SETTLE", "RELEASE", "GRANT", "CONSUME", "REWARD"]
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "description": "流水方向（DEBIT=扣减，CREDIT=增加）",
+            "schema": {
+              "example": "DEBIT",
+              "type": "string",
+              "enum": ["DEBIT", "CREDIT"]
+            }
+          },
+          {
+            "name": "startTime",
+            "required": false,
+            "in": "query",
+            "description": "起始时间（ISO 8601）",
+            "schema": {
+              "example": "2026-01-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "endTime",
+            "required": false,
+            "in": "query",
+            "description": "截止时间（ISO 8601）",
+            "schema": {
+              "example": "2026-07-31T23:59:59Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询积分流水列表（分页 + 筛选）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/transactions/{id}": {
+      "get": {
+        "operationId": "BillingController_getTransaction",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询单笔积分流水详情",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/freeze": {
+      "post": {
+        "operationId": "BillingController_freeze",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreezePointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "冻结积分（内部 API）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/settle": {
+      "post": {
+        "operationId": "BillingController_settle",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlePointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "结算冻结积分（内部 API）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/release": {
+      "post": {
+        "operationId": "BillingController_release",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleasePointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "释放冻结积分（内部 API）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/grant": {
+      "post": {
+        "operationId": "BillingController_grant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantPointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "赠送积分（内部 API）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/reward": {
+      "post": {
+        "operationId": "BillingController_reward",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RewardPointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "奖励积分（内部 API）",
+        "tags": ["billing"]
+      }
+    },
+    "/api/v1/points/internal/templates/{templateId}/reward-count": {
+      "get": {
+        "operationId": "BillingController_getRewardCount",
+        "parameters": [
+          {
+            "name": "templateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "统计模板已发放奖励数（内部 API）",
+        "tags": ["billing"]
+      }
+    }
+  },
+  "info": {
+    "title": "Billing Service API",
+    "description": "计费服务：积分余额、流水、冻结/结算/释放/发放/奖励",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "billing",
+      "description": "billing 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "FreezePointsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户 ID",
+            "example": "user-uuid-001"
+          },
+          "amount": {
+            "type": "number",
+            "description": "冻结数量（>0）",
+            "example": 100
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键（必传，重复请求返回首次结果）",
+            "example": "freeze-20260731-001"
+          },
+          "workId": {
+            "type": "string",
+            "description": "关联作品 ID（可选）",
+            "example": "work-uuid-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "业务说明（可选）",
+            "example": "生成视频任务冻结积分"
+          }
+        },
+        "required": ["userId", "amount", "idempotencyKey"]
+      },
+      "SettlePointsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户 ID",
+            "example": "user-uuid-001"
+          },
+          "amount": {
+            "type": "number",
+            "description": "结算数量（>0）",
+            "example": 80
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键",
+            "example": "settle-20260731-001"
+          },
+          "workId": {
+            "type": "string",
+            "description": "关联作品 ID（可选）",
+            "example": "work-uuid-001"
+          },
+          "freezeId": {
+            "type": "string",
+            "description": "关联的 FREEZE 流水 ID（必传，定位原冻结记录）",
+            "example": "txn-freeze-uuid-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "业务说明（可选）",
+            "example": "任务成功结算冻结积分"
+          }
+        },
+        "required": ["userId", "amount", "idempotencyKey", "freezeId"]
+      },
+      "ReleasePointsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户 ID",
+            "example": "user-uuid-001"
+          },
+          "amount": {
+            "type": "number",
+            "description": "释放数量（>0）",
+            "example": 100
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键",
+            "example": "release-20260731-001"
+          },
+          "freezeId": {
+            "type": "string",
+            "description": "关联的 FREEZE 流水 ID（必传，定位原冻结记录）",
+            "example": "txn-freeze-uuid-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "业务说明（可选）",
+            "example": "任务失败释放冻结积分"
+          }
+        },
+        "required": ["userId", "amount", "idempotencyKey", "freezeId"]
+      },
+      "GrantPointsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户 ID",
+            "example": "user-uuid-001"
+          },
+          "amount": {
+            "type": "number",
+            "description": "赠送数量（>0）",
+            "example": 500
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键",
+            "example": "grant-20260731-001"
+          },
+          "orderId": {
+            "type": "string",
+            "description": "关联订单 ID",
+            "example": "order-uuid-001"
+          },
+          "packageId": {
+            "type": "string",
+            "description": "关联套餐 ID",
+            "example": "package-uuid-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "业务说明（可选）",
+            "example": "套餐购买赠送积分"
+          }
+        },
+        "required": ["userId", "amount", "idempotencyKey", "orderId", "packageId"]
+      },
+      "RewardPointsDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "用户 ID（被奖励的上传者）",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "amount": {
+            "type": "number",
+            "description": "奖励数量（>0）",
+            "example": 10
+          },
+          "templateId": {
+            "type": "string",
+            "description": "触发奖励的模板 ID（写入流水 templateId 字段）",
+            "example": "template-uuid-001"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键（必传，重复请求返回首次结果）",
+            "example": "reward-20260731-001"
+          },
+          "description": {
+            "type": "string",
+            "description": "业务说明（可选）",
+            "example": "模板被使用奖励上传者"
+          }
+        },
+        "required": ["userId", "amount", "templateId", "idempotencyKey"]
+      }
+    }
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/users/me": {
+      "get": {
+        "operationId": "UserController_getCurrentUser",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "获取当前登录用户信息",
+        "tags": ["user"]
+      },
+      "put": {
+        "operationId": "UserController_updateUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "更新当前用户信息",
+        "tags": ["user"]
+      }
+    },
+    "/api/v1/users/{id}/profile": {
+      "get": {
+        "operationId": "UserController_getPublicProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "获取公开用户主页信息",
+        "tags": ["user"]
+      }
+    },
+    "/api/v1/users/bind-mobile": {
+      "post": {
+        "operationId": "UserController_bindMobile",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindMobileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "绑定手机号",
+        "tags": ["user"]
+      }
+    },
+    "/api/v1/users/password": {
+      "put": {
+        "operationId": "UserController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "修改密码",
+        "tags": ["user"]
+      }
+    },
+    "/api/v1/sms/send": {
+      "post": {
+        "operationId": "UserController_sendSmsCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendSmsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "发送短信验证码",
+        "tags": ["user"]
+      }
+    }
+  },
+  "info": {
+    "title": "User Service API",
+    "description": "用户服务：用户信息管理、绑定手机号、短信验证码、修改密码",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "user",
+      "description": "user 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "description": "用户昵称",
+            "example": "张三",
+            "maxLength": 64
+          },
+          "avatarUrl": {
+            "type": "string",
+            "description": "用户头像 URL",
+            "example": "https://thirdwx.qlogo.cn/mmopen/abc123/132",
+            "maxLength": 512
+          },
+          "email": {
+            "type": "string",
+            "description": "用户邮箱",
+            "example": "zhangsan@example.com",
+            "maxLength": 128
+          },
+          "industryPreferences": {
+            "description": "行业偏好标签列表",
+            "example": ["互联网", "教育"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BindMobileDto": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "description": "手机号（中国大陆 11 位）",
+            "example": "13800138000"
+          },
+          "code": {
+            "type": "string",
+            "description": "短信验证码（6-8 位数字）",
+            "example": "123456",
+            "minLength": 6,
+            "maxLength": 8
+          }
+        },
+        "required": ["mobile", "code"]
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "oldPassword": {
+            "type": "string",
+            "description": "旧密码（用户已设置密码时必填）",
+            "example": "OldPass@1234",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "新密码（8-64 位）",
+            "example": "NewPass@1234",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "code": {
+            "type": "string",
+            "description": "短信验证码（用户未设置密码时必填）",
+            "example": "123456"
+          },
+          "mobile": {
+            "type": "string",
+            "description": "手机号（配合短信验证码使用，中国大陆 11 位）",
+            "example": "13800138000"
+          }
+        },
+        "required": ["newPassword"]
+      },
+      "SendSmsDto": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "description": "手机号（中国大陆 11 位）",
+            "example": "13800138000"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "验证码用途（BIND_MOBILE 绑定手机号 / RESET_PASSWORD 重置密码）",
+            "example": "BIND_MOBILE",
+            "enum": ["BIND_MOBILE", "RESET_PASSWORD"]
+          }
+        },
+        "required": ["mobile", "purpose"]
+      }
+    }
+  }
+}

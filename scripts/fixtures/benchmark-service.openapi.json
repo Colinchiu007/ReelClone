@@ -1,0 +1,196 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/benchmarks": {
+      "post": {
+        "operationId": "BenchmarkController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBenchmarkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "提交对标解析任务",
+        "tags": ["benchmark"]
+      },
+      "get": {
+        "operationId": "BenchmarkController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，从 1 开始",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数（1-100）",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "platform",
+            "required": false,
+            "in": "query",
+            "description": "平台筛选（DOUYIN/XIAOHONGSHU/BILIBILI/KUAISHOU/WEIBO/WECHAT_VIDEO）",
+            "schema": {
+              "example": "DOUYIN",
+              "type": "string",
+              "enum": ["DOUYIN", "XIAOHONGSHU", "BILIBILI", "KUAISHOU", "WEIBO", "WECHAT_VIDEO"]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "状态筛选（PENDING/DOWNLOADING/ANALYZING/COMPLETED/FAILED/CANCELLED）",
+            "schema": {
+              "example": "COMPLETED",
+              "type": "string",
+              "enum": ["PENDING", "DOWNLOADING", "ANALYZING", "COMPLETED", "FAILED", "CANCELLED"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询对标解析历史（分页 + 筛选）",
+        "tags": ["benchmark"]
+      }
+    },
+    "/api/v1/benchmarks/{id}": {
+      "get": {
+        "operationId": "BenchmarkController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询单条对标解析详情",
+        "tags": ["benchmark"]
+      }
+    },
+    "/api/v1/benchmarks/{id}/cancel": {
+      "post": {
+        "operationId": "BenchmarkController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "取消对标解析任务",
+        "tags": ["benchmark"]
+      }
+    },
+    "/api/v1/benchmarks/{id}/clone": {
+      "post": {
+        "operationId": "BenchmarkController_clone",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "生成一键复刻建议参数",
+        "tags": ["benchmark"]
+      }
+    }
+  },
+  "info": {
+    "title": "Benchmark Service API",
+    "description": "对标解析服务：短视频拆解、视觉/音频/OCR 分析、复刻建议",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "benchmark",
+      "description": "benchmark 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "CreateBenchmarkDto": {
+        "type": "object",
+        "properties": {
+          "sourceUrl": {
+            "type": "string",
+            "description": "对标视频链接（支持抖音/小红书/B站/快手/微博/视频号）",
+            "example": "https://www.douyin.com/video/7234567890123456789",
+            "maxLength": 1024
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键（可选，未提供时由服务端生成）",
+            "example": "bench-7f3c2a1b-9e8d-4c2a",
+            "maxLength": 128
+          }
+        },
+        "required": ["sourceUrl"]
+      }
+    }
+  }
+}

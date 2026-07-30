@@ -1,0 +1,1186 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/admin/health": {
+      "get": {
+        "operationId": "AppController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "健康检查",
+        "tags": ["admin-app"]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "AdminUserController_listUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，从 1 开始，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "搜索关键字（昵称 / 手机号模糊匹配，最多 64 字符）",
+            "schema": {
+              "example": "张三",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "用户状态筛选（ACTIVE / FROZEN）",
+            "schema": {
+              "example": "ACTIVE",
+              "type": "string",
+              "enum": ["ACTIVE", "FROZEN", "DELETED"]
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "用户角色筛选（USER / ADMIN / SUPER_ADMIN）",
+            "schema": {
+              "example": "USER",
+              "type": "string",
+              "enum": ["USER", "ADMIN", "SUPER_ADMIN"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "分页查询用户列表",
+        "tags": ["admin-user"]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "get": {
+        "operationId": "AdminUserController_getUserDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询用户详情",
+        "tags": ["admin-user"]
+      }
+    },
+    "/api/v1/admin/users/{id}/status": {
+      "put": {
+        "operationId": "AdminUserController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "封禁 / 解封用户",
+        "tags": ["admin-user"]
+      }
+    },
+    "/api/v1/admin/users/{id}/role": {
+      "put": {
+        "operationId": "AdminUserController_updateRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "变更用户角色（仅 SUPER_ADMIN）",
+        "tags": ["admin-user"]
+      }
+    },
+    "/api/v1/admin/users/{id}/grant-points": {
+      "post": {
+        "operationId": "AdminUserController_grantPoints",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantPointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "人工调账（赠送积分）",
+        "tags": ["admin-user"]
+      }
+    },
+    "/api/v1/admin/reviews/pending": {
+      "get": {
+        "operationId": "AdminReviewController_pending",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "聚合待审核列表",
+        "tags": ["admin-review"]
+      }
+    },
+    "/api/v1/admin/templates/{id}/review": {
+      "post": {
+        "operationId": "AdminReviewController_reviewTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "模板审核",
+        "tags": ["admin-review"]
+      }
+    },
+    "/api/v1/admin/avatar-groups/{id}/authorization": {
+      "put": {
+        "operationId": "AdminReviewController_reviewAvatarGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAvatarGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "形象组授权审核",
+        "tags": ["admin-review"]
+      }
+    },
+    "/api/v1/admin/works": {
+      "get": {
+        "operationId": "AdminContentController_listWorks",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "作品状态筛选（可选）",
+            "schema": {
+              "example": "COMPLETED",
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PROCESSING",
+                "COMPLETED",
+                "FAILED",
+                "CANCELLED",
+                "REJECTED",
+                "DELETED"
+              ]
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "创作者 ID 筛选（可选）",
+            "schema": {
+              "example": "user-uuid-001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "创建时间下界（可选，ISO 8601）",
+            "schema": {
+              "example": "2025-01-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "创建时间上界（可选，ISO 8601）",
+            "schema": {
+              "example": "2025-12-31T23:59:59Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，1 基，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "全平台作品列表（分页 + 筛选）",
+        "tags": ["admin-content"]
+      }
+    },
+    "/api/v1/admin/works/{id}": {
+      "delete": {
+        "operationId": "AdminContentController_takedownWork",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakedownWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "强制下架作品",
+        "tags": ["admin-content"]
+      }
+    },
+    "/api/v1/admin/templates": {
+      "get": {
+        "operationId": "AdminContentController_listTemplates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "全状态模板列表",
+        "tags": ["admin-content"]
+      }
+    },
+    "/api/v1/admin/templates/{id}/status": {
+      "put": {
+        "operationId": "AdminContentController_updateTemplateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "模板上下架",
+        "tags": ["admin-content"]
+      }
+    },
+    "/api/v1/admin/packages": {
+      "post": {
+        "operationId": "AdminPackageController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePackageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "创建套餐",
+        "tags": ["admin-package"]
+      },
+      "get": {
+        "operationId": "AdminPackageController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "套餐列表（全状态）",
+        "tags": ["admin-package"]
+      }
+    },
+    "/api/v1/admin/packages/{id}": {
+      "put": {
+        "operationId": "AdminPackageController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "编辑套餐",
+        "tags": ["admin-package"]
+      }
+    },
+    "/api/v1/admin/packages/{id}/status": {
+      "put": {
+        "operationId": "AdminPackageController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePackageStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "上架 / 下架套餐",
+        "tags": ["admin-package"]
+      }
+    },
+    "/api/v1/admin/orders": {
+      "get": {
+        "operationId": "AdminOrderController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "订单状态筛选（可选）",
+            "schema": {
+              "example": "PAID",
+              "type": "string",
+              "enum": ["PENDING", "PAID", "CANCELLED", "REFUNDED"]
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "用户 ID 筛选（可选）",
+            "schema": {
+              "example": "user-uuid-001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "起始时间（可选，ISO 8601），筛选 createdAt >= startDate",
+            "schema": {
+              "example": "2025-01-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "结束时间（可选，ISO 8601），筛选 createdAt <= endDate",
+            "schema": {
+              "example": "2025-12-31T23:59:59Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "全平台订单列表（分页 + 多条件筛选）",
+        "tags": ["admin-order"]
+      }
+    },
+    "/api/v1/admin/orders/{id}/refund": {
+      "post": {
+        "operationId": "AdminOrderController_refund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "订单退款（敏感操作）",
+        "tags": ["admin-order"]
+      }
+    },
+    "/api/v1/admin/stats/overview": {
+      "get": {
+        "operationId": "AdminStatsController_overview",
+        "parameters": [
+          {
+            "name": "range",
+            "required": false,
+            "in": "query",
+            "description": "时间范围（7d 最近 7 天 / 30d 最近 30 天），默认 7d",
+            "schema": {
+              "example": "7d",
+              "type": "string",
+              "enum": ["7d", "30d"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "概览指标（DAU / 新增用户 / GMV / 生成量 / 积分消耗 + 趋势）",
+        "tags": ["admin-stats"]
+      }
+    },
+    "/api/v1/admin/stats/points-flow": {
+      "get": {
+        "operationId": "AdminStatsController_pointsFlow",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "用户 ID 筛选（可选）",
+            "schema": {
+              "example": "user-uuid-001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "起始时间（可选，ISO 8601），筛选 createdAt >= startDate",
+            "schema": {
+              "example": "2025-01-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "结束时间（可选，ISO 8601），筛选 createdAt <= endDate",
+            "schema": {
+              "example": "2025-12-31T23:59:59Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "积分流水查询",
+        "tags": ["admin-stats"]
+      }
+    },
+    "/api/v1/admin/reconcile/results": {
+      "get": {
+        "operationId": "AdminReconcileController_getResults",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查看对账结果",
+        "tags": ["admin-reconcile"]
+      }
+    },
+    "/api/v1/admin/reconcile": {
+      "post": {
+        "operationId": "AdminReconcileController_trigger",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "手动触发对账",
+        "tags": ["admin-reconcile"]
+      }
+    },
+    "/api/v1/admin/notifications/broadcast": {
+      "post": {
+        "operationId": "AdminNotificationController_broadcast",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BroadcastDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "广播公告",
+        "tags": ["admin-notification"]
+      }
+    },
+    "/api/v1/admin/notifications/send": {
+      "post": {
+        "operationId": "AdminNotificationController_send",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "定向推送通知",
+        "tags": ["admin-notification"]
+      }
+    },
+    "/api/v1/admin/config/api-keys": {
+      "get": {
+        "operationId": "AdminConfigController_listApiKeys",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查看各 Provider 的 Key 配置状态",
+        "tags": ["admin-config"]
+      },
+      "put": {
+        "operationId": "AdminConfigController_updateApiKeys",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeysDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "更新指定 Provider 的 Key 列表",
+        "tags": ["admin-config"]
+      }
+    }
+  },
+  "info": {
+    "title": "Admin Service API",
+    "description": "运营后台：用户/订单/套餐/审核/对账/统计/通知/内容/API Key 管理",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "admin",
+      "description": "admin 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "UpdateUserStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "目标状态（ACTIVE 正常 / FROZEN 封禁）",
+            "example": "FROZEN",
+            "enum": ["ACTIVE", "FROZEN", "DELETED"]
+          }
+        },
+        "required": ["status"]
+      },
+      "UpdateUserRoleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "目标角色（USER / ADMIN / SUPER_ADMIN）",
+            "example": "ADMIN",
+            "enum": ["USER", "ADMIN", "SUPER_ADMIN"]
+          }
+        },
+        "required": ["role"]
+      },
+      "GrantPointsDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "调账数量（正整数，>0）",
+            "example": 100
+          },
+          "reason": {
+            "type": "string",
+            "description": "调账原因（用于操作日志，最多 256 字符）",
+            "example": "补偿用户积分"
+          }
+        },
+        "required": ["amount", "reason"]
+      },
+      "ReviewTemplateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "审核后状态（ACTIVE 审核通过并上线 / REJECTED 拒绝）",
+            "example": "ACTIVE",
+            "enum": ["ACTIVE", "REJECTED"]
+          },
+          "reviewNote": {
+            "type": "string",
+            "description": "审核备注（可选）",
+            "example": "模板内容符合规范，审核通过"
+          }
+        },
+        "required": ["status"]
+      },
+      "ReviewAvatarGroupDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "授权状态（APPROVED 授权通过 / EXPIRED 授权过期）",
+            "example": "APPROVED",
+            "enum": ["APPROVED", "EXPIRED"]
+          },
+          "note": {
+            "type": "string",
+            "description": "审核备注（可选）",
+            "example": "形象组符合规范，授权通过"
+          }
+        },
+        "required": ["status"]
+      },
+      "TakedownWorkDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "下架原因（必填，1-500 字符）",
+            "example": "内容违规"
+          }
+        },
+        "required": ["reason"]
+      },
+      "UpdateTemplateStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "目标状态，仅允许 ACTIVE（上架）/ OFFLINE（下架）",
+            "example": "ACTIVE",
+            "enum": ["ACTIVE", "OFFLINE"]
+          }
+        },
+        "required": ["status"]
+      },
+      "CreatePackageDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "套餐名称（最多 64 字符）",
+            "example": "基础套餐"
+          },
+          "description": {
+            "type": "string",
+            "description": "套餐描述（可选）",
+            "example": "适合个人创作者的基础套餐"
+          },
+          "price": {
+            "type": "number",
+            "description": "价格（元，最多两位小数）",
+            "example": 9.9
+          },
+          "originalPrice": {
+            "type": "number",
+            "description": "原价（元，最多两位小数，可选）",
+            "example": 19.9
+          },
+          "points": {
+            "type": "number",
+            "description": "包含积分数量（可选）",
+            "example": 1000
+          },
+          "bonusPoints": {
+            "type": "number",
+            "description": "赠送积分数量（可选）",
+            "example": 200
+          },
+          "duration": {
+            "type": "number",
+            "description": "有效期（天，可选）",
+            "example": 30
+          },
+          "features": {
+            "description": "功能特性（JSON 字符串数组，可选）",
+            "example": ["高清导出", "无水印"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性）",
+            "example": "ONE_TIME",
+            "enum": ["SUBSCRIPTION", "ONE_TIME"]
+          },
+          "sort": {
+            "type": "number",
+            "description": "排序值（可选，值越小越靠前）",
+            "example": 1
+          }
+        },
+        "required": ["name", "price", "type"]
+      },
+      "UpdatePackageDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "套餐名称（最多 64 字符，可选）",
+            "example": "基础套餐"
+          },
+          "description": {
+            "type": "string",
+            "description": "套餐描述（可选）",
+            "example": "适合个人创作者的基础套餐"
+          },
+          "price": {
+            "type": "number",
+            "description": "价格（元，最多两位小数，可选）",
+            "example": 9.9
+          },
+          "originalPrice": {
+            "type": "number",
+            "description": "原价（元，最多两位小数，可选）",
+            "example": 19.9
+          },
+          "points": {
+            "type": "number",
+            "description": "包含积分数量（可选）",
+            "example": 1000
+          },
+          "bonusPoints": {
+            "type": "number",
+            "description": "赠送积分数量（可选）",
+            "example": 200
+          },
+          "duration": {
+            "type": "number",
+            "description": "有效期（天，可选）",
+            "example": 30
+          },
+          "features": {
+            "description": "功能特性（JSON 字符串数组，可选）",
+            "example": ["高清导出", "无水印"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性，可选）",
+            "example": "ONE_TIME",
+            "enum": ["SUBSCRIPTION", "ONE_TIME"]
+          },
+          "sort": {
+            "type": "number",
+            "description": "排序值（可选，值越小越靠前）",
+            "example": 1
+          }
+        }
+      },
+      "UpdatePackageStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "目标状态（ACTIVE 上架 / OFFLINE 下架）",
+            "example": "ACTIVE",
+            "enum": ["ACTIVE", "OFFLINE"]
+          }
+        },
+        "required": ["status"]
+      },
+      "RefundOrderDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "退款原因（必填，1-500 字符，用于审计日志）",
+            "example": "用户申请退款"
+          }
+        },
+        "required": ["reason"]
+      },
+      "BroadcastDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "公告标题（最多 128 字符）",
+            "example": "系统维护通知"
+          },
+          "content": {
+            "type": "string",
+            "description": "公告内容（最多 4000 字符）",
+            "example": "系统将于今晚 22:00-23:00 进行维护升级，请提前保存工作。"
+          },
+          "range": {
+            "type": "string",
+            "description": "广播范围（all 推送给所有用户 / active 推送给最近 7 天活跃用户），默认 all",
+            "example": "all",
+            "enum": ["all", "active"]
+          }
+        },
+        "required": ["title", "content"]
+      },
+      "SendNotificationDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "接收用户 ID",
+            "example": "user-uuid-001"
+          },
+          "title": {
+            "type": "string",
+            "description": "通知标题（最多 128 字符）",
+            "example": "充值成功通知"
+          },
+          "content": {
+            "type": "string",
+            "description": "通知内容（最多 4000 字符）",
+            "example": "您充值 100 元已到账，获得 1000 积分。"
+          }
+        },
+        "required": ["userId", "title", "content"]
+      },
+      "UpdateApiKeysDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "目标 Provider（seedance / llm / oss）",
+            "example": "seedance",
+            "enum": ["seedance", "llm", "oss"]
+          },
+          "keys": {
+            "description": "Key 列表（覆盖式更新，空数组表示清空）",
+            "example": ["sk-xxxxx", "sk-yyyyy"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["provider", "keys"]
+      }
+    }
+  }
+}

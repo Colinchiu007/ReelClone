@@ -58,9 +58,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # 生成类型一致性校验：从 OpenAPI fixtures 重新生成类型，
+      # 生成类型一致性校验：从 scripts/fixtures/*.openapi.json 批量重新生成所有服务的类型，
       # 用 git diff --exit-code 检查提交的生成文件是否与最新一致。
-      # 失败说明开发者修改了 OpenAPI 但未跑 `npm run gen:types:local` 重新生成。
+      # 失败说明开发者修改了 OpenAPI fixture 但未跑 `npm run gen:types` 重新生成类型。
       - name: OpenAPI generated types consistency
         run: npm run gen:types:check
 

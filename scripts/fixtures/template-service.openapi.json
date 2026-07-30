@@ -1,0 +1,567 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/templates": {
+      "get": {
+        "operationId": "TemplateController_list",
+        "parameters": [
+          {
+            "name": "platform",
+            "required": false,
+            "in": "query",
+            "description": "平台筛选（DOUYIN/XIAOHONGSHU/BILIBILI/WECHAT_VIDEO/KUAISHOU）",
+            "schema": {
+              "example": "DOUYIN",
+              "type": "string"
+            }
+          },
+          {
+            "name": "industry",
+            "required": false,
+            "in": "query",
+            "description": "行业筛选",
+            "schema": {
+              "example": "好物种草",
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyword",
+            "required": false,
+            "in": "query",
+            "description": "关键词（标题模糊匹配）",
+            "schema": {
+              "example": "开箱",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "排序方式: heat(综合热度) / latest(创建时间) / iq(iqScore)",
+            "schema": {
+              "example": "heat",
+              "type": "string",
+              "enum": ["heat", "latest", "iq"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "模板广场列表（公开，分页 + 筛选 + 排序）",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/upload": {
+      "post": {
+        "operationId": "TemplateController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "用户上传视频转模板",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/upload/{workflowId}/status": {
+      "get": {
+        "operationId": "TemplateController_uploadStatus",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "查询上传转模板进度",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/my-uploaded": {
+      "get": {
+        "operationId": "TemplateController_myUploaded",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "我上传的模板列表",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/publish": {
+      "post": {
+        "operationId": "TemplateController_publish",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "用户发布模板",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/internal/publish": {
+      "post": {
+        "operationId": "TemplateController_internalPublish",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "发布模板（内部 API）",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/internal/finalize": {
+      "post": {
+        "operationId": "TemplateController_internalFinalize",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeTemplateInternalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "完成模板（内部 API）",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/internal/fail": {
+      "post": {
+        "operationId": "TemplateController_internalFail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "标记模板失败（内部 API）",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/pending-review": {
+      "get": {
+        "operationId": "TemplateController_pendingReview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "待审核模板列表",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/my-published": {
+      "get": {
+        "operationId": "TemplateController_myPublished",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "我发布的模板列表",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/favorites": {
+      "get": {
+        "operationId": "TemplateController_myFavorites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "我的收藏列表",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/{id}": {
+      "get": {
+        "operationId": "TemplateController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "模板详情",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/{id}/review": {
+      "post": {
+        "operationId": "TemplateController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "审核模板",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/{id}/increment-use": {
+      "post": {
+        "operationId": "TemplateController_incrementUse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "模板使用次数 +1",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/templates/{id}/favorite": {
+      "post": {
+        "operationId": "TemplateController_favorite",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "收藏模板",
+        "tags": ["template"]
+      },
+      "delete": {
+        "operationId": "TemplateController_unfavorite",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "取消收藏",
+        "tags": ["template"]
+      }
+    },
+    "/api/v1/users/industry-preferences": {
+      "get": {
+        "operationId": "IndustryController_getPreferences",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "获取当前用户的行业偏好",
+        "tags": ["template-industry"]
+      },
+      "post": {
+        "operationId": "IndustryController_setPreferences",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndustryPreferenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "设置行业偏好",
+        "tags": ["template-industry"]
+      }
+    }
+  },
+  "info": {
+    "title": "Template Service API",
+    "description": "模板服务：模板广场、上传转模板、审核、收藏、行业偏好",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "template",
+      "description": "template 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "UploadTemplateDto": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "description": "已上传的视频资产 ID（asset-service 登记）",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "title": {
+            "type": "string",
+            "description": "模板标题",
+            "example": "好物开箱三连"
+          },
+          "description": {
+            "type": "string",
+            "description": "模板详细描述",
+            "example": "适用于新品开箱展示，节奏明快，三段式结构。"
+          },
+          "category": {
+            "type": "string",
+            "description": "分类",
+            "example": "开箱"
+          },
+          "industry": {
+            "type": "string",
+            "description": "适用行业",
+            "example": "好物种草"
+          },
+          "platform": {
+            "type": "string",
+            "description": "适用平台 DOUYIN / XIAOHONGSHU / ...",
+            "example": "DOUYIN"
+          },
+          "tags": {
+            "description": "标签数组",
+            "example": ["开箱", "新品", "种草"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["assetId", "title"]
+      },
+      "PublishTemplateDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "模板标题",
+            "example": "好物开箱三连"
+          },
+          "description": {
+            "type": "string",
+            "description": "详细描述",
+            "example": "适用于新品开箱展示，节奏明快，三段式结构。"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "提示词（来自作品的 prompt）",
+            "example": "一只手拿起产品展示细节，镜头特写切换"
+          },
+          "coverKey": {
+            "type": "string",
+            "description": "封面 OSS Key（来自作品缩略图）",
+            "example": "thumbnails/work/20260731-cover.png"
+          },
+          "videoKey": {
+            "type": "string",
+            "description": "视频 OSS Key（来自作品结果）",
+            "example": "videos/work/20260731-result.mp4"
+          },
+          "category": {
+            "type": "string",
+            "description": "分类",
+            "example": "开箱"
+          },
+          "industry": {
+            "type": "string",
+            "description": "适用行业",
+            "example": "好物种草"
+          },
+          "platform": {
+            "type": "string",
+            "description": "适用平台",
+            "example": "DOUYIN"
+          },
+          "tags": {
+            "description": "标签数组",
+            "example": ["开箱", "新品", "种草"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceWorkId": {
+            "type": "string",
+            "description": "来源作品 ID",
+            "example": "a1b2c3d4-uuid"
+          }
+        },
+        "required": ["title", "prompt"]
+      },
+      "FinalizeTemplateInternalDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "FailTemplateDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReviewTemplateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "审核后状态（ACTIVE 或 REJECTED）",
+            "example": "ACTIVE",
+            "enum": [
+              "ACTIVE",
+              "OFFLINE",
+              "PENDING_REVIEW",
+              "REJECTED",
+              "ANALYZING",
+              "ANALYSIS_FAILED"
+            ]
+          },
+          "reviewNote": {
+            "type": "string",
+            "description": "审核备注",
+            "example": "内容符合规范，审核通过。"
+          }
+        },
+        "required": ["status"]
+      },
+      "IndustryPreferenceDto": {
+        "type": "object",
+        "properties": {
+          "industries": {
+            "description": "行业标签列表（1-3 个）",
+            "example": ["好物种草", "本地生活"],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["industries"]
+      }
+    }
+  }
+}

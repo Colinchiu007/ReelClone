@@ -1,0 +1,213 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/packages": {
+      "get": {
+        "operationId": "PackageController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "套餐列表（公开）",
+        "tags": ["package"]
+      }
+    },
+    "/api/v1/packages/{id}": {
+      "get": {
+        "operationId": "PackageController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "套餐详情（公开）",
+        "tags": ["package"]
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "operationId": "OrderController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "创建订单",
+        "tags": ["order"]
+      },
+      "get": {
+        "operationId": "OrderController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "订单状态筛选（可选）",
+            "schema": {
+              "example": "PENDING",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "订单列表（分页 + 状态筛选）",
+        "tags": ["order"]
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "operationId": "OrderController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "订单详情（校验所有权）",
+        "tags": ["order"]
+      }
+    },
+    "/api/v1/orders/{id}/cancel": {
+      "post": {
+        "operationId": "OrderController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "取消订单（仅 PENDING 状态可取消）",
+        "tags": ["order"]
+      }
+    },
+    "/api/v1/webhooks/wechat-pay": {
+      "post": {
+        "operationId": "WebhookController_handle",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "微信支付回调",
+        "tags": ["order-webhook"]
+      }
+    }
+  },
+  "info": {
+    "title": "Order Service API",
+    "description": "订单服务：下单、订单查询、套餐、微信支付回调",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "order",
+      "description": "order 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "packageId": {
+            "type": "string",
+            "description": "套餐 ID",
+            "example": "pkg_premium_monthly"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "幂等键（可选，未提供时由服务端自动生成）",
+            "example": "a3f5b8c9-1d2e-3f4a-5b6c-7d8e9f0a1b2c"
+          }
+        },
+        "required": ["packageId"]
+      },
+      "Object": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  }
+}

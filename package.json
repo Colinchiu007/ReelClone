@@ -20,10 +20,10 @@
     "build": "echo 'Build targets configured per-service, use: cd apps/<service> && npm run build'",
     "migration:run": "ts-node --transpile-only -r tsconfig-paths/register libs/database/src/migration-runner.ts",
     "migration:generate": "echo 'Migration targets configured per-service'",
-    "gen:types": "tsx scripts/gen-types.ts",
-    "gen:types:all": "tsx scripts/gen-types.ts --all",
-    "gen:types:local": "tsx scripts/gen-types-local.ts scripts/fixtures/auth-service.openapi.json",
-    "gen:types:check": "tsx scripts/gen-types-local.ts scripts/fixtures/auth-service.openapi.json && git diff --exit-code apps/miniprogram/src/types/generated/ apps/admin-web/src/types/generated/",
+    "gen:types": "tsx scripts/gen-types-local.ts",
+    "gen:types:single": "tsx scripts/gen-types-local.ts scripts/fixtures/auth-service.openapi.json",
+    "gen:types:check": "tsx scripts/gen-types-local.ts && git diff --exit-code apps/miniprogram/src/types/generated/ apps/admin-web/src/types/generated/",
+    "extract:openapi": "ts-node --transpile-only --compiler-options \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" -r tsconfig-paths/register scripts/extract-openapi.ts",
     "prepare": "husky install"
   },
   "devDependencies": {

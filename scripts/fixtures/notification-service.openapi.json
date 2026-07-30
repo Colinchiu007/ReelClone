@@ -1,0 +1,134 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "NotificationController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "页码，1 基，默认 1",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "description": "每页条数，默认 20，最大 100",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "按通知类型筛选（TASK_COMPLETED / TASK_FAILED / PAYMENT_SUCCESS / SYSTEM）",
+            "schema": {
+              "example": "SYSTEM",
+              "type": "string",
+              "enum": ["TASK_COMPLETED", "TASK_FAILED", "PAYMENT_SUCCESS", "SYSTEM"]
+            }
+          },
+          {
+            "name": "isRead",
+            "required": false,
+            "in": "query",
+            "description": "按已读状态筛选，true 仅返回已读，false 仅返回未读",
+            "schema": {
+              "example": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "获取通知列表（分页 + 筛选）",
+        "tags": ["notification"]
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationController_unreadCount",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "获取未读通知数量",
+        "tags": ["notification"]
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "NotificationController_markAllAsRead",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "全部通知标记为已读",
+        "tags": ["notification"]
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "operationId": "NotificationController_markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "标记单条通知为已读",
+        "tags": ["notification"]
+      }
+    }
+  },
+  "info": {
+    "title": "Notification Service API",
+    "description": "通知服务：站内消息列表、未读数、标记已读",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "notification",
+      "description": "notification 服务接口"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-Bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "JWT Bearer 鉴权。在「Authorize」中粘贴 accessToken（不含 \"Bearer \" 前缀）。由 auth-service 通过 POST /api/v1/auth/wechat-login 签发。",
+        "in": "header"
+      }
+    },
+    "schemas": {}
+  }
+}
