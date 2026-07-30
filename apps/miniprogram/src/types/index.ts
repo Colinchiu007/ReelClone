@@ -160,7 +160,8 @@ export interface Benchmark {
 // -------------------- Template --------------------
 
 /** 模板状态枚举（与后端 TemplateStatus 对齐） */
-export type TemplateStatus = 'ACTIVE' | 'ANALYZING' | 'ANALYSIS_FAILED' | 'PENDING_REVIEW'
+export type TemplateStatus =
+  'ACTIVE' | 'OFFLINE' | 'PENDING_REVIEW' | 'REJECTED' | 'ANALYZING' | 'ANALYSIS_FAILED'
 
 export interface Template {
   id: string
@@ -230,7 +231,7 @@ export interface UploadStatusResult {
 export interface UserProfile {
   userId: string
   nickname: string
-  avatarUrl: string
+  avatarUrl: string | null
   templateUploadCount: number
   templateUsedCount: number
 }

@@ -155,7 +155,8 @@ export function grantPoints(
 
 // ==================== 审核工作台 ====================
 
-export type TemplateStatus = 'ACTIVE' | 'OFFLINE' | 'PENDING_REVIEW' | 'REJECTED'
+export type TemplateStatus =
+  'ACTIVE' | 'OFFLINE' | 'PENDING_REVIEW' | 'REJECTED' | 'ANALYZING' | 'ANALYSIS_FAILED'
 export type AuthorizationStatus = 'PENDING' | 'APPROVED' | 'EXPIRED'
 
 export interface Template {

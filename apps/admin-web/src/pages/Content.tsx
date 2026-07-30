@@ -40,6 +40,8 @@ const templateStatusColor: Record<TemplateStatus, string> = {
   OFFLINE: 'default',
   PENDING_REVIEW: 'orange',
   REJECTED: 'red',
+  ANALYZING: 'blue',
+  ANALYSIS_FAILED: 'magenta',
 }
 
 export default function Content() {

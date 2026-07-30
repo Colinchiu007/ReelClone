@@ -1,4 +1,4 @@
-import { IsObject, IsString } from 'class-validator'
+import { IsObject, IsString, IsUUID } from 'class-validator'
 
 /**
  * 完成模板 DTO（内部 API，Temporal Activity 调用）
@@ -50,7 +50,7 @@ export class FailTemplateDto {
  * 兼容 Temporal Activity 调用时的字段名（templateSuggestion 为对象）。
  */
 export class FinalizeTemplateInternalDto {
-  @IsString()
+  @IsUUID()
   templateId!: string
 
   @IsObject()

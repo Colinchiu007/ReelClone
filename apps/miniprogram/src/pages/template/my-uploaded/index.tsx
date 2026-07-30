@@ -35,9 +35,11 @@ const POLL_INTERVAL_MS = 2000
 /** 状态标签映射 */
 const STATUS_TAG: Record<TemplateStatus, { text: string; cls: string }> = {
   ACTIVE: { text: '已完成', cls: 'my-upload__tag--active' },
+  OFFLINE: { text: '已下架', cls: 'my-upload__tag--review' },
+  PENDING_REVIEW: { text: '待审核', cls: 'my-upload__tag--review' },
+  REJECTED: { text: '审核拒绝', cls: 'my-upload__tag--failed' },
   ANALYZING: { text: '分析中', cls: 'my-upload__tag--analyzing' },
   ANALYSIS_FAILED: { text: '失败', cls: 'my-upload__tag--failed' },
-  PENDING_REVIEW: { text: '待审核', cls: 'my-upload__tag--review' },
 }
 
 export default function MyUploadedPage() {
