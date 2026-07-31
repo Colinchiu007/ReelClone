@@ -41,6 +41,9 @@ export function __resetTaroMocks(): void {
     TaroMock.downloadFile,
     TaroMock.connectSocket,
     TaroMock.login,
+    TaroMock.chooseImage,
+    TaroMock.chooseVideo,
+    TaroMock.chooseMessageFile,
   ]
   for (const fn of fns) {
     fn.mockReset()
@@ -103,6 +106,11 @@ const TaroMock = {
 
   // ---- 登录（useAuth 依赖） ----
   login: jest.fn(),
+
+  // ---- 媒体选择（MediaUploader 依赖） ----
+  chooseImage: jest.fn(),
+  chooseVideo: jest.fn(),
+  chooseMessageFile: jest.fn(),
 
   // ---- SocketTask 类型（仅供类型引用，运行时由 connectSocket 返回） ----
   SocketTask: class SocketTask {},

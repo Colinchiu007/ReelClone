@@ -1113,3 +1113,160 @@ expect(typeof parsed.data.ts).toBe('number')
 **置信度**: 10/10
 **来源**: observed
 **关联文件**: [useWebSocket.spec.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/hooks/__tests__/useWebSocket.spec.ts)
+
+---
+
+## 2026-07-31 复盘批次（前端小程序测试扩展 - 关键组件 TemplateCard/MediaUploader）
+
+### L-044 [pitfall] ts-jest 编译 .tsx 报 "outDir neither '' or '.'" 错误
+
+**场景**: 小程序新增组件测试（.tsx 文件）后，运行 jest 报错 `error TS5110: Option 'outDir' cannot be specified when option 'outDir' is set to a value other than '' or '.'`，导致 .tsx 组件无法被 ts-jest 编译。
+
+**根因**: 小程序 `tsconfig.spec.json` 继承自 `tsconfig.base.json`，但 `tsconfig.base.json` 中 `noEmit: true` 与 ts-jest 的编译流程冲突 — ts-jest 调用 TypeScript 编译器时 `emitSkipped` 为 true，触发 outDir 校验错误。.ts 文件（hooks/services/stores）能正常编译，但 .tsx 文件因 JSX 转换触发更严格的 emit 检查而失败。
+
+**修复**: 在 `jest.config.js` 的 ts-jest 配置中启用 `isolatedModules: true`：
+
+```typescript
+transform: {
+  '^.+\\.[jt]sx?$': ['ts-jest', {
+    tsconfig: '<rootDir>/tsconfig.spec.json',
+    isolatedModules: true,  // 使用 transpileModule 模式，跳过完整类型检查
+  }],
+},
+```
+
+`isolatedModules: true` 让 ts-jest 使用 `transpileModule` 模式（单文件转译，不做跨文件类型分析），绕过 `noEmit` 限制。代价是测试时不做类型检查（仅运行时行为验证），但类型检查已由 `tsc --noEmit` 在 typecheck 阶段覆盖，职责分离更清晰。
+
+**置信度**: 10/10（修复后 41 个组件测试全部通过）
+**来源**: observed
+**关联文件**: [jest.config.js](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.config.js), [tsconfig.spec.json](file:///d:/Data/projects/ReelClone/apps/miniprogram/tsconfig.spec.json)
+
+---
+
+### L-045 [pattern] Taro 组件测试基础设施模式（@tarojs/components mock + render 工具）
+
+**场景**: 小程序组件（TemplateCard/MediaUploader）依赖 @tarojs/components 的 View/Text/Image 等原生组件，直接在 jsdom 环境测试会因 Taro 运行时缺失而失败。项目未安装 @tarojs/test-utils-react，需要自建轻量级组件测试基础设施。
+
+**模式**: 自建组件测试基础设施，不依赖 @tarojs/test-utils-react，分 3 层：
+
+1. **@tarojs/components mock**（`__mocks__/@tarojs/components.tsx`）：用 `createProxy(tagName)` 工厂将 Taro 组件映射为标准 HTML 元素
+
+```typescript
+function createProxy<T extends keyof HTMLElementTagNameMap>(tagName: T) {
+  return React.forwardRef<HTMLElementTagNameMap[T], Record<string, unknown>>((props, ref) => {
+    const { mode: _mode, lazyLoad: _lazyLoad, ...htmlProps } = props
+    return React.createElement(tagName, { ...htmlProps, ref })
+  }) as unknown as React.ComponentType<Record<string, unknown>>
+}
+export const View = createProxy('div')
+export const Text = createProxy('span')
+export const Image = createProxy('img')
+```
+
+关键点：过滤 Taro 专属 props（mode/lazyLoad 等），保留 onClick/className/src 等 HTML 可识别属性以支持交互测试；未使用的解构变量用 `_` 前缀避免 ESLint 报错。
+
+2. **render 工具**（`src/test/render.tsx`）：基于 `react-dom/client` 的 createRoot + `react` 的 act，提供 queryByText/queryByClass/fireClick/flushAsync 等查询器和工具函数
+
+```typescript
+export function render(element: React.ReactElement): RenderResult {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  act(() => {
+    root.render(element)
+  })
+  // 返回 queryByText / queryByClass / unmount / rerender 等
+}
+export function fireClick(el: Element): void {
+  /* dispatchEvent MouseEvent */
+}
+export async function flushAsync(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  })
+}
+```
+
+关键点：`flushAsync` 用 `setTimeout(0)` 替代 `setImmediate`（jsdom 无 setImmediate）；`elementText` 递归收集文本节点以支持嵌套 Text 组件的文本查询。
+
+3. **jest.config.js 配置**：`moduleNameMapper` 将 `@tarojs/components` 映射到 mock 文件
+
+```typescript
+moduleNameMapper: {
+  '^@tarojs/components$': '<rootDir>/__mocks__/@tarojs/components.tsx',
+}
+```
+
+**测试路径规范**：测试文件统一放在组件目录的 `__tests__/` 子目录（如 `src/components/TemplateCard/__tests__/TemplateCard.spec.tsx`），导入 render 工具用 `../../../test/render`，导入 taro mock 用 `../../../../__mocks__/taro`。
+
+**置信度**: 10/10（支持 TemplateCard 18 测试 + MediaUploader 23 测试全部通过）
+**来源**: observed
+**关联文件**: [components.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/__mocks__/@tarojs/components.tsx), [render.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/test/render.tsx), [jest.config.js](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.config.js)
+
+---
+
+### L-046 [pitfall] try-finally + 外层 catch 导致回调双重调用
+
+**场景**: MediaUploader 组件的 `handleChoose` 上传流程中，`onUploadEnd` 回调被调用两次。测试用例 `uploadFile 抛错 → uploading 复位 + onUploadEnd 调用` 期望 `onUploadEnd` 调用 1 次，实际调用 2 次。
+
+**根因**: 原代码结构为外层 try-catch 包裹内层 try-finally：
+
+```typescript
+try {
+  setUploading(true)
+  onUploadStart?.()
+  try {
+    const result = await uploadFile(...)  // 抛错
+    // ... update state
+  } finally {
+    setUploading(false)
+    onUploadEnd?.()  // ❌ finally 块执行（第 1 次）
+  }
+} catch (err) {
+  setUploading(false)
+  onUploadEnd?.()  // ❌ catch 块也执行（第 2 次）
+  console.warn(...)
+}
+```
+
+当 `uploadFile` 抛错时，内层 finally 先执行（第 1 次 onUploadEnd），随后异常向上传播被外层 catch 捕获，catch 又调用一次（第 2 次）。finally 总是执行，catch 又处理同一异常，造成重复。
+
+**修复**: 移除外层 catch 中的 `setUploading(false)` 和 `onUploadEnd?.()`，仅保留内层 finally 中的调用：
+
+```typescript
+try {
+  setUploading(true)
+  onUploadStart?.()
+  try {
+    const result = await uploadFile(...)
+    // ... update state
+  } finally {
+    setUploading(false)
+    onUploadEnd?.()  // ✅ 只在 finally 中调用一次
+  }
+} catch (err) {
+  // chooseXxx 抛错（用户取消等）：onUploadStart 未调用，无需配对 onUploadEnd
+  console.warn('[MediaUploader] upload failed:', err)
+}
+```
+
+**设计要点**: `onUploadStart` 和 `onUploadEnd` 必须配对调用。chooseXxx 阶段抛错（用户取消）时 onUploadStart 尚未调用，外层 catch 处理即可；uploadFile 阶段抛错时 onUploadStart 已调用，内层 finally 保证 onUploadEnd 配对。两层职责分离，finally 负责资源清理（uploading 状态 + onUploadEnd），catch 仅负责日志。
+
+**预防**: try-finally + 外层 catch 嵌套时，检查 finally 和 catch 是否对同一资源做重复清理。回调配对（start/end）应只在一处（finally）保证执行，避免多处调用导致重复。
+
+**置信度**: 10/10（修复后测试用例验证 onUploadEnd 调用 1 次）
+**来源**: observed
+**关联文件**: [MediaUploader/index.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/components/MediaUploader/index.tsx), [MediaUploader.spec.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/components/MediaUploader/__tests__/MediaUploader.spec.tsx)
+
+---
+
+## Skillify 检查（组件测试批次）
+
+| 候选模式                             | 出现次数                               | 是否生成 skill              |
+| ------------------------------------ | -------------------------------------- | --------------------------- |
+| Taro 组件测试基础设施 (L-045)        | 2 组件（TemplateCard + MediaUploader） | ❌ 项目特定基础设施，不通用 |
+| ts-jest isolatedModules 配置 (L-044) | 1 次                                   | ❌ ts-jest 通用知识         |
+| try-finally 双重调用 (L-046)         | 1 次                                   | ❌ 通用编程陷阱             |
+
+**结论**: 本次无 skillify 候选。

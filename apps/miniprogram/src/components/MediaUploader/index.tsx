@@ -112,8 +112,7 @@ export default function MediaUploader({
         onUploadEnd?.()
       }
     } catch (err) {
-      setUploading(false)
-      onUploadEnd?.()
+      // chooseXxx 抛错（用户取消等）：onUploadStart 未调用，无需配对 onUploadEnd
       // eslint-disable-next-line no-console
       console.warn('[MediaUploader] upload failed:', err)
     }
