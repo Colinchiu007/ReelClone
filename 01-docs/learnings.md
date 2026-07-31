@@ -1056,3 +1056,60 @@ export function renderHook<P, R>(
 **置信度**: 10/10
 **来源**: observed
 **关联文件**: [MediaUploader/index.tsx](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/components/MediaUploader/index.tsx)
+
+---
+
+## 2026-07-31 复盘批次（前端小程序测试扩展 - useWebSocket + API services）
+
+### L-042 [pattern] WebSocket Hook 测试模式：mock SocketTask + fake timers + 微任务推进
+
+**场景**: 测试 `useWebSocket` Hook（含 connectSocket async + 指数退避重连 + 30s 心跳 + 事件订阅），需要 mock Taro.connectSocket 返回的 SocketTask 并控制定时器。
+
+**模式**:
+
+1. **mock SocketTask 捕获回调**：创建工厂函数返回 `{ socket, handlers }`，handlers 对象保存 onOpen/onMessage/onClose/onError 注册的回调，测试中手动触发 `handlers.open?.()` 模拟事件。
+
+```typescript
+function createMockSocketTask() {
+  const handlers: { open?: () => void; ... } = {}
+  const socket = {
+    onOpen: jest.fn((cb) => { handlers.open = cb }),
+    onMessage: jest.fn((cb) => { handlers.message = cb }),
+    // ...
+  }
+  return { socket, handlers }
+}
+```
+
+2. **fake timers + 微任务推进**：`jest.useFakeTimers()` 控制 setTimeout/setInterval，但 `await Taro.connectSocket()` 是微任务，需要 `await act(async () => { await Promise.resolve(); await Promise.resolve() })` 推进微任务让 connect resolve + 注册 socket 回调。
+
+3. **指数退避测试关键**：测试指数退避时**不要调用 onOpen**（onOpen 会重置 reconnectCount=0），只触发 close 让计数器递增。每次 advanceTimersByTime 触发重连后，必须 flushMicrotasks 让新 connect resolve 才能注册新 socket 的 onClose。
+
+4. **心跳测试**：advanceTimersByTime(30000) 触发 setInterval 回调，验证 `socket.send` 被调用。
+
+**置信度**: 9/10（31 个测试全部通过）
+**来源**: observed
+**关联文件**: [useWebSocket.spec.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/hooks/__tests__/useWebSocket.spec.ts), [useWebSocket.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/hooks/useWebSocket.ts)
+
+---
+
+### L-043 [pitfall] JSON.stringify 不支持 expect.any 匹配器 + fake timers 下 async 测试模式
+
+**场景**: 验证 `socket.send({ data: JSON.stringify({ event: 'ping', data: { ts: Date.now() } }) })` 的调用参数时，试图用 `expect.any(Number)` 匹配 ts 字段。
+
+**根因**: `JSON.stringify({ ts: expect.any(Number) })` 会把 AsymmetricMatcher 序列化为 `{"inverse":false}`，而不是保留匹配器语义。toHaveBeenCalledWith 的匹配器只在顶层对象比较时生效，无法穿透 JSON.stringify。
+
+**修复**: 改为解析 send 调用参数后逐字段断言：
+
+```typescript
+const sendCall = (socket.send as jest.Mock).mock.calls[0][0]
+const parsed = JSON.parse(sendCall.data)
+expect(parsed.event).toBe('ping')
+expect(typeof parsed.data.ts).toBe('number')
+```
+
+**扩展**: fake timers 下测试 async 函数时，`advanceTimersByTime` 只推进宏任务，Promise 微任务需要手动 `await Promise.resolve()` 推进。封装 `flushMicrotasks()` helper 统一处理。
+
+**置信度**: 10/10
+**来源**: observed
+**关联文件**: [useWebSocket.spec.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/src/hooks/__tests__/useWebSocket.spec.ts)
