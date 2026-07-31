@@ -1367,3 +1367,68 @@ coverageThreshold: {
 | coverageThreshold 路径问题 (L-047) | 1 次     | ❌ Jest 通用知识 |
 
 **结论**: 本次无 skillify 候选。
+
+---
+
+## 2026-07-31 复盘批次（后端覆盖率门禁接入）
+
+### L-049 [pattern] 后端低覆盖率项目的阈值设定策略（声明式代码由 E2E 覆盖）
+
+**场景**: 后端服务（NestJS 微服务 + Temporal）整体覆盖率仅 54.52%（Stmts）/ 38.29%（Branches）/ 40.62%（Funcs）/ 54.17%（Lines），主要因 Temporal workflows/activities 为声明式代码，单元测试覆盖困难，由 E2E 10 套件 95 测试覆盖。直接设高阈值会导致 CI 失败。
+
+**模式**: 低覆盖率项目的阈值设定策略：
+
+1. **先跑基线**：`npm run test:unit:coverage` 获取当前覆盖率，记录 All files 行的 4 个指标
+2. **识别低覆盖率原因**：区分"未测试的可单元测试代码"（应补充测试）与"声明式/基础设施代码"（由 E2E 覆盖，单元测试不合适）
+3. **阈值 = 基线以下 5%**：给新代码留余地，同时能捕获明显回归
+
+```typescript
+// 基线: Stmts 54.52% / Branches 38.29% / Funcs 40.62% / Lines 54.17%
+// 阈值: 50 / 33 / 35 / 50（基线以下约 5%）
+coverageThreshold: {
+  global: {
+    statements: 50,
+    branches: 33,
+    functions: 35,
+    lines: 50,
+  },
+}
+```
+
+4. **注释标注 E2E 覆盖范围**：在 jest.config.js 注释中说明哪些模块由 E2E 覆盖，避免后续开发者误认为低阈值是永久可接受的
+
+**关键点**: 阈值偏低是临时状态，应通过逐步补充单元测试提高基线和阈值。不要为了提高数字而排除 E2E 覆盖的代码（会失去回归保护）。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [jest.config.js](file:///d:/Data/projects/ReelClone/jest.config.js), [ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml)
+
+---
+
+### L-050 [pitfall] 后端 + 小程序 coverage 目录共存配置
+
+**场景**: 项目同时有后端单元测试（根 jest.config.js，coverageDirectory: './coverage'）和小程序测试（apps/miniprogram/jest.config.js，coverageDirectory: '../../coverage/apps/miniprogram'），CI 中两个 coverage 步骤顺序执行，需要确保两者报告共存于同一 artifact。
+
+**模式**: 后端和小程序 coverage 目录路径不同，自然共存：
+
+- 后端：`coverage/`（根目录）
+- 小程序：`coverage/apps/miniprogram/`（根目录下子目录）
+
+CI artifact 上传 `path: coverage/` 自动包含两者。Jest 默认 `clearCoverageDirectory: false`，不会互相覆盖。
+
+**关键点**: coverageDirectory 路径设计时避免冲突（不同子目录），CI 用单一 `path: coverage/` 上传所有报告。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [jest.config.js](file:///d:/Data/projects/ReelClone/jest.config.js), [apps/miniprogram/jest.config.js](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.config.js)
+
+---
+
+## Skillify 检查（后端覆盖率门禁批次）
+
+| 候选模式                  | 出现次数 | 是否生成 skill  |
+| ------------------------- | -------- | --------------- |
+| 低覆盖率阈值策略 (L-049)  | 1 次     | ❌ 项目特定决策 |
+| coverage 目录共存 (L-050) | 1 次     | ❌ 配置通用知识 |
+
+**结论**: 本次无 skillify 候选。

@@ -64,8 +64,8 @@ jobs:
       - name: OpenAPI generated types consistency
         run: npm run gen:types:check
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests with coverage
+        run: npm run test:unit:coverage
 
       # 小程序测试 + 覆盖率阈值门禁（coverageThreshold 在 jest.config.js 中配置）
       # 阈值不达标将导致 CI 失败，防止覆盖率回归
