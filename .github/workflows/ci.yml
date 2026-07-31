@@ -67,8 +67,19 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Miniprogram unit tests
-        run: npm run test:miniprogram
+      # 小程序测试 + 覆盖率阈值门禁（coverageThreshold 在 jest.config.js 中配置）
+      # 阈值不达标将导致 CI 失败，防止覆盖率回归
+      - name: Miniprogram unit tests with coverage
+        run: npm run test:miniprogram:coverage
+
+      # 上传覆盖率报告到 artifact（保留 7 天供查阅）
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: coverage/
+          retention-days: 7
 
       - name: Build
         run: npm run build

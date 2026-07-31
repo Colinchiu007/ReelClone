@@ -1270,3 +1270,100 @@ try {
 | try-finally 双重调用 (L-046)         | 1 次                                   | ❌ 通用编程陷阱             |
 
 **结论**: 本次无 skillify 候选。
+
+---
+
+## 2026-07-31 复盘批次（CI 覆盖率门禁接入）
+
+### L-047 [pitfall] Jest coverageThreshold per-directory 路径不匹配导致 "Coverage data was not found"
+
+**场景**: 为小程序 jest.config.js 配置 per-directory coverageThreshold（如 `./src/hooks/`、`./src/stores/`），运行 coverage 后报错 `Jest: Coverage data for ./src/hooks/ was not found.`，exit code 1。
+
+**根因**: coverageThreshold 的 per-directory key 路径需要与 coverage 报告中的路径精确匹配。Jest 内部用 glob 匹配 coverage 数据中的文件路径，但 `./src/hooks/` 这种目录格式无法匹配到 `src/hooks/useAuth.ts` 等具体文件。per-directory 阈值的路径格式对 Jest 版本敏感，且文档不清晰。
+
+**修复**: 移除 per-directory 阈值，只保留全局阈值。全局阈值已能有效防止覆盖率回归，per-directory 阈值在路径匹配问题上成本高于收益。
+
+```typescript
+// ✅ 可用：全局阈值
+coverageThreshold: {
+  global: {
+    statements: 70,
+    branches: 55,
+    functions: 70,
+    lines: 70,
+  },
+}
+
+// ❌ 不可用：per-directory 路径不匹配
+coverageThreshold: {
+  global: { ... },
+  './src/hooks/': { ... },  // Jest 找不到 coverage data
+}
+```
+
+**预防**: Jest coverageThreshold per-directory 功能路径格式敏感，优先用全局阈值。如需 per-directory，先用 `--coverage` 跑一次查看报告中的路径格式，再据此配置 key。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [jest.config.js](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.config.js)
+
+---
+
+### L-048 [pattern] CI 覆盖率门禁集成模式（coverageThreshold + artifact 上传）
+
+**场景**: 小程序测试已稳定（18 套件 302 测试），需要在 CI 中加入覆盖率门禁，防止新代码导致覆盖率回归。
+
+**模式**: 3 层覆盖率门禁集成：
+
+1. **jest.config.js 配置 coverageThreshold**：全局阈值设保守值（基线以下 5-10%），覆盖率不达标时 jest 返回非零 exit code，CI 自动失败
+
+```typescript
+coverageThreshold: {
+  global: {
+    statements: 70,  // 基线 78.22%
+    branches: 55,    // 基线 65.46%
+    functions: 70,   // 基线 76.96%
+    lines: 70,       // 基线 78.53%
+  },
+}
+```
+
+阈值设定原则：基线以下 5-10%，给新组件留余地，同时能捕获明显回归。
+
+2. **package.json 脚本**：添加 `test:miniprogram:coverage` 脚本，CI 中替换原 `test:miniprogram`
+
+```json
+"test:miniprogram:coverage": "jest --config apps/miniprogram/jest.config.js --coverage"
+```
+
+3. **CI workflow artifact 上传**：用 `actions/upload-artifact@v4` 上传 coverage 报告，`if: always()` 确保即使测试失败也上传
+
+```yaml
+- name: Miniprogram unit tests with coverage
+  run: npm run test:miniprogram:coverage
+
+- name: Upload coverage reports
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: coverage-reports
+    path: coverage/
+    retention-days: 7
+```
+
+**关键点**: `.gitignore` 需排除 `coverage/` 目录；`if: always()` 确保失败时也能查看 coverage 报告用于调试。
+
+**置信度**: 10/10（本地验证 exit code 0 通过）
+**来源**: observed
+**关联文件**: [ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml), [jest.config.js](file:///d:/Data/projects/ReelClone/apps/miniprogram/jest.config.js), [package.json](file:///d:/Data/projects/ReelClone/package.json)
+
+---
+
+## Skillify 检查（CI 覆盖率门禁批次）
+
+| 候选模式                           | 出现次数 | 是否生成 skill   |
+| ---------------------------------- | -------- | ---------------- |
+| CI 覆盖率门禁模式 (L-048)          | 1 次     | ❌ CI 通用模式   |
+| coverageThreshold 路径问题 (L-047) | 1 次     | ❌ Jest 通用知识 |
+
+**结论**: 本次无 skillify 候选。

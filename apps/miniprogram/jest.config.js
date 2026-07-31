@@ -28,6 +28,16 @@ module.exports = {
     '!src/**/index.ts',
   ],
   coverageDirectory: '../../coverage/apps/miniprogram',
+  // 覆盖率阈值门禁 — 基于基线 (Stmts 78.22% / Branches 65.46% / Funcs 76.96% / Lines 78.53%)
+  // 全局阈值设保守值（留余地给新组件），防止覆盖率回归
+  coverageThreshold: {
+    global: {
+      statements: 70,
+      branches: 55,
+      functions: 70,
+      lines: 70,
+    },
+  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tarojs/taro$': '<rootDir>/__mocks__/taro.ts',
