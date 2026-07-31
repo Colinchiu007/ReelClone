@@ -1,0 +1,13 @@
+{
+  "id": "initialize-openspec-codex-integration",
+  "title": "Complete OpenSpec Codex integration",
+  "status": "completed",
+  "complexity": "S",
+  "risk": "low",
+  "domain": "tooling",
+  "currentPhase": "completed",
+  "nextAction": "Archived",
+  "createdAt": "2026-07-31T03:43:50Z",
+  "branch": "master",
+  "backup": "C:/tmp/codex-openspec-backup-20260731-114350"
+}
