@@ -440,15 +440,17 @@ export interface TemplateActivities {
 // ============================================================
 
 /** 工作流 Task Queue 名称 */
+const DEFAULT_TASK_QUEUE = 'reelclone-tasks'
+
 export const TASK_QUEUE = {
   /** 视频生成队列 */
-  VIDEO_GENERATION: 'video-generation',
+  VIDEO_GENERATION: DEFAULT_TASK_QUEUE,
   /** 对标解析队列 */
-  BENCHMARK_ANALYSIS: 'benchmark-analysis',
+  BENCHMARK_ANALYSIS: DEFAULT_TASK_QUEUE,
   /** 模板生成队列（用户上传视频转模板） */
-  TEMPLATE_GENERATION: 'template-generation',
+  TEMPLATE_GENERATION: DEFAULT_TASK_QUEUE,
   /** 默认队列 */
-  DEFAULT: 'reelclone-default',
+  DEFAULT: DEFAULT_TASK_QUEUE,
 } as const
 
 /** 工作流 ID 前缀 */

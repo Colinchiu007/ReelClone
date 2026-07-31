@@ -661,6 +661,8 @@ diff docker/.env.production.example docker/.env.production
 vim docker/.env.production
 ```
 
+本版本的新 Temporal 工作流统一使用 `reelclone-tasks`，不再支持通过环境变量覆盖队列名。升级前请在 Temporal UI 检查旧队列 `video-generation`、`benchmark-analysis`、`template-generation` 和 `reelclone-default` 是否仍有在途任务；待其完成、取消或按业务规则重新提交后，再停掉旧 Worker。
+
 ### 4. 执行部署
 
 ```bash

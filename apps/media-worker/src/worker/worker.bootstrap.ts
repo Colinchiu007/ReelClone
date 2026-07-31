@@ -20,16 +20,13 @@ import {
   VideoDownloaderService,
 } from '@reelclone/ai'
 import { OSSService } from '@reelclone/oss'
-import { setActivityDependencies, startWorker, stopWorker } from '@reelclone/temporal'
+import { setActivityDependencies, startWorker, stopWorker, TASK_QUEUE } from '@reelclone/temporal'
 import { buildActivities } from './activities.container'
-
-/** 默认任务队列名 */
-const DEFAULT_TASK_QUEUE = 'reelclone-tasks'
 
 /** Worker 运行状态 */
 let workerRunning = false
 /** 当前监听的任务队列名 */
-let currentTaskQueue = DEFAULT_TASK_QUEUE
+let currentTaskQueue = TASK_QUEUE.DEFAULT
 
 /** Worker 健康状态 */
 export interface WorkerStatus {
@@ -61,7 +58,7 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
 
   const address = config.get<string>('TEMPORAL_ADDRESS') || 'localhost:7233'
   const namespace = config.get<string>('TEMPORAL_NAMESPACE') || 'reelclone'
-  currentTaskQueue = config.get<string>('MEDIA_WORKER_TASK_QUEUE') || DEFAULT_TASK_QUEUE
+  currentTaskQueue = TASK_QUEUE.DEFAULT
 
   // 装配所有 Activity（当前由 libs/temporal 内置实现，Mock 模式下走 Mock 路径）
   const activities = buildActivities()

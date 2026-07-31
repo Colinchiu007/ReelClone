@@ -2,7 +2,7 @@
  * Worker 启动逻辑单元测试
  *
  * 测试 bootstrapWorker / shutdownWorker / getWorkerStatus：
- *   1. bootstrapWorker 从 ConfigService 读取配置并调用 startWorker（taskQueue=reelclone-tasks）
+ *   1. bootstrapWorker 从 ConfigService 读取 Temporal 连接配置，并用规范队列调用 startWorker
  *   2. getWorkerStatus 正确反映运行状态
  *   3. shutdownWorker 调用 stopWorker 并重置状态
  *   4. 未运行时 shutdownWorker 不会调用 stopWorker
@@ -19,6 +19,7 @@ jest.mock('@reelclone/temporal', () => {
     stopWorker: jest.fn().mockResolvedValue(undefined),
     setActivityDependencies: jest.fn(),
     getActivityDependencies: jest.fn(),
+    TASK_QUEUE: { DEFAULT: 'reelclone-tasks' },
     seedanceActivities: {
       submitToSeedance: fn(),
       querySeedanceTask: fn(),
@@ -81,7 +82,6 @@ describe('worker.bootstrap', () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'TEMPORAL_ADDRESS') return 'temporal:7233'
         if (key === 'TEMPORAL_NAMESPACE') return 'prod-ns'
-        if (key === 'MEDIA_WORKER_TASK_QUEUE') return 'reelclone-tasks'
         return undefined
       })
 
@@ -96,21 +96,7 @@ describe('worker.bootstrap', () => {
       expect(getWorkerStatus()).toEqual({ running: true, taskQueue: 'reelclone-tasks' })
     })
 
-    it('未配置 MEDIA_WORKER_TASK_QUEUE 时回退到默认队列名', async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'TEMPORAL_ADDRESS') return 'localhost:7233'
-        if (key === 'TEMPORAL_NAMESPACE') return 'reelclone'
-        return undefined
-      })
-
-      await bootstrapWorker(mockApp)
-
-      expect(startWorker).toHaveBeenCalledWith(
-        expect.objectContaining({ taskQueue: 'reelclone-tasks' }),
-      )
-    })
-
-    it('支持自定义任务队列名', async () => {
+    it('始终使用规范队列，且不读取已废弃的队列环境变量', async () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'TEMPORAL_ADDRESS') return 'localhost:7233'
         if (key === 'TEMPORAL_NAMESPACE') return 'reelclone'
@@ -121,9 +107,10 @@ describe('worker.bootstrap', () => {
       await bootstrapWorker(mockApp)
 
       expect(startWorker).toHaveBeenCalledWith(
-        expect.objectContaining({ taskQueue: 'custom-queue' }),
+        expect.objectContaining({ taskQueue: 'reelclone-tasks' }),
       )
-      expect(getWorkerStatus().taskQueue).toBe('custom-queue')
+      expect(getWorkerStatus().taskQueue).toBe('reelclone-tasks')
+      expect(mockConfigService.get).not.toHaveBeenCalledWith('MEDIA_WORKER_TASK_QUEUE')
     })
 
     it('未配置 address/namespace 时使用默认值', async () => {

@@ -206,6 +206,26 @@ describe('GenerationService', () => {
       )
     })
 
+    it.each([GenerationType.TEXT_GENERATE, GenerationType.IMAGE_GENERATE])(
+      '真实模式下拒绝尚未接入 Provider 的 %s，且不创建记录或冻结积分',
+      async (generationType) => {
+        configService.get.mockImplementation((key: string) => {
+          if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+          return undefined
+        })
+
+        await expect(service.create('user-1', makeDto({ generationType }))).rejects.toThrow(
+          '当前仅支持视频生成',
+        )
+
+        expect(workRepo.create).not.toHaveBeenCalled()
+        expect(workRepo.save).not.toHaveBeenCalled()
+        expect(taskRepo.save).not.toHaveBeenCalled()
+        expect(billingClient.freeze).not.toHaveBeenCalled()
+        expect(temporalService.startVideoGeneration).not.toHaveBeenCalled()
+      },
+    )
+
     it('幂等：重复请求返回已有 work', async () => {
       const dto = makeDto({ idempotencyKey: 'idem-key-1' })
 
@@ -436,5 +456,47 @@ describe('GenerationService', () => {
       expect(result.taskId).toBeDefined()
       expect(result.workId).toBe('work-1')
     })
+
+    it.each([
+      [GenerationType.TEXT_GENERATE, WorkType.TEXT, 5, '生成一段文案'],
+      [GenerationType.IMAGE_GENERATE, WorkType.IMAGE, 60, '生成一张图片'],
+    ])(
+      '真实模式下拒绝重试尚未接入 Provider 的 %s，且不改变任务状态',
+      async (generationType, workType, cost, prompt) => {
+        configService.get.mockImplementation((key: string) => {
+          if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+          return undefined
+        })
+
+        const task: Partial<GenerationTask> = {
+          id: 'task-1',
+          workId: 'work-1',
+          provider: GenerationProvider.MOCK,
+          status: GenerationTaskStatus.FAILED,
+          attempts: 1,
+        }
+        const work: Partial<Work> = {
+          id: 'work-1',
+          userId: 'user-1',
+          status: WorkStatus.FAILED,
+          cost,
+          prompt,
+          type: workType,
+          modelConfig: {
+            generationType,
+            freezeId: 'freeze-tx-1',
+          },
+        }
+        ;(task as { work: Work }).work = work as Work
+        taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+
+        await expect(service.retry('user-1', 'task-1')).rejects.toThrow('当前仅支持视频生成')
+
+        expect(taskRepo.save).not.toHaveBeenCalled()
+        expect(workRepo.update).not.toHaveBeenCalled()
+        expect(billingClient.freeze).not.toHaveBeenCalled()
+        expect(temporalService.startVideoGeneration).not.toHaveBeenCalled()
+      },
+    )
   })
 })

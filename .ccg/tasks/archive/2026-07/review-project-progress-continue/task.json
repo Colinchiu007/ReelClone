@@ -1,0 +1,12 @@
+{
+  "id": "review-project-progress-continue",
+  "title": "盘点项目进度与未完成工作并继续推进",
+  "status": "in_progress",
+  "complexity": "L+",
+  "risk": "medium",
+  "domain": "fullstack",
+  "currentPhase": "completed",
+  "nextAction": "已完成，待归档",
+  "createdAt": "2026-07-31T00:00:00+08:00",
+  "branch": "master"
+}

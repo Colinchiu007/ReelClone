@@ -9,7 +9,7 @@
  *  5. retry: 复用原 Work，创建新 GenerationTask，重启工作流（不重复冻结积分）
  *
  * 幂等性：通过 Redis 缓存 idempotencyKey → { workId, taskId }，重复请求返回已有结果
- * Mock 模式：TEMPORAL_MOCK_MODE=true 时跳过 Temporal 调用，模拟 workflowId
+ * Mock 模式：TEMPORAL_MOCK_MODE=true 时跳过 Temporal 调用，模拟 workflowId；真实模式仅支持已接入 Provider 的视频生成。
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -85,7 +85,7 @@ const TEMPORAL_WORK_TYPE_MAP: Record<GenerationType, TemporalWorkType> = {
   [GenerationType.THREE_D_MODELING]: TemporalWorkType.REFERENCE_TO_VIDEO,
   [GenerationType.EDIT_VIDEO]: TemporalWorkType.EDIT_VIDEO,
   [GenerationType.EXTEND_VIDEO]: TemporalWorkType.EXTEND_VIDEO,
-  // 文本/图片生成无对应视频工作流，默认走 TEXT_TO_VIDEO（Mock 模式下不启动）
+  // 文本/图片生成无对应视频工作流；仅 Mock 模式会在映射前返回。
   [GenerationType.TEXT_GENERATE]: TemporalWorkType.TEXT_TO_VIDEO,
   [GenerationType.IMAGE_GENERATE]: TemporalWorkType.IMAGE_TO_VIDEO,
 }
@@ -107,6 +107,19 @@ export class GenerationService {
   /** 是否为 Temporal Mock 模式 */
   private isMockMode(): boolean {
     return this.configService.get<string>('TEMPORAL_MOCK_MODE') === 'true'
+  }
+
+  /**
+   * 防止真实模式把尚未接入 Provider 的类型伪装成已完成任务。
+   * 必须在创建记录或冻结积分前调用，重试时也必须在改变状态前调用。
+   */
+  private assertGenerationTypeSupported(type: GenerationType): void {
+    if (!this.isMockMode() && !isVideoType(type)) {
+      throw BusinessException.validationError(
+        '当前仅支持视频生成，文本和图片生成需在接入真实 Provider 后启用',
+        { field: 'generationType', value: type },
+      )
+    }
   }
 
   // -------------------- 创建任务 --------------------
@@ -139,7 +152,10 @@ export class GenerationService {
       return existing
     }
 
-    // 3. 计算积分
+    // 3. 在创建记录或冻结积分前确认真实 Provider 能处理该类型
+    this.assertGenerationTypeSupported(dto.generationType)
+
+    // 4. 计算积分
     const points = calculatePoints(dto.generationType, {
       resolution: dto.resolution as VideoResolution | undefined,
       duration: dto.duration as VideoDuration | undefined,
@@ -149,7 +165,7 @@ export class GenerationService {
       throw BusinessException.validationError('无法计算积分，请检查生成参数')
     }
 
-    // 4. 创建 Work（status=PENDING）
+    // 5. 创建 Work（status=PENDING）
     const workRepo = this.dataSource.getRepository(Work)
     const workType = this.mapToWorkType(dto.generationType)
 
@@ -181,7 +197,7 @@ export class GenerationService {
     })
     await workRepo.save(work)
 
-    // 5. 调用 billing-service 冻结积分
+    // 6. 调用 billing-service 冻结积分
     try {
       const freezeResult = await this.billingClient.freeze(userId, points, idempotencyKey, work.id)
       // 记录 freezeId 到 modelConfig
@@ -199,7 +215,7 @@ export class GenerationService {
       throw err
     }
 
-    // 6. 创建 GenerationTask
+    // 7. 创建 GenerationTask
     const taskRepo = this.dataSource.getRepository(GenerationTask)
     const provider = this.mapToProvider(dto.generationType)
     const task = taskRepo.create({
@@ -211,17 +227,17 @@ export class GenerationService {
     })
     await taskRepo.save(task)
 
-    // 7. 启动 Temporal 工作流
+    // 8. 启动 Temporal 工作流
     await this.startWorkflow(work, task, dto, idempotencyKey, points)
 
-    // 8. 缓存幂等结果
+    // 9. 缓存幂等结果
     const result: CreateGenerationResult = {
       workId: work.id,
       taskId: task.id,
     }
     await this.cacheIdempotencyRecord(idempotencyKey, result)
 
-    // 9. 基于模板创作：模板使用次数 +1（非阻塞，失败仅记录日志）
+    // 10. 基于模板创作：模板使用次数 +1（非阻塞，失败仅记录日志）
     if (dto.templateId) {
       try {
         await this.templateClient.incrementUseCount(dto.templateId)
@@ -386,6 +402,9 @@ export class GenerationService {
       )
     }
 
+    const dto = this.buildDtoFromWork(work)
+    this.assertGenerationTypeSupported(dto.generationType)
+
     const taskRepo = this.dataSource.getRepository(GenerationTask)
     const workRepo = this.dataSource.getRepository(Work)
 
@@ -406,7 +425,6 @@ export class GenerationService {
     })
 
     // 3. 重启 Temporal 工作流（复用原冻结积分）
-    const dto = this.buildDtoFromWork(work)
     const idempotencyKey = generateIdempotencyKey(userId, 'retry', {
       taskId: newTask.id,
       workId: work.id,
@@ -430,6 +448,8 @@ export class GenerationService {
     const taskRepo = this.dataSource.getRepository(GenerationTask)
     const workRepo = this.dataSource.getRepository(Work)
 
+    this.assertGenerationTypeSupported(dto.generationType)
+
     // Mock 模式：模拟 workflowId，不调用 Temporal，并立即标记完成
     if (this.isMockMode()) {
       const mockWorkflowId = `mock-video-gen-${work.id}`
@@ -451,29 +471,6 @@ export class GenerationService {
         thumbnailKey: mockThumbnailKey,
       })
       this.logger.log(`[Mock] 模拟工作流已立即完成 workId=${work.id} taskId=${task.id}`)
-      return
-    }
-
-    // 文本/图片生成无视频工作流，Mock 处理
-    if (!isVideoType(dto.generationType)) {
-      const mockWorkflowId = `mock-${work.id}`
-      const now = new Date()
-      await taskRepo.update(task.id, {
-        providerTaskId: mockWorkflowId,
-        status: GenerationTaskStatus.COMPLETED,
-        startedAt: now,
-        completedAt: now,
-      })
-      // 非视频类型同样立即完成
-      const ext = dto.generationType === GenerationType.IMAGE_GENERATE ? 'png' : 'txt'
-      const mockResultKey = `mock/results/${work.id}.${ext}`
-      const mockResultUrl = `https://mock.example.com/results/${work.id}.${ext}`
-      await workRepo.update(work.id, {
-        status: WorkStatus.COMPLETED,
-        resultKey: mockResultKey,
-        resultUrl: mockResultUrl,
-      })
-      this.logger.log(`非视频类型，直接标记完成 workId=${work.id} taskId=${task.id}`)
       return
     }
 

@@ -12,6 +12,7 @@
 import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { TASK_QUEUE } from '@reelclone/temporal'
 import { AppModule } from './app.module'
 import { bootstrapWorker, shutdownWorker } from './worker/worker.bootstrap'
 
@@ -34,7 +35,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port)
 
   logger.log(`media-worker health endpoint on http://localhost:${port}/health`)
-  logger.log(`Temporal Worker 监听任务队列: ${config.get<string>('MEDIA_WORKER_TASK_QUEUE') || 'reelclone-tasks'}`)
+  logger.log(`Temporal Worker 监听任务队列: ${TASK_QUEUE.DEFAULT}`)
 
   // -------------------- 优雅退出 --------------------
   // SIGTERM / SIGINT 时先停 Worker（保证正在执行的 Activity 正常收尾），再关闭应用
