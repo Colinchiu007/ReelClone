@@ -12,6 +12,7 @@
  */
 import { type INestApplication, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { getDataSourceToken } from '@nestjs/typeorm'
 import {
   FfmpegService,
   LlmProvider,
@@ -20,8 +21,12 @@ import {
   VideoDownloaderService,
 } from '@reelclone/ai'
 import { OSSService } from '@reelclone/oss'
+import { DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
+import type Redis from 'ioredis'
+import { DataSource } from 'typeorm'
 import { setActivityDependencies, startWorker, stopWorker, TASK_QUEUE } from '@reelclone/temporal'
 import { buildActivities } from './activities.container'
+import { TypeOrmWorkflowStateStore } from './workflow-state.store'
 
 /** Worker 运行状态 */
 let workerRunning = false
@@ -73,6 +78,8 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
   const ffmpegService = app.get(FfmpegService)
   const llmProvider = app.get(LlmProvider)
   const ossService = app.get(OSSService)
+  const mainDataSource = app.get<DataSource>(getDataSourceToken(DATABASE_CONNECTIONS.MAIN))
+  const eventPublisher = app.get<Redis>(REDIS_CLIENT)
   setActivityDependencies({
     seedanceProvider,
     videoDownloader,
@@ -80,10 +87,10 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
     ffmpegService,
     llmProvider,
     ossService,
+    workflowStateStore: new TypeOrmWorkflowStateStore(mainDataSource),
+    eventPublisher,
   })
-  logger.log(
-    '已注入 Activity 依赖: SeedanceProvider, VideoDownloaderService, VideoAnalyzerService, FfmpegService, LlmProvider, OSSService',
-  )
+  logger.log('已注入 Activity 依赖: AI, OSSService, Work 状态存储, Redis 事件发布器')
 
   logger.log(
     `启动 Temporal Worker address=${address} namespace=${namespace} taskQueue=${currentTaskQueue}`,

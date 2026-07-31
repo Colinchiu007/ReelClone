@@ -88,10 +88,31 @@ export interface VideoModelConfig {
   referenceUrl?: string
 }
 
+/**
+ * 一次视频生成对应的账务预留。
+ *
+ * 各阶段使用不同的幂等键，避免 billing-service 将 settle/release
+ * 误判为先前的 freeze 请求。release 键在 API 取消与工作流补偿间共用。
+ */
+export interface BillingReservation {
+  /** 冻结积分流水 ID */
+  freezeId: string
+  /** 本次预留金额 */
+  amount: number
+  /** 账务实现版本；缺失表示历史状态，客户端必须按 V2 严格校验。 */
+  billingMode?: 'v2' | 'legacy'
+  /** 结算操作的稳定幂等键 */
+  settleIdempotencyKey: string
+  /** 释放操作的稳定幂等键 */
+  releaseIdempotencyKey: string
+}
+
 /** 视频生成工作流入参 */
 export interface VideoGenParams {
   /** Work 记录 ID */
   workId: string
+  /** 本次生成任务 ID，用于防止旧工作流覆盖重试后的状态 */
+  generationTaskId: string
   /** 用户 ID */
   userId: string
   /** 生成类型 */
@@ -102,6 +123,8 @@ export interface VideoGenParams {
   modelConfig: VideoModelConfig
   /** 预估消耗积分（提交时冻结） */
   estimatedCredits: number
+  /** 已完成冻结的账务预留 */
+  billingReservation: BillingReservation
   /** 幂等键（贯穿所有计费操作） */
   idempotencyKey: string
   /** 模板 ID（可选，从模板套用） */
@@ -311,17 +334,17 @@ export interface SeedanceActivities {
 
 /** 计费 Activity 接口 */
 export interface BillingActivities {
-  /** 冻结积分（提交任务时） */
-  freezeCredits(userId: string, amount: number, idempotencyKey: string): Promise<boolean>
-  /** 结算积分（任务成功，按实际用量） */
-  settleCredits(
+  /** 冻结积分（提交任务时，当前视频生成由 workbench-service 在启动前调用） */
+  freezeCredits(
     userId: string,
-    workId: string,
-    actualCost: number,
+    amount: number,
     idempotencyKey: string,
+    workId?: string,
   ): Promise<boolean>
-  /** 释放积分（任务失败/取消） */
-  releaseCredits(userId: string, workId: string, idempotencyKey: string): Promise<boolean>
+  /** 结算一笔已冻结的积分预留 */
+  settleCredits(userId: string, workId: string, reservation: BillingReservation): Promise<boolean>
+  /** 释放一笔已冻结的积分预留 */
+  releaseCredits(userId: string, workId: string, reservation: BillingReservation): Promise<boolean>
 }
 
 /** 媒体处理 Activity 接口 */
@@ -376,6 +399,7 @@ export interface NotificationActivities {
     workId: string,
     status: WorkStatus,
     data?: Record<string, unknown>,
+    generationTaskId?: string,
   ): Promise<boolean>
   /** 更新 Benchmark 业务状态 */
   updateBenchmarkStatus(

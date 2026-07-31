@@ -7,7 +7,7 @@
  * - TEMPORAL_NAMESPACE：命名空间（默认 reelclone）
  */
 import { Connection, Client, type ConnectionOptions } from '@temporalio/client'
-import { TASK_QUEUE, WORKFLOW_ID_PREFIX } from '../types'
+import { TASK_QUEUE, WORKFLOW_ID_PREFIX, type VideoGenParams } from '../types'
 
 /** 默认命名空间 */
 const DEFAULT_NAMESPACE = 'reelclone'
@@ -84,11 +84,9 @@ export async function closeClient(): Promise<void> {
  * @param params 视频生成参数
  * @returns 工作流 ID
  */
-export async function startVideoGenerationWorkflow(
-  params: { workId: string; userId: string; idempotencyKey: string },
-): Promise<string> {
+export async function startVideoGenerationWorkflow(params: VideoGenParams): Promise<string> {
   const client = await getClient()
-  const workflowId = `${WORKFLOW_ID_PREFIX.VIDEO_GEN}-${params.workId}`
+  const workflowId = `${WORKFLOW_ID_PREFIX.VIDEO_GEN}-${params.workId}-${params.generationTaskId}`
 
   await client.workflow.start('videoGenerationWorkflow', {
     workflowId,
@@ -114,9 +112,12 @@ export async function startVideoGenerationWorkflow(
  * @param params 对标解析参数
  * @returns 工作流 ID
  */
-export async function startBenchmarkAnalysisWorkflow(
-  params: { benchmarkId: string; userId: string; sourceUrl: string; platform: string },
-): Promise<string> {
+export async function startBenchmarkAnalysisWorkflow(params: {
+  benchmarkId: string
+  userId: string
+  sourceUrl: string
+  platform: string
+}): Promise<string> {
   const client = await getClient()
   const workflowId = `${WORKFLOW_ID_PREFIX.BENCHMARK}-${params.benchmarkId}`
 

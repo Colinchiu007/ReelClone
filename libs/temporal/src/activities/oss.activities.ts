@@ -6,6 +6,7 @@
  */
 import { Context } from '@temporalio/activity'
 import { type OssActivities } from '../types'
+import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockDelay } from './mock.util'
 
 /** 默认签名 URL 有效期（15 分钟） */
@@ -22,17 +23,16 @@ export async function uploadToOSS(localPath: string, key: string): Promise<strin
   ctx.log.info('[OSS] 上传文件', { localPath, key })
 
   if (isMockMode()) {
-    // TODO: 替换为真实 OSS 上传
-    //   import { ossClient } from '@reelclone/oss'
-    //   await ossClient.put(key, localPath)
-    //   return ossClient.getSignedUrl(key)
     await mockDelay(200)
     const url = `https://mock-oss.reelclone.dev/${key}`
     ctx.log.info('[OSS][Mock] 上传完成', { url })
     return url
   }
 
-  throw new Error('[OSS] 真实模式尚未接入 libs/oss')
+  const { ossService } = getActivityDependencies()
+  const result = await ossService.upload(localPath, key)
+  ctx.log.info('[OSS] 上传完成', { key: result.key })
+  return result.url
 }
 
 /**
@@ -45,15 +45,13 @@ export async function generateSignedUrl(key: string): Promise<string> {
   ctx.log.info('[OSS] 生成签名 URL', { key })
 
   if (isMockMode()) {
-    // TODO: 替换为真实签名
-    //   import { ossClient } from '@reelclone/oss'
-    //   return ossClient.signatureUrl(key, { expires: DEFAULT_SIGNED_URL_TTL_SECONDS })
     await mockDelay(50)
     const expires = Math.floor(Date.now() / 1000) + DEFAULT_SIGNED_URL_TTL_SECONDS
     return `https://mock-oss.reelclone.dev/${key}?expires=${expires}&signature=mock`
   }
 
-  throw new Error('[OSS] 真实模式尚未接入 libs/oss')
+  const { ossService } = getActivityDependencies()
+  return ossService.getSignedUrl(key, DEFAULT_SIGNED_URL_TTL_SECONDS)
 }
 
 /** OSS Activity 实现集合 */

@@ -40,7 +40,12 @@ import {
   cancelSeedanceTask,
   seedanceActivities,
 } from './seedance.activities'
-import { SeedanceTaskStatus, WorkType, type VideoGenParams } from '../types'
+import {
+  SeedanceTaskStatus,
+  WorkType,
+  type BillingReservation,
+  type VideoGenParams,
+} from '../types'
 
 /** 构造测试用 VideoGenParams */
 const buildParams = (overrides?: Partial<VideoGenParams>): VideoGenParams => ({
@@ -50,6 +55,13 @@ const buildParams = (overrides?: Partial<VideoGenParams>): VideoGenParams => ({
   prompt: '测试提示词',
   idempotencyKey: 'idem-key-1',
   estimatedCredits: 10,
+  generationTaskId: 'task-123',
+  billingReservation: {
+    freezeId: 'freeze-123',
+    amount: 10,
+    settleIdempotencyKey: 'settle-123',
+    releaseIdempotencyKey: 'release-123',
+  } satisfies BillingReservation,
   modelConfig: {
     modelId: 'seedance-v1',
     resolution: '1080p',
@@ -320,17 +332,33 @@ describe('seedance.activities (真实模式)', () => {
   })
 
   describe('cancelSeedanceTask', () => {
-    it('provider 返回 true 时返回 true', async () => {
+    it('Provider 受理且查询确认 CANCELED 时返回 true', async () => {
       mockSeedanceProvider.cancelTask.mockResolvedValue(true)
+      mockSeedanceProvider.queryTask.mockResolvedValue({
+        taskId: 'real-task-1',
+        status: 'CANCELED',
+      })
       const result = await cancelSeedanceTask('real-task-1')
       expect(result).toBe(true)
       expect(mockSeedanceProvider.cancelTask).toHaveBeenCalledWith('real-task-1')
+      expect(mockSeedanceProvider.queryTask).toHaveBeenCalledWith('real-task-1')
+    })
+
+    it('Provider 仅受理取消但尚未终态时返回 false', async () => {
+      mockSeedanceProvider.cancelTask.mockResolvedValue(true)
+      mockSeedanceProvider.queryTask.mockResolvedValue({
+        taskId: 'real-task-1',
+        status: 'PROCESSING',
+      })
+
+      await expect(cancelSeedanceTask('real-task-1')).resolves.toBe(false)
     })
 
     it('provider 返回 false 时返回 false', async () => {
       mockSeedanceProvider.cancelTask.mockResolvedValue(false)
       const result = await cancelSeedanceTask('real-task-1')
       expect(result).toBe(false)
+      expect(mockSeedanceProvider.queryTask).not.toHaveBeenCalled()
     })
   })
 })

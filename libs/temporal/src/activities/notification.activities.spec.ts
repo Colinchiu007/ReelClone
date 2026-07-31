@@ -26,6 +26,10 @@ jest.mock('@temporalio/activity', () => ({
   },
 }))
 
+jest.mock('./activity-context', () => ({
+  getActivityDependencies: jest.fn(),
+}))
+
 // 强制 Mock 模式（覆盖 NODE_ENV=production 的默认行为）
 beforeAll(() => {
   process.env.TEMPORAL_MOCK_MODE = 'true'
@@ -38,6 +42,7 @@ import {
   sendSubscribeMessage,
   notificationActivities,
 } from './notification.activities'
+import { getActivityDependencies } from './activity-context'
 import { WorkStatus, BenchmarkStatus, NotificationType } from '../types'
 
 describe('notification.activities (Mock 模式)', () => {
@@ -132,6 +137,9 @@ describe('notification.activities (Mock 模式)', () => {
 
 describe('notification.activities (真实模式)', () => {
   let originalFlag: string | undefined
+  const workflowStateStore = { updateWorkStatus: jest.fn().mockResolvedValue(true) }
+  const eventPublisher = { publish: jest.fn().mockResolvedValue(1) }
+
   beforeAll(() => {
     originalFlag = process.env.TEMPORAL_MOCK_MODE
     process.env.TEMPORAL_MOCK_MODE = 'false'
@@ -142,11 +150,18 @@ describe('notification.activities (真实模式)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(getActivityDependencies as jest.Mock).mockReturnValue({ workflowStateStore, eventPublisher })
   })
 
-  it('updateWorkStatus 抛错', async () => {
-    await expect(updateWorkStatus('w1', WorkStatus.COMPLETED)).rejects.toThrow(
-      '[Notify] 真实模式尚未接入 workbench-service',
+  it('updateWorkStatus 委托给注入的 Work 状态存储', async () => {
+    await expect(
+      updateWorkStatus('w1', WorkStatus.COMPLETED, { resultKey: 'works/w1.mp4' }, 'task-1'),
+    ).resolves.toBe(true)
+    expect(workflowStateStore.updateWorkStatus).toHaveBeenCalledWith(
+      'w1',
+      WorkStatus.COMPLETED,
+      { resultKey: 'works/w1.mp4' },
+      'task-1',
     )
   })
 
@@ -156,10 +171,24 @@ describe('notification.activities (真实模式)', () => {
     )
   })
 
-  it('notifyUser 抛错', async () => {
-    await expect(
-      notifyUser('u1', NotificationType.WORK_COMPLETED, { workId: 'w1' }),
-    ).rejects.toThrow('[Notify] 真实模式尚未接入 Redis Pub/Sub')
+  it('notifyUser 发布完成事件到 notification-service 订阅的频道', async () => {
+    await expect(notifyUser('u1', NotificationType.WORK_COMPLETED, { workId: 'w1' })).resolves.toBe(
+      true,
+    )
+    expect(eventPublisher.publish).toHaveBeenCalledWith(
+      'notification:task-completed',
+      JSON.stringify({ userId: 'u1', workId: 'w1', message: undefined }),
+    )
+  })
+
+  it('失败和超时发布到失败频道', async () => {
+    await expect(notifyUser('u1', NotificationType.WORK_TIMEOUT, { workId: 'w1' })).resolves.toBe(
+      true,
+    )
+    expect(eventPublisher.publish).toHaveBeenCalledWith(
+      'notification:task-failed',
+      JSON.stringify({ userId: 'u1', workId: 'w1', message: '视频生成超时' }),
+    )
   })
 
   it('sendSubscribeMessage 抛错', async () => {

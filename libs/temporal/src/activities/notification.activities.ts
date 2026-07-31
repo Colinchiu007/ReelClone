@@ -13,6 +13,7 @@ import {
   WorkStatus,
   type NotificationActivities,
 } from '../types'
+import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockDelay } from './mock.util'
 
 /**
@@ -23,19 +24,18 @@ export async function updateWorkStatus(
   workId: string,
   status: WorkStatus,
   data?: Record<string, unknown>,
+  generationTaskId?: string,
 ): Promise<boolean> {
   const ctx = Context.current()
   ctx.log.info('[Notify] 更新 Work 状态', { workId, status, data })
 
   if (isMockMode()) {
-    // TODO: 替换为真实数据库更新
-    //   import { workRepository } from '@reelclone/database'
-    //   await workRepository.update(workId, { status, ...data })
     await mockDelay(100)
     return true
   }
 
-  throw new Error('[Notify] 真实模式尚未接入 workbench-service')
+  const { workflowStateStore } = getActivityDependencies()
+  return workflowStateStore.updateWorkStatus(workId, status, data, generationTaskId)
 }
 
 /**
@@ -73,16 +73,52 @@ export async function notifyUser(
   ctx.log.info('[Notify] 推送实时事件', { userId, type, data })
 
   if (isMockMode()) {
-    // TODO: 替换为真实 Redis Pub/Sub
-    //   import Redis from 'ioredis'
-    //   const redis = new Redis(process.env.REDIS_URL)
-    //   await redis.publish(`user:${userId}:events`, JSON.stringify({ type, data, ts: Date.now() }))
-    //   await redis.quit()
     await mockDelay(80)
     return true
   }
 
-  throw new Error('[Notify] 真实模式尚未接入 Redis Pub/Sub')
+  const { eventPublisher } = getActivityDependencies()
+  const workId = typeof data.workId === 'string' ? data.workId : undefined
+  let channel: string
+  let payload: Record<string, unknown>
+
+  switch (type) {
+    case NotificationType.WORK_COMPLETED:
+      if (!workId) throw new Error('[Notify] WORK_COMPLETED 缺少 workId')
+      channel = 'notification:task-completed'
+      payload = {
+        userId,
+        workId,
+        message: typeof data.message === 'string' ? data.message : undefined,
+      }
+      break
+    case NotificationType.WORK_FAILED:
+    case NotificationType.WORK_TIMEOUT:
+      if (!workId) throw new Error(`[Notify] ${type} 缺少 workId`)
+      channel = 'notification:task-failed'
+      payload = {
+        userId,
+        workId,
+        message:
+          typeof data.reason === 'string'
+            ? data.reason
+            : type === NotificationType.WORK_TIMEOUT
+              ? '视频生成超时'
+              : '视频生成失败',
+      }
+      break
+    default:
+      channel = 'notification:system'
+      payload = {
+        userId,
+        title: type === NotificationType.BENCHMARK_COMPLETED ? '对标解析完成' : '对标解析失败',
+        content: typeof data.reason === 'string' ? data.reason : undefined,
+        data,
+      }
+  }
+
+  await eventPublisher.publish(channel, JSON.stringify(payload))
+  return true
 }
 
 /**

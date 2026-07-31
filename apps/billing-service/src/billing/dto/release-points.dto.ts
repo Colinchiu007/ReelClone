@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 /**
@@ -52,4 +52,9 @@ export class ReleasePointsDto {
   @IsString()
   @MaxLength(256)
   description?: string
+
+  /** V2 生成预留终态化；不存在权威预留时 fail closed。 */
+  @IsOptional()
+  @IsBoolean()
+  reservationMode?: boolean
 }

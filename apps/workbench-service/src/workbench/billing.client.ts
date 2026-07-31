@@ -9,59 +9,57 @@
  * 鉴权：通过 x-api-key Header 携带 INTERNAL_API_KEY
  * 幂等：每次调用传入 idempotencyKey，billing-service 保证重复请求返回首次结果
  */
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios, { AxiosError, type AxiosInstance } from 'axios';
-import { BusinessException, ErrorCode } from '@reelclone/common';
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import axios, { AxiosError, type AxiosInstance } from 'axios'
+import { BusinessException, ErrorCode } from '@reelclone/common'
 
 /** 冻结响应 */
 export interface FreezeResult {
   /** 冻结金额 */
-  frozenAmount: number;
+  frozenAmount: number
   /** 操作后余额 */
-  balance: number;
+  balance: number
   /** 冻结流水 ID（后续 settle/release 复用） */
-  freezeId: string;
+  freezeId: string
 }
 
 /** 结算/释放响应 */
 export interface OperationResult {
   /** 操作后余额 */
-  balance: number;
+  balance: number
   /** 流水 ID */
-  transactionId: string;
+  transactionId: string
 }
 
 /** billing-service 响应体（ApiResponse 包裹） */
 interface BillingApiResponse<T> {
-  code: number;
-  message: string;
-  data: T;
-  traceId?: string;
+  code: number
+  message: string
+  data: T
+  traceId?: string
 }
 
 /** billing-service 内部操作 data 结构 */
 interface BillingOperationData {
-  success: boolean;
-  frozenAmount?: number;
-  balance: number;
-  transactionId: string;
+  success: boolean
+  frozenAmount?: number
+  balance: number
+  transactionId: string
 }
 
 @Injectable()
 export class BillingClient {
-  private readonly logger = new Logger(BillingClient.name);
-  private readonly httpClient: AxiosInstance;
+  private readonly logger = new Logger(BillingClient.name)
+  private readonly httpClient: AxiosInstance
 
   constructor(private readonly configService: ConfigService) {
     const baseUrl =
       this.configService.get<string>('BILLING_SERVICE_URL') ||
       process.env.BILLING_SERVICE_URL ||
-      'http://localhost:3006';
+      'http://localhost:3006'
     const apiKey =
-      this.configService.get<string>('INTERNAL_API_KEY') ||
-      process.env.INTERNAL_API_KEY ||
-      '';
+      this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
 
     this.httpClient = axios.create({
       baseURL: baseUrl,
@@ -70,7 +68,7 @@ export class BillingClient {
         'x-api-key': apiKey,
         'Content-Type': 'application/json',
       },
-    });
+    })
   }
 
   /**
@@ -91,14 +89,15 @@ export class BillingClient {
       amount,
       idempotencyKey,
       workId,
+      reservationMode: true,
       description: `workbench:freeze:${workId}`,
-    });
+    })
 
     return {
       frozenAmount: data.frozenAmount ?? amount,
       balance: data.balance,
       freezeId: data.transactionId,
-    };
+    }
   }
 
   /**
@@ -115,6 +114,7 @@ export class BillingClient {
     idempotencyKey: string,
     workId: string,
     freezeId: string,
+    billingMode: 'v2' | 'legacy' = 'v2',
   ): Promise<OperationResult> {
     const data = await this.post<BillingOperationData>('/api/v1/points/settle', {
       userId,
@@ -122,13 +122,15 @@ export class BillingClient {
       idempotencyKey,
       freezeId,
       workId,
+      // 未标记的历史预留也必须走 V2，避免把未知状态误当成 legacy 自动退款。
+      reservationMode: billingMode !== 'legacy',
       description: `workbench:settle:${workId}`,
-    });
+    })
 
     return {
       balance: data.balance,
       transactionId: data.transactionId,
-    };
+    }
   }
 
   /**
@@ -143,19 +145,22 @@ export class BillingClient {
     amount: number,
     idempotencyKey: string,
     freezeId: string,
+    billingMode: 'v2' | 'legacy' = 'v2',
   ): Promise<OperationResult> {
     const data = await this.post<BillingOperationData>('/api/v1/points/release', {
       userId,
       amount,
       idempotencyKey,
       freezeId,
+      // 未标记的历史预留也必须走 V2，避免把未知状态误当成 legacy 自动退款。
+      reservationMode: billingMode !== 'legacy',
       description: `workbench:release`,
-    });
+    })
 
     return {
       balance: data.balance,
       transactionId: data.transactionId,
-    };
+    }
   }
 
   /**
@@ -165,55 +170,49 @@ export class BillingClient {
    */
   private async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
     try {
-      const response = await this.httpClient.post<BillingApiResponse<T>>(
-        path,
-        body,
-      );
+      const response = await this.httpClient.post<BillingApiResponse<T>>(path, body)
 
-      const resp = response.data;
+      const resp = response.data
 
       // billing-service 返回业务错误码
       if (resp.code !== ErrorCode.SUCCESS) {
         // 积分不足
         if (resp.code === ErrorCode.INSUFFICIENT_CREDITS) {
-          throw BusinessException.insufficientCredits(resp.message);
+          throw BusinessException.insufficientCredits(resp.message)
         }
         // 其他业务错误
         throw new BusinessException(
           resp.code as ErrorCode,
           resp.message || 'billing-service 调用失败',
-        );
+        )
       }
 
-      return resp.data;
+      return resp.data
     } catch (err) {
       // 已是 BusinessException，直接抛出
       if (err instanceof BusinessException) {
-        throw err;
+        throw err
       }
 
       // Axios 错误：尝试解析 billing-service 返回的 ApiResponse
-      const axiosErr = err as AxiosError<BillingApiResponse<unknown>>;
-      const respData = axiosErr.response?.data;
+      const axiosErr = err as AxiosError<BillingApiResponse<unknown>>
+      const respData = axiosErr.response?.data
       if (respData && typeof respData.code === 'number') {
         if (respData.code === ErrorCode.INSUFFICIENT_CREDITS) {
-          throw BusinessException.insufficientCredits(respData.message);
+          throw BusinessException.insufficientCredits(respData.message)
         }
         throw new BusinessException(
           respData.code as ErrorCode,
           respData.message || 'billing-service 调用失败',
-        );
+        )
       }
 
       // 网络错误等
-      this.logger.error(
-        `调用 billing-service 失败: ${path} ${(err as Error).message}`,
-      );
-      throw new BusinessException(
-        ErrorCode.INTERNAL_ERROR,
-        '计费服务暂时不可用，请稍后重试',
-        { path, message: (err as Error).message },
-      );
+      this.logger.error(`调用 billing-service 失败: ${path} ${(err as Error).message}`)
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, '计费服务暂时不可用，请稍后重试', {
+        path,
+        message: (err as Error).message,
+      })
     }
   }
 }

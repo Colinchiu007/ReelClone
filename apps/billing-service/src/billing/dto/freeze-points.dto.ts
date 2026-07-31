@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 /**
@@ -54,4 +54,9 @@ export class FreezePointsDto {
   @IsString()
   @MaxLength(256)
   description?: string
+
+  /** 使用 main 库权威预留与 billing outbox 的 V2 生成链路。 */
+  @IsOptional()
+  @IsBoolean()
+  reservationMode?: boolean
 }

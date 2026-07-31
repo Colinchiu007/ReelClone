@@ -13,7 +13,7 @@
  *  - points:idempotency:{key}    幂等结果缓存（TTL 24h）
  *  - points:idem-lock:{key}      幂等锁（TTL 30s，防止并发重复执行）
  */
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
@@ -26,6 +26,7 @@ import {
   User,
 } from '@reelclone/database'
 import { LedgerService } from './ledger.service'
+import { CreditReservationService } from './credit-reservation.service'
 import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto'
 import { RewardPointsDto } from './dto/reward-points.dto'
 
@@ -73,6 +74,8 @@ interface IdempotencyRecord {
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name)
+
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
@@ -80,6 +83,7 @@ export class BillingService {
     @InjectDataSource(DATABASE_CONNECTIONS.BILLING)
     private readonly billingDataSource: DataSource,
     private readonly ledger: LedgerService,
+    private readonly creditReservations: CreditReservationService,
   ) {}
 
   // -------------------- 查询：余额 --------------------
@@ -138,7 +142,12 @@ export class BillingService {
    * 在所有写操作成功后调用
    */
   private async invalidateBalanceCache(userId: string): Promise<void> {
-    await Promise.all([this.redis.del(balanceKey(userId)), this.redis.del(frozenKey(userId))])
+    try {
+      await Promise.all([this.redis.del(balanceKey(userId)), this.redis.del(frozenKey(userId))])
+    } catch (err) {
+      // 余额变更已经在数据库提交；缓存失效失败只能触发短暂旧读，不能把成功操作报成失败。
+      this.logger.warn(`积分缓存失效失败 userId=${userId}: ${(err as Error).message}`)
+    }
   }
 
   // -------------------- 查询：流水列表 --------------------
@@ -201,7 +210,30 @@ export class BillingService {
     idempotencyKey: string
     workId?: string | null
     description?: string
+    /** V2 生成预留：主库权威状态 + billing outbox 投影。 */
+    reservationMode?: boolean
   }): Promise<OperationResponse> {
+    if (params.reservationMode) {
+      if (!params.workId) {
+        throw BusinessException.validationError('V2 积分预留必须关联作品', {
+          code: 'RESERVATION_WORK_REQUIRED',
+        })
+      }
+      const result = await this.creditReservations.freeze({
+        userId: params.userId,
+        workId: params.workId,
+        amount: params.amount,
+        idempotencyKey: params.idempotencyKey,
+        description: params.description,
+      })
+      await this.invalidateBalanceCache(params.userId)
+      return {
+        success: true,
+        frozenAmount: params.amount,
+        balance: result.balance,
+        transactionId: result.transactionId,
+      }
+    }
     return this.runIdempotent(params.idempotencyKey, async () => {
       const result = await this.ledger.freeze(params)
       await this.invalidateBalanceCache(params.userId)
@@ -223,7 +255,18 @@ export class BillingService {
     freezeId: string
     workId?: string | null
     description?: string
+    reservationMode?: boolean
   }): Promise<OperationResponse> {
+    if (params.reservationMode) {
+      const result = await this.creditReservations.settle(params)
+      await this.invalidateBalanceCache(params.userId)
+      return {
+        success: true,
+        frozenAmount: params.amount,
+        balance: result.balance,
+        transactionId: result.transactionId,
+      }
+    }
     return this.runIdempotent(params.idempotencyKey, async () => {
       const result = await this.ledger.settle(params)
       await this.invalidateBalanceCache(params.userId)
@@ -244,7 +287,18 @@ export class BillingService {
     idempotencyKey: string
     freezeId: string
     description?: string
+    reservationMode?: boolean
   }): Promise<OperationResponse> {
+    if (params.reservationMode) {
+      const result = await this.creditReservations.release(params)
+      await this.invalidateBalanceCache(params.userId)
+      return {
+        success: true,
+        frozenAmount: params.amount,
+        balance: result.balance,
+        transactionId: result.transactionId,
+      }
+    }
     return this.runIdempotent(params.idempotencyKey, async () => {
       const result = await this.ledger.release(params)
       await this.invalidateBalanceCache(params.userId)

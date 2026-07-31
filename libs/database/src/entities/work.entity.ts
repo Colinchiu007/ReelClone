@@ -41,6 +41,7 @@ export enum WorkStatus {
 @Entity('works')
 @Index(['userId', 'status'])
 @Index(['userId', 'type'])
+@Index(['userId', 'idempotencyKey'], { unique: true })
 export class Work {
   @PrimaryGeneratedColumn('uuid')
   id: string
@@ -68,6 +69,10 @@ export class Work {
   /** 模型配置（JSON） */
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
   modelConfig: Record<string, unknown>
+
+  /** 创建生成任务时使用的请求幂等键（同一用户内唯一） */
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  idempotencyKey: string | null
 
   /** 结果文件 OSS Key */
   @Column({ type: 'varchar', length: 512, nullable: true })

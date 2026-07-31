@@ -7,6 +7,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Client } from '@temporalio/client'
+import { WorkflowNotFoundError } from '@temporalio/common'
 import { getClient, closeClient } from './client/temporal.client'
 import {
   TASK_QUEUE,
@@ -39,9 +40,16 @@ export class TemporalService {
   /**
    * 启动视频生成工作流
    */
+  getVideoGenerationWorkflowId(
+    params: Pick<VideoGenParams, 'workId' | 'generationTaskId'>,
+  ): string {
+    return `${WORKFLOW_ID_PREFIX.VIDEO_GEN}-${params.workId}-${params.generationTaskId}`
+  }
+
   async startVideoGeneration(params: VideoGenParams): Promise<string> {
     const client = await this.getClient()
-    const workflowId = `${WORKFLOW_ID_PREFIX.VIDEO_GEN}-${params.workId}`
+    // 重试会为同一 Work 创建新的 GenerationTask，因此 workflowId 必须由任务维度区分。
+    const workflowId = this.getVideoGenerationWorkflowId(params)
 
     await client.workflow.start('videoGenerationWorkflow', {
       workflowId,
@@ -122,6 +130,21 @@ export class TemporalService {
     const client = await this.getClient()
     const handle = client.workflow.getHandle(workflowId)
     return handle.describe()
+  }
+
+  /**
+   * 判断确定性工作流 ID 是否已经被 Temporal 接受。
+   * false 仅表示服务端明确返回 WorkflowNotFound；任何其他异常都保持不确定，
+   * 由调用方保留预留而不是在网络错误后直接退款。
+   */
+  async isWorkflowStarted(workflowId: string): Promise<boolean> {
+    try {
+      await this.getWorkflowStatus(workflowId)
+      return true
+    } catch (err) {
+      if (err instanceof WorkflowNotFoundError) return false
+      throw err
+    }
   }
 
   /**

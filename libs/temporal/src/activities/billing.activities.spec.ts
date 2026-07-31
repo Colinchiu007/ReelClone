@@ -10,6 +10,9 @@
  * 真实模式分支需 Formance Ledger，由集成测试覆盖。
  */
 import { Context } from '@temporalio/activity'
+import axios from 'axios'
+
+jest.mock('axios')
 
 // Mock @temporalio/activity 的 Context.current()
 // 必须返回同一个对象，否则 Activity 内部调用与测试中验证的不是同一个 jest.fn()
@@ -37,6 +40,14 @@ import {
   releaseCredits,
   billingActivities,
 } from './billing.activities'
+import type { BillingReservation } from '../types'
+
+const reservation: BillingReservation = {
+  freezeId: 'freeze-1',
+  amount: 100,
+  settleIdempotencyKey: 'settle-key-1',
+  releaseIdempotencyKey: 'release-key-1',
+}
 
 describe('billing.activities (Mock 模式)', () => {
   beforeEach(() => {
@@ -68,20 +79,19 @@ describe('billing.activities (Mock 模式)', () => {
 
   describe('settleCredits', () => {
     it('Mock 模式返回 true', async () => {
-      const result = await settleCredits('user-1', 'work-1', 80, 'key-settle-mock-1')
+      const result = await settleCredits('user-1', 'work-1', reservation)
       expect(result).toBe(true)
     })
 
     it('调用 ctx.log.info 记录日志', async () => {
-      await settleCredits('user-2', 'work-2', 90, 'key-settle-mock-2')
+      await settleCredits('user-2', 'work-2', reservation)
       expect(mockContext.log.info).toHaveBeenCalled()
     })
 
     it('幂等性：相同 idempotencyKey 第二次调用返回 true 且调用 ctx.log.warn', async () => {
-      const idempotencyKey = 'key-settle-idempotent'
-      const first = await settleCredits('user-3', 'work-3', 100, idempotencyKey)
+      const first = await settleCredits('user-3', 'work-3', reservation)
       expect(first).toBe(true)
-      const second = await settleCredits('user-3', 'work-3', 100, idempotencyKey)
+      const second = await settleCredits('user-3', 'work-3', reservation)
       expect(second).toBe(true)
       expect(mockContext.log.warn).toHaveBeenCalled()
     })
@@ -89,20 +99,19 @@ describe('billing.activities (Mock 模式)', () => {
 
   describe('releaseCredits', () => {
     it('Mock 模式返回 true', async () => {
-      const result = await releaseCredits('user-1', 'work-1', 'key-release-mock-1')
+      const result = await releaseCredits('user-1', 'work-1', reservation)
       expect(result).toBe(true)
     })
 
     it('调用 ctx.log.info 记录日志', async () => {
-      await releaseCredits('user-2', 'work-2', 'key-release-mock-2')
+      await releaseCredits('user-2', 'work-2', reservation)
       expect(mockContext.log.info).toHaveBeenCalled()
     })
 
     it('幂等性：相同 idempotencyKey 第二次调用返回 true 且调用 ctx.log.warn', async () => {
-      const idempotencyKey = 'key-release-idempotent'
-      const first = await releaseCredits('user-3', 'work-3', idempotencyKey)
+      const first = await releaseCredits('user-3', 'work-3', reservation)
       expect(first).toBe(true)
-      const second = await releaseCredits('user-3', 'work-3', idempotencyKey)
+      const second = await releaseCredits('user-3', 'work-3', reservation)
       expect(second).toBe(true)
       expect(mockContext.log.warn).toHaveBeenCalled()
     })
@@ -135,33 +144,92 @@ describe('billing.activities (Mock 模式)', () => {
 
 describe('billing.activities (真实模式)', () => {
   let originalFlag: string | undefined
+  let originalApiKey: string | undefined
+  let originalServiceUrl: string | undefined
+  const realReservation: BillingReservation = {
+    freezeId: 'freeze-real-1',
+    amount: 80,
+    settleIdempotencyKey: 'settle-real-1',
+    releaseIdempotencyKey: 'release-real-1',
+  }
+
   beforeAll(() => {
     originalFlag = process.env.TEMPORAL_MOCK_MODE
+    originalApiKey = process.env.INTERNAL_API_KEY
+    originalServiceUrl = process.env.BILLING_SERVICE_URL
     process.env.TEMPORAL_MOCK_MODE = 'false'
+    process.env.INTERNAL_API_KEY = 'test-internal-key'
+    process.env.BILLING_SERVICE_URL = 'http://billing.test'
   })
   afterAll(() => {
     process.env.TEMPORAL_MOCK_MODE = originalFlag
+    process.env.INTERNAL_API_KEY = originalApiKey
+    process.env.BILLING_SERVICE_URL = originalServiceUrl
   })
 
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(axios.post as jest.Mock).mockResolvedValue({
+      data: { code: 0, data: { success: true, transactionId: 'billing-tx-1' } },
+    })
   })
 
-  it('freezeCredits 抛错', async () => {
-    await expect(freezeCredits('u1', 100, 'key-freeze-real')).rejects.toThrow(
-      '[Billing] 真实模式尚未接入 Formance Ledger',
+  it('freezeCredits 调用 billing-service 的内部冻结接口', async () => {
+    await expect(freezeCredits('u1', 100, 'key-freeze-real', 'work-real-1')).resolves.toBe(true)
+
+    expect(axios.post).toHaveBeenCalledWith(
+      'http://billing.test/api/v1/points/freeze',
+      expect.objectContaining({
+        userId: 'u1',
+        amount: 100,
+        idempotencyKey: 'key-freeze-real',
+        workId: 'work-real-1',
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'x-api-key': 'test-internal-key' }),
+      }),
     )
   })
 
-  it('settleCredits 抛错', async () => {
-    await expect(settleCredits('u1', 'w1', 80, 'key-settle-real')).rejects.toThrow(
-      '[Billing] 真实模式尚未接入 Formance Ledger',
+  it('settleCredits 透传冻结流水和结算幂等键', async () => {
+    await expect(settleCredits('u1', 'work-real-2', realReservation)).resolves.toBe(true)
+
+    expect(axios.post).toHaveBeenCalledWith(
+      'http://billing.test/api/v1/points/settle',
+      expect.objectContaining({
+        userId: 'u1',
+        amount: 80,
+        freezeId: 'freeze-real-1',
+        idempotencyKey: 'settle-real-1',
+        workId: 'work-real-2',
+      }),
+      expect.any(Object),
     )
   })
 
-  it('releaseCredits 抛错', async () => {
-    await expect(releaseCredits('u1', 'w1', 'key-release-real')).rejects.toThrow(
-      '[Billing] 真实模式尚未接入 Formance Ledger',
+  it('releaseCredits 透传冻结流水和释放幂等键', async () => {
+    await expect(releaseCredits('u1', 'work-real-3', realReservation)).resolves.toBe(true)
+
+    expect(axios.post).toHaveBeenCalledWith(
+      'http://billing.test/api/v1/points/release',
+      expect.objectContaining({
+        userId: 'u1',
+        amount: 80,
+        freezeId: 'freeze-real-1',
+        idempotencyKey: 'release-real-1',
+      }),
+      expect.any(Object),
     )
+  })
+
+  it('缺少内部 API Key 时失败关闭', async () => {
+    delete process.env.INTERNAL_API_KEY
+
+    await expect(
+      releaseCredits('u1', 'work-real-4', {
+        ...realReservation,
+        releaseIdempotencyKey: 'release-real-no-key',
+      }),
+    ).rejects.toThrow('INTERNAL_API_KEY 未配置')
   })
 })

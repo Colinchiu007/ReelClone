@@ -6,6 +6,7 @@
  * Mock 模式下返回模拟的 OSS Key 与审核结果。
  */
 import { Context } from '@temporalio/activity'
+import path from 'path'
 import {
   ModerationDecision,
   type MediaActivities,
@@ -101,16 +102,20 @@ export async function generateThumbnail(videoPath: string): Promise<string> {
   }
 
   // ---- 真实模式：FFmpeg 抽帧 + 上传 OSS ----
-  const { ffmpegService } = getActivityDependencies()
+  const timestamp = Date.now()
+  const { ffmpegService, ossService } = getActivityDependencies()
 
-  // 1. 若 videoPath 是远程 URL，先下载到本地
-  const localVideo =
-    videoPath.startsWith('http://') || videoPath.startsWith('https://')
-      ? await downloadVideo(videoPath)
-      : videoPath
+  // 1. FFmpeg 只能读取本地文件。后处理返回的是 OSS Key，需先下载，
+  //    不能把 works/... 这样的对象 Key 直接传给 ffmpeg。
+  let localVideo = videoPath
+  if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) {
+    localVideo = await downloadVideo(videoPath)
+  } else if (!path.isAbsolute(videoPath)) {
+    localVideo = `/tmp/reelclone/source-${timestamp}.mp4`
+    await ossService.download(videoPath, localVideo)
+  }
 
   // 2. FFmpeg 截取第 1 秒作为封面
-  const timestamp = Date.now()
   const localThumbnail = `/tmp/reelclone/cover-${timestamp}.jpg`
   await ffmpegService.generateThumbnail(localVideo, 1, localThumbnail)
 

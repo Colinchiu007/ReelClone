@@ -59,6 +59,11 @@ function mockRedis(): Record<string, jest.Mock> {
       store.delete(key)
       return 1
     }),
+    eval: jest.fn(async (_script: string, _keyCount: number, key: string, token: string) => {
+      if (store.get(key) !== token) return 0
+      store.delete(key)
+      return 1
+    }),
     _store: store,
   } as unknown as Record<string, jest.Mock>
 }
@@ -73,6 +78,15 @@ function mockRepo<T extends ObjectLiteral>(): jest.Mocked<Repository<T>> {
     update: jest.fn(async () => ({ affected: 1, generatedMaps: [] })),
     createQueryBuilder: jest.fn(),
   } as unknown as jest.Mocked<Repository<T>>
+}
+
+function mockWorkLock(work: Work | null) {
+  return {
+    setLock: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn().mockResolvedValue(work),
+  }
 }
 
 /** 构造 CreateGenerationDto */
@@ -96,6 +110,8 @@ describe('GenerationService', () => {
   let temporalService: jest.Mocked<{
     startVideoGeneration: jest.Mock
     cancelWorkflow: jest.Mock
+    getVideoGenerationWorkflowId: jest.Mock
+    isWorkflowStarted: jest.Mock
   }>
   let configService: jest.Mocked<{ get: jest.Mock }>
   let workRepo: jest.Mocked<Repository<Work>>
@@ -113,6 +129,19 @@ describe('GenerationService', () => {
         }
         return taskRepo
       }),
+      transaction: jest.fn(
+        async (
+          fn: (manager: { getRepository: (entity: unknown) => unknown }) => Promise<unknown>,
+        ) =>
+          fn({
+            getRepository: (entity: unknown) => {
+              if (entity === Work || (entity as { name?: string }).name === 'Work') {
+                return workRepo
+              }
+              return taskRepo
+            },
+          }),
+      ),
     } as unknown as jest.Mocked<DataSource>
 
     billingClient = {
@@ -128,6 +157,11 @@ describe('GenerationService', () => {
     temporalService = {
       startVideoGeneration: jest.fn().mockResolvedValue('wf-id-123'),
       cancelWorkflow: jest.fn().mockResolvedValue(undefined),
+      getVideoGenerationWorkflowId: jest.fn(
+        (params: { workId: string; generationTaskId: string }) =>
+          `video-gen-${params.workId}-${params.generationTaskId}`,
+      ),
+      isWorkflowStarted: jest.fn().mockResolvedValue(false),
     } as unknown as jest.Mocked<typeof temporalService>
 
     configService = {
@@ -166,8 +200,15 @@ describe('GenerationService', () => {
       expect(billingClient.freeze).toHaveBeenCalledWith(
         userId,
         expect.any(Number),
+        expect.stringMatching(/:freeze$/),
         expect.any(String),
-        expect.any(String),
+      )
+      expect(workRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelConfig: expect.objectContaining({
+            freezeId: 'freeze-tx-1',
+          }),
+        }),
       )
       // 应创建 GenerationTask
       expect(taskRepo.save).toHaveBeenCalled()
@@ -189,6 +230,39 @@ describe('GenerationService', () => {
       expect(workRepo.update).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ status: WorkStatus.FAILED }),
+      )
+    })
+
+    it('任务持久化失败时释放已冻结积分并标记 Work 失败', async () => {
+      taskRepo.save.mockRejectedValueOnce(new Error('task database unavailable'))
+
+      await expect(service.create('user-1', makeDto())).rejects.toThrow('task database unavailable')
+
+      expect(billingClient.release).toHaveBeenCalledWith(
+        'user-1',
+        expect.any(Number),
+        expect.stringMatching(/:release$/),
+        'freeze-tx-1',
+        'v2',
+      )
+      expect(workRepo.update).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ status: WorkStatus.FAILED }),
+      )
+    })
+
+    it('预留释放失败时标记待处理并向调用方返回错误', async () => {
+      taskRepo.save.mockRejectedValueOnce(new Error('task database unavailable'))
+      billingClient.release.mockRejectedValueOnce(new Error('billing unavailable'))
+
+      await expect(service.create('user-1', makeDto())).rejects.toThrow('billing unavailable')
+
+      expect(workRepo.update).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: WorkStatus.FAILED,
+          errorLog: expect.objectContaining({ step: 'billing_release_pending' }),
+        }),
       )
     })
 
@@ -293,6 +367,28 @@ describe('GenerationService', () => {
       }
       expect(paramsArg.benchmarkId).toBeUndefined()
     })
+
+    it('工作流启动响应丢失但 Temporal 已存在工作流时保留预留并返回任务', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+      temporalService.startVideoGeneration.mockRejectedValueOnce(new Error('connection reset'))
+      temporalService.isWorkflowStarted.mockResolvedValueOnce(true)
+
+      await expect(service.create('user-1', makeDto())).resolves.toEqual({
+        workId: expect.any(String),
+        taskId: expect.any(String),
+      })
+
+      expect(temporalService.getVideoGenerationWorkflowId).toHaveBeenCalled()
+      expect(temporalService.isWorkflowStarted).toHaveBeenCalled()
+      expect(billingClient.release).not.toHaveBeenCalled()
+      expect(taskRepo.update).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ status: GenerationTaskStatus.RUNNING }),
+      )
+    })
   })
 
   // -------------------- findAll --------------------
@@ -394,7 +490,7 @@ describe('GenerationService', () => {
         id: 'work-1',
         userId: 'user-1',
         cost: 900,
-        modelConfig: { freezeId: 'freeze-tx-1' },
+        modelConfig: { freezeId: 'freeze-tx-1', idempotencyKey: 'create-generation-1' },
       }
       ;(task as { work: Work }).work = work as Work
 
@@ -415,12 +511,76 @@ describe('GenerationService', () => {
       // 应释放积分
       expect(billingClient.release).toHaveBeenCalled()
     })
+
+    it('真实模式下取消工作流失败时不更新状态也不释放积分', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+      const task: Partial<GenerationTask> = {
+        id: 'task-1',
+        workId: 'work-1',
+        status: GenerationTaskStatus.RUNNING,
+        providerTaskId: 'video-gen-work-1-task-1',
+      }
+      const work: Partial<Work> = {
+        id: 'work-1',
+        userId: 'user-1',
+        cost: 900,
+        modelConfig: {
+          freezeId: 'freeze-tx-1',
+          idempotencyKey: 'create-generation-1',
+        },
+      }
+      ;(task as { work: Work }).work = work as Work
+      taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+      temporalService.cancelWorkflow.mockRejectedValueOnce(new Error('temporal unavailable'))
+
+      await expect(service.cancel('user-1', 'task-1')).rejects.toThrow('取消工作流失败')
+
+      expect(taskRepo.update).not.toHaveBeenCalled()
+      expect(workRepo.update).not.toHaveBeenCalled()
+      expect(billingClient.release).not.toHaveBeenCalled()
+    })
+
+    it('真实模式下使用确定性工作流 ID 取消 Seedance 任务，等待工作流确认后才更新状态和退款', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+      const task: Partial<GenerationTask> = {
+        id: 'task-1',
+        workId: 'work-1',
+        status: GenerationTaskStatus.RUNNING,
+        providerTaskId: 'seedance-task-provider-123',
+      }
+      const work: Partial<Work> = {
+        id: 'work-1',
+        userId: 'user-1',
+        cost: 900,
+        modelConfig: { freezeId: 'freeze-tx-1', idempotencyKey: 'create-generation-1' },
+      }
+      ;(task as { work: Work }).work = work as Work
+      taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+
+      await expect(service.cancel('user-1', 'task-1')).resolves.toBeUndefined()
+
+      expect(temporalService.getVideoGenerationWorkflowId).toHaveBeenCalledWith({
+        workId: 'work-1',
+        generationTaskId: 'task-1',
+      })
+      expect(temporalService.cancelWorkflow).toHaveBeenCalledWith('video-gen-work-1-task-1')
+      expect(temporalService.cancelWorkflow).not.toHaveBeenCalledWith('seedance-task-provider-123')
+      expect(taskRepo.update).not.toHaveBeenCalled()
+      expect(workRepo.update).not.toHaveBeenCalled()
+      expect(billingClient.release).not.toHaveBeenCalled()
+    })
   })
 
   // -------------------- retry --------------------
 
   describe('retry', () => {
-    it('成功重试任务（创建新 Task，不重复冻结积分）', async () => {
+    it('成功重试任务（创建新 Task，并重新冻结积分）', async () => {
       const task: Partial<GenerationTask> = {
         id: 'task-1',
         workId: 'work-1',
@@ -445,16 +605,121 @@ describe('GenerationService', () => {
       ;(task as { work: Work }).work = work as Work
 
       taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+      workRepo.createQueryBuilder.mockReturnValue(mockWorkLock(work as Work) as never)
 
       const result = await service.retry('user-1', 'task-1')
 
       // 应创建新 Task
       expect(taskRepo.save).toHaveBeenCalled()
-      // 不应重复冻结积分
-      expect(billingClient.freeze).not.toHaveBeenCalled()
+      // 重试应重新冻结积分
+      expect(billingClient.freeze).toHaveBeenCalled()
       // 应返回新 taskId
       expect(result.taskId).toBeDefined()
       expect(result.workId).toBe('work-1')
+    })
+
+    it('重试时会重新冻结并更新活动任务', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+
+      const task: Partial<GenerationTask> = {
+        id: 'task-1',
+        workId: 'work-1',
+        provider: GenerationProvider.SEEDANCE,
+        status: GenerationTaskStatus.FAILED,
+        attempts: 1,
+      }
+      const work: Partial<Work> = {
+        id: 'work-1',
+        userId: 'user-1',
+        status: WorkStatus.FAILED,
+        cost: 900,
+        prompt: '一只猫',
+        type: WorkType.VIDEO,
+        modelConfig: {
+          generationType: GenerationType.TEXT_TO_VIDEO,
+          resolution: '720p',
+          duration: 5,
+          freezeId: 'freeze-tx-1',
+        },
+      }
+      ;(task as { work: Work }).work = work as Work
+      taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+      workRepo.createQueryBuilder.mockReturnValue(mockWorkLock(work as Work) as never)
+      temporalService.startVideoGeneration.mockResolvedValueOnce('wf-id-retry')
+
+      await service.retry('user-1', 'task-1')
+
+      expect(billingClient.freeze).toHaveBeenCalledTimes(1)
+      expect(temporalService.startVideoGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generationTaskId: expect.any(String),
+          billingReservation: expect.objectContaining({
+            freezeId: 'freeze-tx-1',
+            billingMode: 'v2',
+            settleIdempotencyKey: expect.stringMatching(/:settle$/),
+            releaseIdempotencyKey: expect.stringMatching(/:release$/),
+          }),
+        }),
+      )
+      expect(workRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: WorkStatus.PENDING,
+          errorLog: null,
+          modelConfig: expect.objectContaining({
+            activeGenerationTaskId: expect.any(String),
+          }),
+        }),
+      )
+    })
+
+    it('事务中发现 Work 已被并发重试为 PENDING 时不创建任务、不冻结积分或启动工作流', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'false'
+        return undefined
+      })
+
+      const task: Partial<GenerationTask> = {
+        id: 'task-1',
+        workId: 'work-1',
+        provider: GenerationProvider.SEEDANCE,
+        status: GenerationTaskStatus.FAILED,
+        attempts: 1,
+      }
+      const requestedWork: Partial<Work> = {
+        id: 'work-1',
+        userId: 'user-1',
+        status: WorkStatus.FAILED,
+        cost: 900,
+        prompt: '一只猫',
+        type: WorkType.VIDEO,
+        modelConfig: {
+          generationType: GenerationType.TEXT_TO_VIDEO,
+          resolution: '720p',
+          duration: 5,
+          freezeId: 'freeze-tx-1',
+        },
+      }
+      const concurrentlyRetriedWork: Partial<Work> = {
+        ...requestedWork,
+        status: WorkStatus.PENDING,
+      }
+      ;(task as { work: Work }).work = requestedWork as Work
+      taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+      workRepo.createQueryBuilder.mockReturnValue(
+        mockWorkLock(concurrentlyRetriedWork as Work) as never,
+      )
+
+      await expect(service.retry('user-1', 'task-1')).rejects.toThrow(
+        'Work 当前状态为 PENDING，无法重试',
+      )
+
+      expect(billingClient.freeze).not.toHaveBeenCalled()
+      expect(taskRepo.create).not.toHaveBeenCalled()
+      expect(taskRepo.save).not.toHaveBeenCalled()
+      expect(temporalService.startVideoGeneration).not.toHaveBeenCalled()
     })
 
     it.each([
