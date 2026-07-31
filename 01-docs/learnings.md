@@ -1432,3 +1432,121 @@ CI artifact 上传 `path: coverage/` 自动包含两者。Jest 默认 `clearCove
 | coverage 目录共存 (L-050) | 1 次     | ❌ 配置通用知识 |
 
 **结论**: 本次无 skillify 候选。
+
+---
+
+## 2026-07-31 复盘批次（Temporal Activities 单元测试补齐）
+
+### L-051 [pattern] Temporal Activity 单元测试 mock 模式（Context.current + Mock 模式 + 真实模式分离）
+
+**场景**: Temporal Activity 函数内部调用 `Context.current().log` 记录日志，且通过 `isMockMode()` 切换 Mock/真实模式。真实模式调用 `getActivityDependencies()` 获取注入的 Provider。需要在不启动 Temporal Worker 的情况下单元测试。
+
+**模式**: 3 层 mock 模式：
+
+1. **Mock @temporalio/activity 的 Context.current()** — 必须返回同一个对象，否则 Activity 内部调用与测试中验证的不是同一个 jest.fn()
+
+```typescript
+const mockLog = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
+const mockContext = { log: mockLog }
+jest.mock('@temporalio/activity', () => ({
+  Context: { current: () => mockContext },
+}))
+```
+
+2. **Mock 模式测试** — `beforeAll` 设置 `process.env.TEMPORAL_MOCK_MODE = 'true'`，测试 Mock 分支逻辑
+
+3. **真实模式测试** — 独立 `describe` 块，`beforeAll/afterAll` 保存恢复 `TEMPORAL_MOCK_MODE`，mock `./activity-context` 的 `getActivityDependencies` 返回 mock Provider
+
+```typescript
+jest.mock('./activity-context', () => ({
+  getActivityDependencies: jest.fn(),
+}))
+
+describe('真实模式', () => {
+  let originalFlag: string | undefined
+  beforeAll(() => {
+    originalFlag = process.env.TEMPORAL_MOCK_MODE
+    process.env.TEMPORAL_MOCK_MODE = 'false'
+  })
+  afterAll(() => {
+    process.env.TEMPORAL_MOCK_MODE = originalFlag
+  })
+
+  it('submitToSeedance 调用 Provider', async () => {
+    const mockProvider = { submitTask: jest.fn().mockResolvedValue({ taskId: 't1', keyIndex: 0 }) }
+    ;(getActivityDependencies as jest.Mock).mockReturnValue({ seedanceProvider: mockProvider })
+
+    const result = await submitToSeedance(buildParams())
+    expect(mockProvider.submitTask).toHaveBeenCalled()
+    expect(result).toBe('t1')
+  })
+})
+```
+
+**关键点**:
+
+- Mock 模式和真实模式测试必须在独立 describe 块，通过环境变量切换
+- 模块级状态（如 `mockStateMap`、`processedKeys`）跨测试累积，幂等性测试用唯一 key 避免污染
+- 真实模式测试要 mock `getActivityDependencies`，否则会抛"依赖未注入"错误
+
+**置信度**: 10/10（4 个 Activity 文件验证）
+**来源**: observed
+**关联文件**: [billing.activities.spec.ts](file:///d:/Data/projects/ReelClone/libs/temporal/src/activities/billing.activities.spec.ts), [seedance.activities.spec.ts](file:///d:/Data/projects/ReelClone/libs/temporal/src/activities/seedance.activities.spec.ts)
+
+---
+
+### L-052 [pitfall] PowerShell 重定向 + Jest worker 导致 coverage 输出丢失
+
+**场景**: 在 PowerShell 中用 `npm run test:unit:coverage > coverage-output.txt 2>&1` 捕获 Jest 输出，但文件只有 "Ran all test suites." 一行，coverage 报告的 `coverage-summary.json` 时间戳未更新（仍是旧文件）。
+
+**根因**: Jest 的 worker 进程输出通过 stdio 直接写入终端，PowerShell 重定向可能因编码或管道缓冲问题丢失部分输出。`coverage-summary.json` 未更新是因为 jest.config.js 未配置 `json-summary` reporter（默认只有 `lcov` + `html` + `clover`）。
+
+**修复**:
+
+1. 用 lcov.info 替代 coverage-summary.json 读取覆盖率（lcov.info 总会生成）
+2. 如需 coverage-summary.json，在 jest.config.js 添加 `coverageReporters: ['lcov', 'html', 'json-summary']`
+
+```typescript
+// 从 lcov.info 计算覆盖率的 Node 脚本
+const fs = require('fs')
+const lines = fs.readFileSync('coverage/lcov.info', 'utf8').split('\n')
+let sf = 0,
+  sfHit = 0,
+  fn = 0,
+  fnHit = 0,
+  brf = 0,
+  brfHit = 0
+lines.forEach((l) => {
+  if (l.startsWith('DA:')) {
+    sf++
+    if (+l.slice(3).split(',')[1] > 0) sfHit++
+  }
+  if (l.startsWith('FNDA:')) {
+    fn++
+    if (+l.slice(5).split(',')[0] > 0) fnHit++
+  }
+  if (l.startsWith('BRDA:')) {
+    brf++
+    const h = l.slice(5).split(',')[3]
+    if (h && +h > 0) brfHit++
+  }
+})
+console.log('Stmts', ((sfHit / sf) * 100).toFixed(2) + '%')
+```
+
+**预防**: 大型 Jest 测试套件的 coverage 输出验证，优先用 lcov.info（稳定生成），不依赖 coverage-summary.json（需额外配置）。
+
+**置信度**: 9/10
+**来源**: observed
+**关联文件**: [jest.config.js](file:///d:/Data/projects/ReelClone/jest.config.js)
+
+---
+
+## Skillify 检查（Temporal Activities 测试批次）
+
+| 候选模式                             | 出现次数                                  | 是否生成 skill       |
+| ------------------------------------ | ----------------------------------------- | -------------------- |
+| Activity 单元测试 mock 模式 (L-051)  | 4 次（billing/notification/oss/seedance） | ❌ Temporal 通用模式 |
+| PowerShell coverage 输出丢失 (L-052) | 1 次                                      | ❌ 环境特定          |
+
+**结论**: 本次无 skillify 候选。
