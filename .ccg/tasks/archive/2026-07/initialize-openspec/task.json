@@ -1,0 +1,12 @@
+{
+  "id": "initialize-openspec",
+  "title": "Initialize OpenSpec in ReelClone",
+  "status": "completed",
+  "complexity": "S",
+  "risk": "low",
+  "domain": "tooling",
+  "currentPhase": "completed",
+  "nextAction": "Archived",
+  "createdAt": "2026-07-31T00:00:00Z",
+  "branch": "master"
+}
