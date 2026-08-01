@@ -70,6 +70,13 @@ export { ossActivities } from './activities/oss.activities'
 export { templateActivities } from './activities/template.activities'
 /** C5: Reconciler Activities */
 export { reconcilerActivities } from './activities/reconciler.activities'
+export {
+  scanPendingExecutions,
+  claimExecution,
+  queryProviderTaskStatus,
+  updateExecutionStage,
+  releaseClaim,
+} from './activities/reconciler.activities'
 
 // ============================================================
 // Activity 个别函数（供测试或直接调用）

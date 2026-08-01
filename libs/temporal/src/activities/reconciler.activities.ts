@@ -233,3 +233,12 @@ export const reconcilerActivities: ReconcilerFunctions = {
   updateExecutionStage: updateExecutionStage as ReconcilerFn,
   releaseClaim: releaseClaim as ReconcilerFn,
 } as const
+
+// 导出单个函数供测试和直接调用
+export {
+  scanPendingExecutions,
+  claimExecution,
+  queryProviderTaskStatus,
+  updateExecutionStage,
+  releaseClaim,
+}
