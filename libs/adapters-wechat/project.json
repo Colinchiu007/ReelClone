@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "adapters-wechat",
+  "projectType": "library",
+  "sourceRoot": "libs/adapters-wechat/src",
+  "prefix": "reelclone",
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint libs/adapters-wechat/src --ext .ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/adapters-wechat/tsconfig.spec.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/adapters-wechat/jest.config.js --passWithNoTests",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/libs/adapters-wechat"]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/adapters-wechat/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    }
+  },
+  "tags": ["type:shared", "scope:payment"]
+}

@@ -8,6 +8,11 @@ import { AddAuditLog1700000000006 } from './migrations/main/0005_add_audit_log'
 import { AddWorksDeletedStatus1700000000007 } from './migrations/main/0006_add_works_deleted_status'
 import { AddWorksIdempotencyKey1700000000009 } from './migrations/main/0007_add_works_idempotency_key'
 import { AddCreditReservationsAndBillingOutbox1700000000011 } from './migrations/main/0008_add_credit_reservations_and_billing_outbox'
+import { AddCreditOperations1700000000013 } from './migrations/main/0009_add_credit_operations'
+import { AddGenerationExecutions1700000000014 } from './migrations/main/0010_add_generation_executions'
+import { AddUserPackageOrderIdUnique1700000000015 } from './migrations/main/0011_add_user_package_order_id_unique'
+import { AddSmsCodeProviderMessageId1700000000016 } from './migrations/main/0012_add_sms_code_provider_message_id'
+import { AddOrderPaymentEvents1700000000017 } from './migrations/main/0013_add_order_payment_events'
 import { InitBilling1700000000001 } from './migrations/billing/0001_init_billing'
 import { AddRewardType1700000000008 } from './migrations/billing/0002_add_reward_type'
 import { AddFreezeReference1700000000010 } from './migrations/billing/0003_add_freeze_reference'
@@ -53,6 +58,11 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
         AddWorksDeletedStatus1700000000007,
         AddWorksIdempotencyKey1700000000009,
         AddCreditReservationsAndBillingOutbox1700000000011,
+        AddCreditOperations1700000000013,
+        AddGenerationExecutions1700000000014,
+        AddUserPackageOrderIdUnique1700000000015,
+        AddSmsCodeProviderMessageId1700000000016,
+        AddOrderPaymentEvents1700000000017,
       ]),
     ),
   },

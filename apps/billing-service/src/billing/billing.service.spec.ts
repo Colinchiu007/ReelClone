@@ -3,15 +3,24 @@
  *
  * 覆盖：
  *  - getBalance：缓存命中 / 缓存未命中
- *  - freeze：成功 / 余额不足 / 幂等（重复请求返回首次结果）
+ *  - freeze：V2 reservationMode=true 成功 / reservationMode=false 路由到 LedgerService（B3）
  *  - settle：成功
- *  - release：成功
- *  - grant：成功
+ *  - release：成功（operation 替代 tx）
+ *  - grant：成功（operation 替代 tx）
+ *  - reward：成功 / 幂等
  *  - listTransactions / getTransaction
- *  - 幂等机制：Redis 锁竞争 + 结果缓存
+ *  - 幂等机制：Redis 锁 owner token + Lua compare-delete（B2.3）+ 结果缓存
  */
+
 import { BusinessException } from '@reelclone/common'
-import { PointTransaction, PointTransactionType, User } from '@reelclone/database'
+import {
+  CreditOperation,
+  CreditOperationStatus,
+  CreditOperationType,
+  PointTransaction,
+  PointTransactionType,
+  User,
+} from '@reelclone/database'
 import { DataSource, ObjectLiteral, Repository } from 'typeorm'
 import { BillingService } from './billing.service'
 import { LedgerService } from './ledger.service'
@@ -20,13 +29,12 @@ import { ListTransactionsDto, TransactionDirection } from './dto/list-transactio
 
 // -------------------- Mock 工具 --------------------
 
-/** 模拟 Redis 客户端 */
+/** 模拟 Redis 客户端（含 Lua eval compare-delete） */
 function mockRedis(): Record<string, jest.Mock> {
   const store = new Map<string, string>()
   return {
     get: jest.fn(async (key: string) => store.get(key) ?? null),
     set: jest.fn(async (key: string, value: string, ...rest: unknown[]) => {
-      // 支持 'EX', ttl, 'NX' 等参数
       let nx = false
       for (let i = 0; i < rest.length; i++) {
         if (rest[i] === 'NX') nx = true
@@ -38,6 +46,14 @@ function mockRedis(): Record<string, jest.Mock> {
     del: jest.fn(async (key: string) => {
       store.delete(key)
       return 1
+    }),
+    // Lua compare-delete：仅当 key 的值 == owner 时才删除
+    eval: jest.fn(async (_script: string, _numkeys: number, key: string, owner: string) => {
+      if (store.get(key) === owner) {
+        store.delete(key)
+        return 1
+      }
+      return 0
     }),
     _store: store,
   } as unknown as Record<string, jest.Mock>
@@ -88,6 +104,7 @@ describe('BillingService', () => {
       consume: jest.fn(),
       getFrozenBalance: jest.fn(),
       findByIdempotencyKey: jest.fn(),
+      findOperationByIdempotencyKey: jest.fn(),
       findById: jest.fn(),
       lockUser: jest.fn(),
       writeTransaction: jest.fn(),
@@ -114,11 +131,9 @@ describe('BillingService', () => {
 
   describe('getBalance', () => {
     it('缓存命中时直接返回缓存值', async () => {
-      // 预设缓存
       await redis.set(`points:balance:u1`, '100', 'EX', 60)
       await redis.set(`points:frozen:u1`, '20', 'EX', 60)
 
-      // totalPoints 仍从 DB 查
       const qb = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
@@ -128,22 +143,16 @@ describe('BillingService', () => {
 
       const result = await service.getBalance('u1')
       expect(result).toEqual({ balance: 100, frozen: 20, total: 500 })
-      // 不应该读 user 表的 findOne
       expect(userRepo.findOne).not.toHaveBeenCalled()
     })
 
     it('缓存未命中时查 DB 并回填缓存', async () => {
-      const user: Partial<User> = {
-        id: 'u1',
-        currentPoints: 100,
-        totalPoints: 500,
-      }
+      const user: Partial<User> = { id: 'u1', currentPoints: 100, totalPoints: 500 }
       userRepo.findOne.mockResolvedValue(user as User)
       ledger.getFrozenBalance.mockResolvedValue(20)
 
       const result = await service.getBalance('u1')
       expect(result).toEqual({ balance: 100, frozen: 20, total: 500 })
-      // 缓存应被回填
       expect(redis.set).toHaveBeenCalledWith('points:balance:u1', '100', 'EX', 60)
       expect(redis.set).toHaveBeenCalledWith('points:frozen:u1', '20', 'EX', 60)
     })
@@ -190,7 +199,6 @@ describe('BillingService', () => {
       dto.direction = TransactionDirection.DEBIT
 
       await service.listTransactions('u1', dto)
-      // 应该至少调用了 type / amount < 0 的 andWhere
       expect(qb.andWhere).toHaveBeenCalled()
     })
   })
@@ -211,7 +219,7 @@ describe('BillingService', () => {
     })
   })
 
-  // -------------------- freeze --------------------
+  // -------------------- freeze（B2.2: reservationMode 强制） --------------------
 
   describe('freeze', () => {
     it('V2 生成预留走 main 权威预留，不以 billing 流水作为幂等事实', async () => {
@@ -254,69 +262,75 @@ describe('BillingService', () => {
       ).resolves.toMatchObject({ transactionId: 'reservation-1', balance: 90 })
     })
 
-    it('成功时调用 LedgerService.freeze 并失效缓存', async () => {
+    it('B3: reservationMode=false 时路由到 LedgerService（benchmark 等非生成场景）', async () => {
       ledger.freeze.mockResolvedValue({
-        freezeId: 'f1',
+        freezeId: 'op-freeze-001',
         balance: 90,
         frozen: 10,
-        tx: { id: 'f1' } as PointTransaction,
+        operation: {
+          id: 'op-freeze-001',
+          userId: 'u1',
+          type: CreditOperationType.FREEZE,
+          amount: -10,
+          relatedOrderId: null,
+          relatedTemplateId: null,
+          relatedWorkId: null,
+          requestFingerprint: 'fp1',
+          idempotencyKey: 'k1',
+          operationId: 'oid-1',
+          status: CreditOperationStatus.CONFIRMED,
+          metadata: { balanceAfter: 90 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       })
-      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.freeze({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k1',
-        workId: 'w1',
+        reservationMode: false,
       })
 
+      expect(ledger.freeze).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'u1', amount: 10, idempotencyKey: 'k1' }),
+      )
+      expect(creditReservations.freeze).not.toHaveBeenCalled()
       expect(result.success).toBe(true)
-      expect(result.balance).toBe(90)
-      expect(result.transactionId).toBe('f1')
-      // 缓存应被失效
-      expect(redis.del).toHaveBeenCalledWith('points:balance:u1')
-      expect(redis.del).toHaveBeenCalledWith('points:frozen:u1')
     })
 
-    it('余额不足时抛异常（来自 LedgerService）', async () => {
-      ledger.findByIdempotencyKey.mockResolvedValue(null)
-      ledger.freeze.mockRejectedValue(BusinessException.insufficientCredits('not enough'))
-
-      await expect(
-        service.freeze({
-          userId: 'u1',
-          amount: 1000,
-          idempotencyKey: 'k1',
-        }),
-      ).rejects.toThrow(BusinessException)
-    })
-
-    it('幂等：重复请求返回首次结果', async () => {
-      // 首次调用：执行成功
+    it('B3: 缺少 reservationMode（undefined）时路由到 LedgerService', async () => {
       ledger.freeze.mockResolvedValue({
-        freezeId: 'f1',
-        balance: 90,
-        frozen: 10,
-        tx: { id: 'f1' } as PointTransaction,
+        freezeId: 'op-freeze-002',
+        balance: 80,
+        frozen: 20,
+        operation: {
+          id: 'op-freeze-002',
+          userId: 'u1',
+          type: CreditOperationType.FREEZE,
+          amount: -20,
+          relatedOrderId: null,
+          relatedTemplateId: null,
+          relatedWorkId: null,
+          requestFingerprint: 'fp2',
+          idempotencyKey: 'k2',
+          operationId: 'oid-2',
+          status: CreditOperationStatus.CONFIRMED,
+          metadata: { balanceAfter: 80 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       })
-      ledger.findByIdempotencyKey.mockResolvedValue(null)
 
-      const first = await service.freeze({
+      const result = await service.freeze({
         userId: 'u1',
-        amount: 10,
-        idempotencyKey: 'k-dup',
+        amount: 20,
+        idempotencyKey: 'k2',
       })
-      expect(first.transactionId).toBe('f1')
 
-      // 第二次调用：不应再调用 ledger.freeze
-      ledger.freeze.mockClear()
-      const second = await service.freeze({
-        userId: 'u1',
-        amount: 10,
-        idempotencyKey: 'k-dup',
-      })
-      expect(second.transactionId).toBe('f1')
-      expect(ledger.freeze).not.toHaveBeenCalled()
+      expect(ledger.freeze).toHaveBeenCalled()
+      expect(creditReservations.freeze).not.toHaveBeenCalled()
+      expect(result.success).toBe(true)
     })
   })
 
@@ -330,6 +344,7 @@ describe('BillingService', () => {
         tx: { id: 's1' } as PointTransaction,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.settle({
         userId: 'u1',
@@ -365,13 +380,14 @@ describe('BillingService', () => {
       expect(ledger.release).not.toHaveBeenCalled()
     })
 
-    it('成功时调用 LedgerService.release', async () => {
+    it('成功时调用 LedgerService.release（返回 operation）', async () => {
       ledger.release.mockResolvedValue({
         balance: 100,
         frozen: 0,
-        tx: { id: 'r1' } as PointTransaction,
+        operation: { id: 'r1' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.release({
         userId: 'u1',
@@ -389,13 +405,14 @@ describe('BillingService', () => {
   // -------------------- grant --------------------
 
   describe('grant', () => {
-    it('成功时调用 LedgerService.grant', async () => {
+    it('成功时调用 LedgerService.grant（返回 operation）', async () => {
       ledger.grant.mockResolvedValue({
         balance: 130,
         frozen: 0,
-        tx: { id: 'g1' } as PointTransaction,
+        operation: { id: 'g1' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.grant({
         userId: 'u1',
@@ -415,13 +432,13 @@ describe('BillingService', () => {
 
   describe('reward', () => {
     it('成功时调用 LedgerService.reward 并失效缓存', async () => {
-      // 模拟 reward 返回：余额 100 + 奖励 20 = 120
       ledger.reward.mockResolvedValue({
         balance: 120,
         frozen: 0,
-        tx: { id: 'rw1' } as PointTransaction,
+        operation: { id: 'rw1' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.reward({
         userId: 'u1',
@@ -433,7 +450,6 @@ describe('BillingService', () => {
       expect(result.success).toBe(true)
       expect(result.balance).toBe(120)
       expect(result.transactionId).toBe('rw1')
-      // 应调用 LedgerService.reward 并透传 templateId
       expect(ledger.reward).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'u1',
@@ -442,19 +458,18 @@ describe('BillingService', () => {
           idempotencyKey: 'k-rw-1',
         }),
       )
-      // 缓存应被失效
       expect(redis.del).toHaveBeenCalledWith('points:balance:u1')
       expect(redis.del).toHaveBeenCalledWith('points:frozen:u1')
     })
 
     it('幂等：重复请求返回首次结果且不重复发放', async () => {
-      // 首次调用：执行成功
       ledger.reward.mockResolvedValue({
         balance: 120,
         frozen: 0,
-        tx: { id: 'rw1' } as PointTransaction,
+        operation: { id: 'rw1' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const first = await service.reward({
         userId: 'u1',
@@ -465,7 +480,6 @@ describe('BillingService', () => {
       expect(first.transactionId).toBe('rw1')
       expect(first.balance).toBe(120)
 
-      // 第二次调用：不应再调用 ledger.reward
       ledger.reward.mockClear()
       const second = await service.reward({
         userId: 'u1',
@@ -473,21 +487,19 @@ describe('BillingService', () => {
         templateId: 'tpl-1',
         idempotencyKey: 'k-rw-dup',
       })
-      // 幂等返回首次结果
       expect(second.transactionId).toBe('rw1')
       expect(second.balance).toBe(120)
-      // 不应再次调用 ledger.reward（避免重复发放）
       expect(ledger.reward).not.toHaveBeenCalled()
     })
 
     it('余额正确性：amount > 0 时余额增加', async () => {
-      // 模拟：原余额 80，奖励 25 → 余额 105
       ledger.reward.mockResolvedValue({
         balance: 105,
         frozen: 0,
-        tx: { id: 'rw2' } as PointTransaction,
+        operation: { id: 'rw2' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       const result = await service.reward({
         userId: 'u1',
@@ -497,10 +509,8 @@ describe('BillingService', () => {
       })
 
       expect(result.success).toBe(true)
-      // 余额应增加 amount
       expect(result.balance).toBe(105)
       expect(result.frozenAmount).toBe(25)
-      // LedgerService.reward 应被调用，amount > 0
       expect(ledger.reward).toHaveBeenCalledWith(expect.objectContaining({ amount: 25 }))
     })
 
@@ -508,9 +518,10 @@ describe('BillingService', () => {
       ledger.reward.mockResolvedValue({
         balance: 200,
         frozen: 0,
-        tx: { id: 'rw3' } as PointTransaction,
+        operation: { id: 'rw3' } as CreditOperation,
       })
       ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
 
       await service.reward({
         userId: 'u1',
@@ -520,7 +531,6 @@ describe('BillingService', () => {
         description: '模板被使用奖励',
       })
 
-      // 透传 templateId 用于写入流水 templateId 字段
       expect(ledger.reward).toHaveBeenCalledWith(
         expect.objectContaining({
           templateId: 'tpl-uuid-3',
@@ -530,10 +540,10 @@ describe('BillingService', () => {
     })
   })
 
-  // -------------------- 幂等：DB 中已存在流水 --------------------
+  // -------------------- 幂等：DB 中已存在流水 / 操作 --------------------
 
   describe('幂等机制 - DB 双重检查', () => {
-    it('DB 中已有同 idempotencyKey 流水时直接返回，不执行业务', async () => {
+    it('DB 中已有同 idempotencyKey 的旧版流水时直接返回，不执行业务', async () => {
       const existing: Partial<PointTransaction> = {
         id: 'old-tx',
         amount: -10,
@@ -542,14 +552,143 @@ describe('BillingService', () => {
       }
       ledger.findByIdempotencyKey.mockResolvedValue(existing as PointTransaction)
 
-      const result = await service.freeze({
+      const result = await service.settle({
         userId: 'u1',
         amount: 10,
         idempotencyKey: 'k-existing',
+        freezeId: 'f1',
       })
 
       expect(result.transactionId).toBe('old-tx')
-      expect(ledger.freeze).not.toHaveBeenCalled()
+      expect(ledger.settle).not.toHaveBeenCalled()
+    })
+
+    it('DB 中已有同 idempotencyKey 的 V2 CreditOperation 时直接返回', async () => {
+      const existingOp: Partial<CreditOperation> = {
+        id: 'op-existing',
+        amount: -10,
+        type: 'GRANT' as CreditOperation['type'],
+        metadata: { balanceAfter: 80 },
+      }
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(existingOp as CreditOperation)
+
+      const result = await service.grant({
+        userId: 'u1',
+        amount: 10,
+        idempotencyKey: 'k-op-existing',
+        orderId: 'o1',
+        packageId: 'p1',
+      })
+
+      expect(result.transactionId).toBe('op-existing')
+      expect(result.balance).toBe(80)
+      expect(ledger.grant).not.toHaveBeenCalled()
+    })
+  })
+
+  // -------------------- B2.3: Redis lock owner token + Lua compare-delete --------------------
+
+  describe('B2.3: Redis lock 安全释放', () => {
+    it('锁值使用 owner token（UUID）而非固定值 "1"', async () => {
+      ledger.grant.mockResolvedValue({
+        balance: 130,
+        frozen: 0,
+        operation: { id: 'g1' } as CreditOperation,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
+
+      await service.grant({
+        userId: 'u1',
+        amount: 30,
+        idempotencyKey: 'k-lock-test',
+        orderId: 'o1',
+        packageId: 'p1',
+      })
+
+      // set 调用中第二个参数（value）应为 UUID 而非 '1'
+      const lockSetCall = redis.set.mock.calls.find(
+        (call: unknown[]) => call[0] === 'points:idem-lock:k-lock-test',
+      )
+      expect(lockSetCall).toBeDefined()
+      const lockValue = lockSetCall![1] as string
+      expect(lockValue).not.toBe('1')
+      // UUID 格式：8-4-4-4-12
+      expect(lockValue).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    })
+
+    it('释放锁使用 Lua eval（compare-delete），而非直接 del', async () => {
+      ledger.grant.mockResolvedValue({
+        balance: 130,
+        frozen: 0,
+        operation: { id: 'g1' } as CreditOperation,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
+
+      await service.grant({
+        userId: 'u1',
+        amount: 30,
+        idempotencyKey: 'k-eval-test',
+        orderId: 'o1',
+        packageId: 'p1',
+      })
+
+      // eval 应被调用来释放锁
+      expect(redis.eval).toHaveBeenCalled()
+      const evalCall = redis.eval.mock.calls[0]
+      expect(evalCall[0]).toContain('redis.call("get"')
+      expect(evalCall[0]).toContain('redis.call("del"')
+    })
+
+    it('B2.3: TTL 按操作类型设置 — settle 使用 5s（短操作）', async () => {
+      ledger.settle.mockResolvedValue({
+        balance: 90,
+        frozen: 0,
+        tx: { id: 's1' } as PointTransaction,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
+
+      await service.settle({
+        userId: 'u1',
+        amount: 10,
+        idempotencyKey: 'k-settle-ttl',
+        freezeId: 'f1',
+      })
+
+      const lockSetCall = redis.set.mock.calls.find(
+        (call: unknown[]) => call[0] === 'points:idem-lock:k-settle-ttl',
+      )
+      expect(lockSetCall).toBeDefined()
+      // 第 4 个参数是 TTL（'EX' 后面的值）
+      const ttl = lockSetCall![3] as number
+      expect(ttl).toBe(5)
+    })
+
+    it('B2.3: TTL 按操作类型设置 — release 使用 5s（短操作）', async () => {
+      ledger.release.mockResolvedValue({
+        balance: 100,
+        frozen: 0,
+        operation: { id: 'r1' } as CreditOperation,
+      })
+      ledger.findByIdempotencyKey.mockResolvedValue(null)
+      ledger.findOperationByIdempotencyKey.mockResolvedValue(null)
+
+      await service.release({
+        userId: 'u1',
+        amount: 10,
+        idempotencyKey: 'k-release-ttl',
+        freezeId: 'f1',
+      })
+
+      const lockSetCall = redis.set.mock.calls.find(
+        (call: unknown[]) => call[0] === 'points:idem-lock:k-release-ttl',
+      )
+      expect(lockSetCall).toBeDefined()
+      const ttl = lockSetCall![3] as number
+      expect(ttl).toBe(5)
     })
   })
 

@@ -17,15 +17,13 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import { type Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { ErrorCode } from '../enums/error-code.enum'
+import { SKIP_RESPONSE_INTERCEPTOR_KEY } from '../decorators/skip-response-interceptor.decorator'
 import { type ApiResponse } from '../types/api-response'
-import {
-  RESPONSE_TRACE_ID_HEADER,
-  TRACE_ID_HEADER,
-  extractTraceId,
-} from '../utils/tracing.util'
+import { RESPONSE_TRACE_ID_HEADER, TRACE_ID_HEADER, extractTraceId } from '../utils/tracing.util'
 
 /** 请求对象的最小结构 */
 interface MinimalRequest {
@@ -50,10 +48,9 @@ function isApiResponse(value: unknown): value is ApiResponse {
 
 @Injectable()
 export class ResponseInterceptor<T = unknown> implements NestInterceptor<T, ApiResponse<T>> {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler<T>,
-  ): Observable<ApiResponse<T>> {
+  constructor(private readonly reflector: Reflector = new Reflector()) {}
+
+  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<ApiResponse<T>> {
     const request = context.switchToHttp().getRequest<MinimalRequest>()
     const response = context.switchToHttp().getResponse<MinimalResponse>()
 
@@ -64,8 +61,19 @@ export class ResponseInterceptor<T = unknown> implements NestInterceptor<T, ApiR
     // 注入响应 header
     response.setHeader(RESPONSE_TRACE_ID_HEADER, traceId)
 
+    // 检查是否标记跳过响应包装（如微信支付回调需要原始格式响应）
+    const skipWrap =
+      this.reflector.getAllAndOverride<boolean>(SKIP_RESPONSE_INTERCEPTOR_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? false
+
     return next.handle().pipe(
       map((data) => {
+        // 跳过响应包装：直接返回原始数据（仍注入 traceId header）
+        if (skipWrap) {
+          return data as unknown as ApiResponse<T>
+        }
         // 已是 ApiResponse 格式则补全 traceId
         if (isApiResponse(data)) {
           return { ...data, traceId } as ApiResponse<T>

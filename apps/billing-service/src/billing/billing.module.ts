@@ -16,6 +16,8 @@ import { ScheduleModule } from '@nestjs/schedule'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import {
   BillingProjectionOutbox,
+  CreditOperation,
+  CreditOperationOutbox,
   CreditReservation,
   DATABASE_CONNECTIONS,
   PointTransaction,
@@ -34,7 +36,7 @@ import { BillingProjectionCron } from './billing-projection.cron'
     ScheduleModule.forRoot(),
     // 导出 main / billing DataSource 供 LedgerService / BillingService / ReconciliationService 注入
     TypeOrmModule.forFeature(
-      [User, CreditReservation, BillingProjectionOutbox],
+      [User, CreditReservation, BillingProjectionOutbox, CreditOperation, CreditOperationOutbox],
       DATABASE_CONNECTIONS.MAIN,
     ),
     TypeOrmModule.forFeature([PointTransaction], DATABASE_CONNECTIONS.BILLING),

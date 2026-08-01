@@ -45,7 +45,11 @@
       "@reelclone/observability": ["libs/observability/src/index.ts"],
       "@reelclone/observability/*": ["libs/observability/src/*"],
       "@reelclone/swagger": ["libs/swagger/src/index.ts"],
-      "@reelclone/swagger/*": ["libs/swagger/src/*"]
+      "@reelclone/swagger/*": ["libs/swagger/src/*"],
+      "@reelclone/adapters-sms": ["libs/adapters-sms/src/index.ts"],
+      "@reelclone/adapters-sms/*": ["libs/adapters-sms/src/*"],
+      "@reelclone/adapters-wechat": ["libs/adapters-wechat/src/index.ts"],
+      "@reelclone/adapters-wechat/*": ["libs/adapters-wechat/src/*"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "coverage", "apps/miniprogram"]

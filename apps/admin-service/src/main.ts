@@ -24,8 +24,10 @@ async function bootstrap(): Promise<void> {
     logger: ['error', 'warn', 'log'],
   })
 
-  // 全局前缀
-  app.setGlobalPrefix('api/v1')
+  // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['livez', 'readyz'],
+  })
 
   // 全局 Pipe：参数校验
   app.useGlobalPipes(AppValidationPipe)

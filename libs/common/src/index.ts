@@ -32,6 +32,7 @@ export * from './decorators/public.decorator'
 export * from './decorators/rate-limit.decorator'
 export * from './decorators/roles.decorator'
 export * from './decorators/internal-api.decorator'
+export * from './decorators/skip-response-interceptor.decorator'
 
 // -------------------- Pipe --------------------
 export * from './pipes/validation.pipe'
@@ -53,3 +54,15 @@ export { ConfigStoreModule } from './config/config-store.module'
 // -------------------- 审计日志 --------------------
 export { AuditLogService, AuditLogModule } from './audit/audit-log.module'
 export type { AuditLogInput, PaginatedAuditLog } from './audit/audit-log.service'
+
+// -------------------- 外部资源访问安全策略（SSRF 防护） --------------------
+export {
+  ExternalResourcePolicyService,
+  ExternalResourceModule,
+} from './external-resource/external-resource.module'
+export {
+  ExternalResourceError,
+  ExternalResourceErrorCode,
+  type ExternalResourcePolicy,
+  type ExternalResourcePolicyOptions,
+} from './external-resource/external-resource-policy'

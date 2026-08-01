@@ -46,6 +46,7 @@ export {
   type ActivityDependencies,
   type EventPublisher,
   type WorkflowStateStore,
+  type EntityRepository,
 } from './activities/activity-context'
 
 // ============================================================
@@ -54,6 +55,8 @@ export {
 export { videoGenerationWorkflow } from './workflows/video-generation.workflow'
 export { benchmarkAnalysisWorkflow } from './workflows/benchmark-analysis.workflow'
 export { templateGenerationWorkflow } from './workflows/template-generation.workflow'
+/** C5: GenerationExecution Reconciler 工作流 */
+export { generationReconcilerWorkflow } from './workflows/generation-reconciler.workflow'
 
 // ============================================================
 // Activity 实现集合（供 Worker 注册）
@@ -65,6 +68,8 @@ export { analyzerActivities } from './activities/analyzer.activities'
 export { notificationActivities } from './activities/notification.activities'
 export { ossActivities } from './activities/oss.activities'
 export { templateActivities } from './activities/template.activities'
+/** C5: Reconciler Activities */
+export { reconcilerActivities } from './activities/reconciler.activities'
 
 // ============================================================
 // Activity 个别函数（供测试或直接调用）

@@ -33,6 +33,14 @@ import type {
 import type { OSSService } from '@reelclone/oss'
 import type { WorkStatus } from '../types'
 
+/** 通用实体 Repository 最小接口（避免 temporal 直接依赖 database 实体类型） */
+export interface EntityRepository {
+  update(criteria: unknown, partial: unknown): Promise<unknown>
+  find(options?: unknown): Promise<unknown[]>
+  findOne(options?: unknown): Promise<unknown | null>
+  createQueryBuilder(alias?: string): unknown
+}
+
 /** Worker 侧 Work/Task 状态写入边界。 */
 export interface WorkflowStateStore {
   updateWorkStatus(
@@ -66,6 +74,15 @@ export interface ActivityDependencies {
   workflowStateStore: WorkflowStateStore
   /** Redis Pub/Sub 发布器 */
   eventPublisher: EventPublisher
+  /** C5: GenerationExecution 仓库（Reconciler 用） */
+  executionRepo?: EntityRepository
+  /** C5: GenerationWork 仓库（Reconciler 用） */
+  workRepo?: EntityRepository
+  /** C5: Provider 查询适配器 — 按 providerName 查询任务状态 */
+  providerQuery?: (
+    providerName: string,
+    taskId: string,
+  ) => Promise<{ status: string; videoUrl?: string; errorMessage?: string }>
 }
 
 /** 当前注入的依赖（Worker 启动前为 null） */

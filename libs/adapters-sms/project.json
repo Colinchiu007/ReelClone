@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "adapters-sms",
+  "projectType": "library",
+  "sourceRoot": "libs/adapters-sms/src",
+  "prefix": "reelclone",
+  "tags": ["scope:sms", "type:lib"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint libs/adapters-sms/src --ext .ts",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/adapters-sms/tsconfig.spec.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/adapters-sms/jest.config.js --passWithNoTests",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/libs/adapters-sms"]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/adapters-sms/tsconfig.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"]
+    }
+  }
+}

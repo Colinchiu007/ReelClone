@@ -4,10 +4,14 @@
  * 注册 User + SmsCode 实体（main 库连接）
  * 提供 UserService + SmsService + JwtStrategy
  * JwtStrategy 放在此处是因为它依赖 UserRepository（同模块 forFeature 直接可见）
+ *
+ * SMS_ADAPTER 由 SmsModule 根据 SMS_PROVIDER 环境变量绑定（aliyun/tencent/mock），
+ * production/staging 缺凭证时 fail closed 阻止启动。
  */
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { User, SmsCode, Template, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { SmsModule } from '@reelclone/adapters-sms'
 import { UserController } from './user.controller'
 import { UserService } from './user.service'
 import { SmsService } from './sms.service'
@@ -19,6 +23,8 @@ import { JwtStrategy } from '../auth/jwt.strategy'
     TypeOrmModule.forFeature([User, SmsCode], DATABASE_CONNECTIONS.MAIN),
     // 注册 template 库的 Template 实体仓储（用于公开主页聚合查询模板统计）
     TypeOrmModule.forFeature([Template], DATABASE_CONNECTIONS.TEMPLATE),
+    // SMS 适配器模块：按 SMS_PROVIDER 绑定 Aliyun/Tencent/Mock 实现（fail closed）
+    SmsModule,
   ],
   controllers: [UserController],
   providers: [UserService, SmsService, JwtStrategy],

@@ -11,17 +11,22 @@
  * 幂等性：
  *  - 提交任务时使用 idempotencyKey，重复请求返回已有 benchmark
  *  - Redis 缓存键：benchmark:idem:{idempotencyKey}（TTL 24h）
- *  - 冻结流水 ID 缓存键：benchmark:freeze:{benchmarkId}（TTL 7d）
+ *
+ * B3 重构（V2 CreditOperation 架构）：
+ *  - freezeId 持久化到 benchmark 库（DB + Redis 双写），替代 Redis-only 存储
+ *  - release 使用独立的 freezeIdempotencyKey，不再复用 create 的幂等键
+ *  - 冻结走 BillingService reservationMode=false → LedgerService V2 CreditOperation 路径
  *
  * Mock 模式（TEMPORAL_MOCK_MODE=true）：
  *  - 跳过真实 Temporal 调用
- *  - 直接更新状态为 ANALYZING 模拟进度
+ *  - 直接更新状态为 COMPLETED 模拟进度
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
+import { randomUUID } from 'crypto'
 import { BusinessException, ErrorCode, generateIdempotencyKey } from '@reelclone/common'
 import { DATABASE_CONNECTIONS, Benchmark, BenchmarkStatus, REDIS_CLIENT } from '@reelclone/database'
 import { PromptEngineService, StructuredReport } from '@reelclone/ai'
@@ -36,7 +41,7 @@ const DEFAULT_ESTIMATED_POINTS = 300
 
 /** Redis 缓存 TTL（秒） */
 const IDEMPOTENCY_TTL = 86400 // 24h
-const FREEZE_ID_TTL = 604800 // 7d
+const FREEZE_ID_TTL = 604800 // 7d（Redis 回退缓存）
 
 /** 工作流 ID 前缀 */
 const WORKFLOW_ID_PREFIX = 'benchmark'
@@ -113,9 +118,10 @@ export class BenchmarkService {
    *  1. 校验 URL（识别平台）
    *  2. 幂等检查（Redis）
    *  3. 创建 Benchmark 记录（状态=PENDING）
-   *  4. 调用 billing-service 冻结积分
-   *  5. 启动 Temporal 工作流（Mock 模式跳过）
-   *  6. 返回 benchmarkId
+   *  4. 调用 billing-service 冻结积分（reservationMode=false → LedgerService V2）
+   *  5. 持久化 freezeId 到 DB + Redis
+   *  6. 启动 Temporal 工作流（Mock 模式跳过）
+   *  7. 返回 benchmarkId
    */
   async create(userId: string, dto: CreateBenchmarkDto): Promise<CreateBenchmarkResult> {
     // 1. 校验 URL & 识别平台
@@ -154,16 +160,23 @@ export class BenchmarkService {
     await repo.save(benchmark)
 
     // 4. 调用 billing-service 冻结积分
+    // B3: 使用独立的 freezeIdempotencyKey（不与 create 共用），
+    //     避免 compensateRelease 复用 FREEZE 幂等键导致 release 被短路。
+    const freezeIdempotencyKey = `benchmark-freeze:${benchmark.id}:${randomUUID()}`
     try {
       const freezeResult = await this.billingClient.freeze({
         userId,
         amount: this.estimatedPoints,
-        idempotencyKey,
+        idempotencyKey: freezeIdempotencyKey,
         benchmarkId: benchmark.id,
         description: '对标解析',
       })
 
-      // 缓存 freezeId 用于后续 release
+      // 5. 持久化 freezeId + freezeIdempotencyKey（DB 权威 + Redis 回退缓存）
+      await repo.update(benchmark.id, {
+        freezeId: freezeResult.transactionId,
+        freezeIdempotencyKey,
+      })
       await this.redis.set(
         freezeIdKey(benchmark.id),
         freezeResult.transactionId,
@@ -179,7 +192,7 @@ export class BenchmarkService {
       throw err
     }
 
-    // 5. 启动 Temporal 工作流
+    // 6. 启动 Temporal 工作流
     const workflowId = `${WORKFLOW_ID_PREFIX}-${benchmark.id}`
     if (this.mockMode) {
       // Mock 模式：跳过 Temporal，直接更新状态为 COMPLETED 并写入 mock 解析结果
@@ -239,7 +252,7 @@ export class BenchmarkService {
         this.logger.error(
           `Temporal 工作流启动失败 benchmarkId=${benchmark.id}: ${err instanceof Error ? err.message : String(err)}`,
         )
-        await this.compensateRelease(benchmark.id, userId, idempotencyKey)
+        await this.compensateRelease(benchmark.id, userId)
         await repo.update(benchmark.id, {
           status: BenchmarkStatus.FAILED,
           errorMessage: `工作流启动失败: ${err instanceof Error ? err.message : String(err)}`,
@@ -250,7 +263,7 @@ export class BenchmarkService {
       }
     }
 
-    // 6. 缓存幂等结果
+    // 7. 缓存幂等结果
     const result: CreateBenchmarkResult = {
       benchmarkId: benchmark.id,
       status: BenchmarkStatus.PENDING,
@@ -320,7 +333,7 @@ export class BenchmarkService {
    *  2. 校验状态是否可取消（PENDING / DOWNLOADING / ANALYZING）
    *  3. 调用 Temporal cancelWorkflow（Mock 模式跳过）
    *  4. 更新状态为 CANCELLED
-   *  5. 调用 billing-service 释放积分
+   *  5. 调用 billing-service 释放积分（使用 DB 持久化的 freezeId + freezeIdempotencyKey）
    */
   async cancel(
     userId: string,
@@ -364,9 +377,8 @@ export class BenchmarkService {
       completedAt: new Date(),
     })
 
-    // 5. 释放积分
-    const releaseIdempotencyKey = `release:${benchmark.id}`
-    await this.compensateRelease(benchmark.id, userId, releaseIdempotencyKey)
+    // 5. 释放积分（使用 DB 持久化的 freezeIdempotencyKey，不再复用 create 幂等键）
+    await this.compensateRelease(benchmark.id, userId)
 
     return {
       benchmarkId: benchmark.id,
@@ -429,29 +441,43 @@ export class BenchmarkService {
 
   /**
    * 补偿释放积分
-   * 用于任务失败或取消时，将冻结的积分退回
+   *
+   * B3 重构：
+   *  - freezeId 从 DB 读取（权威源），Redis 作为回退缓存
+   *  - freezeIdempotencyKey 从 DB 读取（独立于 create 幂等键）
+   *  - 释放使用独立幂等键，避免被 FREEZE 结果短路
    */
-  private async compensateRelease(
-    benchmarkId: string,
-    userId: string,
-    idempotencyKey: string,
-  ): Promise<void> {
+  private async compensateRelease(benchmarkId: string, userId: string): Promise<void> {
     try {
-      const freezeId = await this.redis.get(freezeIdKey(benchmarkId))
+      const repo = this.benchmarkDataSource.getRepository(Benchmark)
+      const benchmark = await repo.findOne({ where: { id: benchmarkId } })
+
+      // B3: 优先从 DB 读取 freezeId，回退到 Redis（兼容旧数据）
+      let freezeId = benchmark?.freezeId ?? null
+      if (!freezeId) {
+        freezeId = await this.redis.get(freezeIdKey(benchmarkId))
+      }
       if (!freezeId) {
         this.logger.warn(`未找到 freezeId，跳过释放积分 benchmarkId=${benchmarkId}`)
         return
       }
 
+      // B3: 使用 DB 持久化的独立 freezeIdempotencyKey
+      let releaseIdempotencyKey = benchmark?.freezeIdempotencyKey ?? null
+      if (!releaseIdempotencyKey) {
+        // 兼容旧数据：生成独立的 release 幂等键（不再复用 create 幂等键）
+        releaseIdempotencyKey = `benchmark-release:${benchmarkId}:${randomUUID()}`
+      }
+
       await this.billingClient.release({
         userId,
         amount: this.estimatedPoints,
-        idempotencyKey,
+        idempotencyKey: releaseIdempotencyKey,
         freezeId,
         description: '对标解析取消/失败，释放冻结积分',
       })
 
-      // 释放成功后删除 freezeId 缓存
+      // 释放成功后清除缓存
       await this.redis.del(freezeIdKey(benchmarkId))
     } catch (err) {
       // 释放失败不阻塞主流程，记录日志供后续补偿

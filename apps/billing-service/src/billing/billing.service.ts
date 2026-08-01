@@ -15,6 +15,7 @@
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { randomUUID } from 'crypto'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
 import { BusinessException, ErrorCode } from '@reelclone/common'
@@ -57,7 +58,23 @@ export interface PaginatedTransactions {
 const BALANCE_TTL = 60
 const FROZEN_TTL = 60
 const IDEMPOTENCY_RESULT_TTL = 86400 // 24h
-const IDEMPOTENCY_LOCK_TTL = 30 // 30s 防并发
+
+/**
+ * 按操作类型设置 Redis 幂等锁 TTL（秒）
+ *
+ * B2.3: 分级 TTL — freeze 操作 30s（由 CreditReservationService DB 级锁处理，
+ * 不经 runIdempotent），短操作（settle/release/grant/reward/consume）5s。
+ */
+const LOCK_TTL_SETTLE = 5
+const LOCK_TTL_RELEASE = 5
+const LOCK_TTL_DEFAULT = 5
+
+/**
+ * Lua 脚本：仅当锁的值等于 owner token 时才删除（compare-delete）。
+ * 防止释放了其他实例持有的锁。
+ */
+const RELEASE_LOCK_SCRIPT =
+  'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end'
 
 /** 缓存键生成器 */
 const balanceKey = (userId: string) => `points:balance:${userId}`
@@ -210,10 +227,17 @@ export class BillingService {
     idempotencyKey: string
     workId?: string | null
     description?: string
-    /** V2 生成预留：主库权威状态 + billing outbox 投影。 */
+    /**
+     * V2 路由：
+     *  - reservationMode=true: CreditReservationService（生成链路，需 workId）
+     *  - reservationMode=false/undefined: LedgerService（benchmark 等非生成链路）
+     *
+     * B3: 恢复 reservationMode=false 路径以支持 benchmark 等非生成场景，
+     * 仍禁止隐式双写——benchmark 走 LedgerService V2 CreditOperation 路径。
+     */
     reservationMode?: boolean
   }): Promise<OperationResponse> {
-    if (params.reservationMode) {
+    if (params.reservationMode === true) {
       if (!params.workId) {
         throw BusinessException.validationError('V2 积分预留必须关联作品', {
           code: 'RESERVATION_WORK_REQUIRED',
@@ -234,16 +258,28 @@ export class BillingService {
         transactionId: result.transactionId,
       }
     }
-    return this.runIdempotent(params.idempotencyKey, async () => {
-      const result = await this.ledger.freeze(params)
-      await this.invalidateBalanceCache(params.userId)
-      return {
-        success: true,
-        frozenAmount: params.amount,
-        balance: result.balance,
-        transactionId: result.tx.id,
-      }
-    })
+
+    // reservationMode=false/undefined: LedgerService V2 CreditOperation 路径
+    return this.runIdempotent(
+      params.idempotencyKey,
+      async () => {
+        const result = await this.ledger.freeze({
+          userId: params.userId,
+          amount: params.amount,
+          idempotencyKey: params.idempotencyKey,
+          workId: params.workId,
+          description: params.description,
+        })
+        await this.invalidateBalanceCache(params.userId)
+        return {
+          success: true,
+          frozenAmount: params.amount,
+          balance: result.balance,
+          transactionId: result.freezeId,
+        }
+      },
+      LOCK_TTL_DEFAULT,
+    )
   }
 
   // -------------------- 内部操作：SETTLE --------------------
@@ -267,16 +303,20 @@ export class BillingService {
         transactionId: result.transactionId,
       }
     }
-    return this.runIdempotent(params.idempotencyKey, async () => {
-      const result = await this.ledger.settle(params)
-      await this.invalidateBalanceCache(params.userId)
-      return {
-        success: true,
-        frozenAmount: params.amount,
-        balance: result.balance,
-        transactionId: result.tx.id,
-      }
-    })
+    return this.runIdempotent(
+      params.idempotencyKey,
+      async () => {
+        const result = await this.ledger.settle(params)
+        await this.invalidateBalanceCache(params.userId)
+        return {
+          success: true,
+          frozenAmount: params.amount,
+          balance: result.balance,
+          transactionId: result.tx.id,
+        }
+      },
+      LOCK_TTL_SETTLE,
+    )
   }
 
   // -------------------- 内部操作：RELEASE --------------------
@@ -299,16 +339,20 @@ export class BillingService {
         transactionId: result.transactionId,
       }
     }
-    return this.runIdempotent(params.idempotencyKey, async () => {
-      const result = await this.ledger.release(params)
-      await this.invalidateBalanceCache(params.userId)
-      return {
-        success: true,
-        frozenAmount: params.amount,
-        balance: result.balance,
-        transactionId: result.tx.id,
-      }
-    })
+    return this.runIdempotent(
+      params.idempotencyKey,
+      async () => {
+        const result = await this.ledger.release(params)
+        await this.invalidateBalanceCache(params.userId)
+        return {
+          success: true,
+          frozenAmount: params.amount,
+          balance: result.balance,
+          transactionId: result.operation.id,
+        }
+      },
+      LOCK_TTL_RELEASE,
+    )
   }
 
   // -------------------- 内部操作：GRANT --------------------
@@ -328,7 +372,7 @@ export class BillingService {
         success: true,
         frozenAmount: params.amount,
         balance: result.balance,
-        transactionId: result.tx.id,
+        transactionId: result.operation.id,
       }
     })
   }
@@ -355,7 +399,7 @@ export class BillingService {
         success: true,
         frozenAmount: dto.amount,
         balance: result.balance,
-        transactionId: result.tx.id,
+        transactionId: result.operation.id,
       }
     })
   }
@@ -382,17 +426,26 @@ export class BillingService {
    *
    * 流程：
    *  1. 查幂等结果缓存，命中则直接返回
-   *  2. 抢占 Redis 锁（SET NX EX 30）
-   *  3. 双重检查：DB 中是否已有该 idempotencyKey 的流水，有则返回
+   *  2. 抢占 Redis 锁（SET NX EX，value=owner token）
+   *  3. 双重检查：DB 中是否已有该 idempotencyKey 的流水或 CreditOperation，有则返回
    *  4. 执行业务函数
    *  5. 写入幂等结果缓存（TTL 24h）
-   *  6. 释放锁
+   *  6. 释放锁（Lua compare-delete，仅 owner 可释放）
    *
-   *  说明：
+   * B2.3 修复：
+   *  - 每次锁申请生成 owner token（UUID），不再用固定值 '1'
+   *  - 释放锁使用 Lua compare-delete 脚本，防止误删其他实例的锁
+   *  - TTL 按操作类型传入（freeze: 30s, 短操作: 5s）
+   *
+   * 说明：
    *  - 业务函数抛 BusinessException 时，错误信息也会被缓存（避免重复打错误响应）
    *  - 非 BusinessException 不缓存（可能是临时故障，允许重试）
    */
-  private async runIdempotent<T>(idempotencyKey: string, fn: () => Promise<T>): Promise<T> {
+  private async runIdempotent<T>(
+    idempotencyKey: string,
+    fn: () => Promise<T>,
+    lockTtlSec: number = LOCK_TTL_DEFAULT,
+  ): Promise<T> {
     // 1. 查缓存
     const cached = await this.redis.get(idemResultKey(idempotencyKey))
     if (cached !== null) {
@@ -408,12 +461,13 @@ export class BillingService {
       )
     }
 
-    // 2. 抢占锁
+    // 2. 抢占锁（owner token = UUID，TTL 按操作类型）
+    const owner = randomUUID()
     const lockAcquired = await this.redis.set(
       idemLockKey(idempotencyKey),
-      '1',
+      owner,
       'EX',
-      IDEMPOTENCY_LOCK_TTL,
+      lockTtlSec,
       'NX',
     )
     if (!lockAcquired) {
@@ -438,15 +492,27 @@ export class BillingService {
     }
 
     try {
-      // 3. 双重检查：DB 中是否已有
-      const existing = await this.ledger.findByIdempotencyKey(idempotencyKey)
-      if (existing) {
-        // 已有流水：构造幂等返回（按通用 OperationResponse 格式）
+      // 3. 双重检查：DB 中是否已有（先查 billing PointTransaction 旧版，再查 main CreditOperation V2）
+      const existingTx = await this.ledger.findByIdempotencyKey(idempotencyKey)
+      if (existingTx) {
+        // 已有旧版流水：构造幂等返回
         const result = {
           success: true,
-          frozenAmount: Math.abs(existing.amount),
-          balance: existing.balance,
-          transactionId: existing.id,
+          frozenAmount: Math.abs(existingTx.amount),
+          balance: existingTx.balance,
+          transactionId: existingTx.id,
+        } as unknown as T
+        await this.cacheIdempotencyResult(idempotencyKey, result)
+        return result
+      }
+      const existingOp = await this.ledger.findOperationByIdempotencyKey(idempotencyKey)
+      if (existingOp) {
+        // 已有 V2 CreditOperation：构造幂等返回（balance 从 metadata 读取）
+        const result = {
+          success: true,
+          frozenAmount: Math.abs(existingOp.amount),
+          balance: (existingOp.metadata?.balanceAfter as number | undefined) ?? 0,
+          transactionId: existingOp.id,
         } as unknown as T
         await this.cacheIdempotencyResult(idempotencyKey, result)
         return result
@@ -466,8 +532,8 @@ export class BillingService {
       }
       throw err
     } finally {
-      // 6. 释放锁
-      await this.redis.del(idemLockKey(idempotencyKey))
+      // 6. 释放锁（Lua compare-delete：仅当锁值 == owner 时才删除）
+      await this.redis.eval(RELEASE_LOCK_SCRIPT, 1, idemLockKey(idempotencyKey), owner)
     }
   }
 

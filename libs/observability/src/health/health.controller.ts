@@ -1,8 +1,20 @@
 /**
- * HealthController — 健康检查端点
+ * HealthController — Kubernetes 风格健康检查端点
  *
- * GET /health
- * 响应：
+ * 暴露两个公开端点（不依赖业务路由前缀 /api/v1，由各服务 setGlobalPrefix exclude 处理）：
+ *
+ * GET /livez — Liveness 探针
+ *   进程存活且 HTTP 服务可响应即返回 200，不检查任何依赖。
+ *
+ * GET /readyz — Readiness 探针
+ *   检查依赖（DB / Redis）就绪状态：
+ *   - 所有已配置依赖 up → 200
+ *   - 任一依赖 down → 503，响应体列出失败依赖
+ *   未配置的依赖（指标返回 up）自动跳过，不影响整体状态。
+ *
+ * 两个端点均标记 @Public()，跳过全局 JWT 鉴权，便于 Compose / Docker / K8s 抓取。
+ *
+ * 响应体（经 ResponseInterceptor 包装后位于 data 字段）：
  * ```json
  * {
  *   "status": "ok" | "error",
@@ -15,11 +27,9 @@
  *   }
  * }
  * ```
- *
- * 整体 status 为 "ok" 当且仅当所有已配置的指标均为 "up"。
- * 未配置的依赖（如服务不使用 Redis）自动跳过，不影响整体状态。
  */
-import { Controller, Get, Inject, Optional } from '@nestjs/common'
+import { Controller, Get, HttpStatus, Inject, Optional, Res } from '@nestjs/common'
+import { Public } from '@reelclone/common'
 import { OBS_SERVICE_NAME } from '../logger/logger.config'
 import {
   DatabaseHealthIndicator,
@@ -32,13 +42,20 @@ export interface HealthResponse {
   timestamp: string
   service: string
   uptime: number
-  info: {
+  /** 依赖健康详情（liveness 不检查依赖时省略） */
+  info?: {
     database: HealthResult
     redis: HealthResult
   }
 }
 
-@Controller('health')
+/** 最小 HTTP Response 结构：仅需设置状态码的能力 */
+interface HttpResponseStatusSetter {
+  status(code: number): unknown
+}
+
+@Controller()
+@Public()
 export class HealthController {
   constructor(
     private readonly dbIndicator: DatabaseHealthIndicator,
@@ -46,18 +63,46 @@ export class HealthController {
     @Optional() @Inject(OBS_SERVICE_NAME) private readonly serviceName?: string,
   ) {}
 
-  @Get()
-  async check(): Promise<HealthResponse> {
+  /** 收集依赖健康指标（并发执行） */
+  private async gatherInfo(): Promise<{ database: HealthResult; redis: HealthResult }> {
     const [database, redis] = await Promise.all([
       this.dbIndicator.ping(),
       this.redisIndicator.ping(),
     ])
+    return { database, redis }
+  }
 
-    const status: 'ok' | 'error' =
-      database.status === 'up' && redis.status === 'up' ? 'ok' : 'error'
+  /**
+   * Liveness 探针 — 进程存活即返回 200
+   * 不检查依赖，仅确认 HTTP 服务可响应。
+   */
+  @Get('livez')
+  liveness(): HealthResponse {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: this.serviceName ?? 'unknown',
+      uptime: process.uptime(),
+    }
+  }
+
+  /**
+   * Readiness 探针 — 检查依赖（DB / Redis）就绪状态
+   * 所有已配置依赖 up 返回 200；任一依赖 down 返回 503 并列出失败依赖。
+   */
+  @Get('readyz')
+  async readiness(
+    @Res({ passthrough: true }) res: HttpResponseStatusSetter,
+  ): Promise<HealthResponse> {
+    const { database, redis } = await this.gatherInfo()
+    const allUp = database.status === 'up' && redis.status === 'up'
+
+    if (!allUp) {
+      res.status(HttpStatus.SERVICE_UNAVAILABLE)
+    }
 
     return {
-      status,
+      status: allUp ? 'ok' : 'error',
       timestamp: new Date().toISOString(),
       service: this.serviceName ?? 'unknown',
       uptime: process.uptime(),

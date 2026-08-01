@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { ExternalResourcePolicyService } from '@reelclone/common'
 import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types'
 
 /**
@@ -8,6 +9,9 @@ import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types
  * 支持 5 大平台：抖音、小红书、哔哩哔哩、快手、微博。
  * 下载策略：优先使用 lux，失败降级到 yt-dlp。
  * Mock 模式：未检测到下载工具或环境变量 VIDEO_DOWNLOADER=mock 时返回示例视频路径。
+ *
+ * 安全：下载前通过 ExternalResourcePolicyService 校验 URL（SSRF 防护），
+ * 未知平台或私网地址将被拒绝。DNS 解析后可调用 policy.isPrivateAddress() 复核。
  *
  * 相关环境变量：
  * - VIDEO_DOWNLOADER: mock | auto（默认 auto）
@@ -24,7 +28,10 @@ export class VideoDownloaderService {
   /** lux / yt-dlp 可用性缓存（避免每次都探测） */
   private toolAvailability: { lux: boolean; ytdlp: boolean } | null = null
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly policy: ExternalResourcePolicyService,
+  ) {
     this.outputDir = this.config.get<string>('DOWNLOAD_OUTPUT_DIR') ?? './downloads'
     const mode = this.config.get<string>('VIDEO_DOWNLOADER') ?? 'auto'
     this.forceMock = mode === 'mock'
@@ -36,10 +43,20 @@ export class VideoDownloaderService {
 
   /**
    * 下载视频
+   *
+   * 下载前通过 ExternalResourcePolicy 校验 URL：
+   *  - scheme 必须为 http/https
+   *  - hostname 必须在 allowlist 中（子域名匹配）
+   *  - 字面量 IP 必须不是私网/回环/保留地址
+   *
    * @param url 视频链接
    * @returns 下载结果（路径、平台、元信息）
+   * @throws ExternalResourceError 当 URL 不合法或存在安全风险时
    */
   async download(url: string): Promise<DownloadResult> {
+    // SSRF 防护：下载前校验 URL
+    this.policy.validateUrl(url)
+
     const platform = this.detectPlatform(url)
     this.logger.log(`开始下载 url=${url} platform=${platform}`)
 
@@ -75,22 +92,51 @@ export class VideoDownloaderService {
 
   /**
    * 识别视频平台
+   *
+   * 注意：此方法仅用于平台标签（影响下载结果元信息），不做安全校验。
+   * 安全校验由 ExternalResourcePolicy.validateUrl() 在 download() 入口完成。
+   * 使用 URL hostname 精确匹配，不再使用字符串 includes（避免误匹配）。
    */
   detectPlatform(url: string): VideoPlatform {
-    const lower = url.toLowerCase()
-    if (lower.includes('douyin.com') || lower.includes('iesdouyin')) {
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return VideoPlatform.UNKNOWN
+    }
+    const host = parsed.hostname.toLowerCase()
+
+    if (
+      host === 'douyin.com' ||
+      host === 'www.douyin.com' ||
+      host === 'v.douyin.com' ||
+      host === 'iesdouyin.com' ||
+      host.endsWith('.douyin.com') ||
+      host.endsWith('.iesdouyin.com')
+    ) {
       return VideoPlatform.DOUYIN
     }
-    if (lower.includes('xiaohongshu.com') || lower.includes('xhslink.com')) {
+    if (
+      host === 'xiaohongshu.com' ||
+      host === 'www.xiaohongshu.com' ||
+      host === 'xhslink.com' ||
+      host.endsWith('.xiaohongshu.com')
+    ) {
       return VideoPlatform.XIAOHONGSHU
     }
-    if (lower.includes('bilibili.com') || lower.includes('b23.tv')) {
+    if (
+      host === 'bilibili.com' ||
+      host === 'www.bilibili.com' ||
+      host === 'm.bilibili.com' ||
+      host === 'b23.tv' ||
+      host.endsWith('.bilibili.com')
+    ) {
       return VideoPlatform.BILIBILI
     }
-    if (lower.includes('kuaishou.com') || lower.includes('chenbing.com')) {
+    if (host === 'kuaishou.com' || host === 'www.kuaishou.com' || host.endsWith('.kuaishou.com')) {
       return VideoPlatform.KUAISHOU
     }
-    if (lower.includes('weibo.com') || lower.includes('weibo.cn')) {
+    if (host === 'weibo.com' || host === 'weibo.cn' || host.endsWith('.weibo.com')) {
       return VideoPlatform.WEIBO
     }
     return VideoPlatform.UNKNOWN

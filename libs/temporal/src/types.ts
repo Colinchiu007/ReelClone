@@ -482,6 +482,8 @@ export const WORKFLOW_ID_PREFIX = {
   VIDEO_GEN: 'video-gen',
   BENCHMARK: 'benchmark',
   TEMPLATE: 'template',
+  /** C5: GenerationExecution Reconciler */
+  RECONCILER: 'generation-reconciler',
 } as const
 
 /** 视频生成轮询配置 */
@@ -491,3 +493,80 @@ export const VIDEO_POLLING_CONFIG = {
   /** 最大轮询次数（120 次 × 5s = 10 分钟） */
   MAX_ATTEMPTS: 120,
 } as const
+
+// ============================================================
+// GenerationExecution Reconciler（C5）
+// ============================================================
+
+/** Reconciler 扫描配置常量 */
+export const RECONCILER_CONFIG = {
+  /** 默认扫描间隔（毫秒） */
+  DEFAULT_INTERVAL_MS: 60_000,
+  /** 单次扫描最大处理条数 */
+  MAX_BATCH_SIZE: 50,
+  /** Claim 锁定超时（毫秒）— 超过此时间未更新 lastReconciledAt 视为锁失效 */
+  CLAIM_TIMEOUT_MS: 5 * 60_000,
+} as const
+
+/** ReconcilerWorkflow 入参 */
+export interface GenerationReconcilerParams {
+  /** 扫描间隔（毫秒），默认 60s */
+  intervalMs?: number
+  /** 单次扫描最大条数，默认 50 */
+  batchSize?: number
+}
+
+/** 单条 Execution reconcile 结果 */
+export interface ReconcileOneResult {
+  executionId: string
+  previousStage: string
+  newStage: string
+  /** 是否触发了终态转换 */
+  terminalTransition: boolean
+}
+
+/** ReconcilerActivities 接口 */
+export interface ReconcilerActivities {
+  /**
+   * 扫描悬挂的 GenerationExecution 记录
+   * 筛选条件：stage 为 indeterminate 且 lastReconciledAt 超过扫描间隔
+   */
+  scanPendingExecutions(params: { batchSize: number; claimTimeoutMs: number }): Promise<
+    Array<{
+      id: string
+      generationWorkId: string
+      stage: string
+      providerName: string | null
+      providerTaskId: string | null
+      recoveryDeadline: Date | null
+      lastReconciledAt: Date | null
+    }>
+  >
+
+  /** CAS claim：原子性设置 reconcilerOwner（防止多 worker 竞争） */
+  claimExecution(params: { executionId: string; reconcilerOwner: string }): Promise<boolean>
+
+  /**
+   * 根据 provider 查询任务状态
+   * 调用 Provider adapter 的 queryTask（mock 模式返回 unknown）
+   */
+  queryProviderTaskStatus(params: {
+    providerName: string
+    providerTaskId: string
+  }): Promise<{ status: string; videoUrl?: string; errorMessage?: string }>
+
+  /**
+   * 更新 Execution stage 并释放 claim
+   * 同时更新 Work 状态（终态时）
+   */
+  updateExecutionStage(params: {
+    executionId: string
+    generationWorkId: string
+    newStage: string
+    videoUrl?: string
+    errorMessage?: string
+  }): Promise<void>
+
+  /** 释放 claim（查询失败或非终态时调用） */
+  releaseClaim(params: { executionId: string }): Promise<void>
+}

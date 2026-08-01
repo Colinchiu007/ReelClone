@@ -13,6 +13,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
+import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import Redis from 'ioredis'
 import axios, { AxiosError, type AxiosInstance } from 'axios'
@@ -264,22 +265,28 @@ export class AdminUserService {
     // 校验目标用户存在
     const user = await this.findUserById(id)
 
-    // 幂等键：管理员调账唯一标识（同管理员对同用户的同次调账，仅允许一次成功）
-    // 不包含 Date.now()，确保前端重试或双击不会重复发放积分
-    const idempotencyKey = `admin-grant:${operatorId}:${id}:${dto.amount}`
+    // B4: 生成 adjustment UUID（每次调账唯一），替代字符串 'admin-grant'
+    // adjustmentId 同时用于：
+    //  - orderId（billing-service grant → CreditOperation.relatedOrderId）
+    //  - idempotencyKey 的一部分（保证同一操作重试幂等）
+    const adjustmentId = randomUUID()
+
+    // 幂等键：包含 adjustmentId 确保每次调账唯一
+    // 前端重试或双击不会重复发放积分
+    const idempotencyKey = `admin-grant:${operatorId}:${id}:${adjustmentId}`
 
     const data = await this.post<BillingOperationData>('/api/v1/points/grant', {
       userId: id,
       amount: dto.amount,
       idempotencyKey,
-      orderId: 'admin-grant',
+      orderId: adjustmentId,
       packageId: 'admin-grant',
       description: dto.reason,
     })
 
     // 记录操作日志
     this.logger.log(
-      `管理员 ${operatorId} 对用户 ${id}(${user.nickname}) 调账 ${dto.amount} 积分，原因：${dto.reason}，流水ID：${data.transactionId}`,
+      `管理员 ${operatorId} 对用户 ${id}(${user.nickname}) 调账 ${dto.amount} 积分，原因：${dto.reason}，流水ID：${data.transactionId}，adjustmentId：${adjustmentId}`,
     )
 
     return {

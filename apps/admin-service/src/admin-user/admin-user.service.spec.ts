@@ -322,8 +322,10 @@ describe('AdminUserService', () => {
           userId: 'user-1',
           amount: 100,
           description: '客诉补偿',
-          idempotencyKey: expect.stringContaining('admin-grant:admin-1:user-1:'),
-          orderId: 'admin-grant',
+          // B4: idempotencyKey 现在包含 adjustment UUID（每次调账唯一）
+          idempotencyKey: expect.stringMatching(/^admin-grant:admin-1:user-1:[0-9a-f-]{36}$/),
+          // B4: orderId 现在是 adjustment UUID（不再是字符串 'admin-grant'）
+          orderId: expect.stringMatching(/^[0-9a-f-]{36}$/),
           packageId: 'admin-grant',
         }),
       )

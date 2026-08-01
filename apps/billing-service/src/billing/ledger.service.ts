@@ -1,36 +1,43 @@
 /**
- * LedgerService — 复式记账实现
+ * LedgerService — 复式记账实现（V2 CreditOperation 架构）
  *
  * 职责：
- *  1. 在数据库事务中执行积分操作（避免余额不一致）
+ *  1. 在 main 库单一事务中执行积分操作（避免跨库不一致）
  *  2. 使用 SELECT ... FOR UPDATE 悲观锁锁定用户行
- *  3. 写入 PointTransaction 流水（billing 库）
- *  4. 更新 User.currentPoints / totalPoints（main 库）
+ *  3. 写入 CreditOperation 权威记录 + CreditOperationOutbox（main 库同事务）
+ *  4. 更新 User.currentPoints / totalPoints（main 库同事务）
+ *  5. outbox 由后续 consumer（B5）投递到 billing 库 PointTransaction
  *
- * 跨库事务策略（main + billing 是同实例不同 database）：
- *  - main 库事务：锁定 User + 更新余额
- *  - billing 库：插入流水（idempotencyKey 唯一约束作为最终幂等保障）
- *  - 顺序：先 main 事务提交，再 billing 插入；若 billing 插入失败则记录关键日志
- *  - 上层 BillingService 通过 Redis 锁 + 预检查防止重复执行
+ * 迁移说明（Track B2）：
+ *  - FREEZE/RELEASE/GRANT/REWARD/CONSUME 全部走 CreditOperation + outbox
+ *  - 删除 direct dual-write（不再在写操作中直接写 billing 库 PointTransaction）
+ *  - SETTLE 保留旧版路径（仅用于历史 PointTransaction 冻结的结算）
+ *  - writeTransaction 保留供 CreditReservationService 投影使用
  *
- * 字段约定（与 PointTransaction 实体一致）：
- *  - amount：正数=增加（CREDIT），负数=扣减（DEBIT）
- *  - balance：操作后的可用余额快照
+ * 字段约定：
+ *  - CreditOperation.amount：GRANT/REWARD/RELEASE 为正，FREEZE/CONSUME 为负
+ *  - metadata.balanceAfter：操作后可用余额快照（供幂等返回使用）
  */
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { createHash, randomUUID } from 'crypto'
 import { DataSource, EntityManager } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
 import {
-  DATABASE_CONNECTIONS,
+  CreditOperation,
+  CreditOperationOutbox,
+  CreditOperationStatus,
+  CreditOperationType,
   CreditReservation,
   CreditReservationStatus,
+  DATABASE_CONNECTIONS,
+  OutboxStatus,
   PointTransaction,
   PointTransactionType,
   User,
 } from '@reelclone/database'
 
-/** 写入流水所需的最小参数 */
+/** 写入流水所需的最小参数（保留供 CreditReservationService 投影使用） */
 export interface WriteTransactionParams {
   userId: string
   type: PointTransactionType
@@ -68,6 +75,21 @@ interface FrozenAggregate {
   frozen: number
 }
 
+/** CreditOperation 创建参数 */
+interface CreateOperationParams {
+  userId: string
+  type: CreditOperationType
+  /** 带符号的金额（GRANT/REWARD/RELEASE 为正，FREEZE/CONSUME 为负） */
+  amount: number
+  idempotencyKey: string
+  operationId: string
+  relatedOrderId?: string | null
+  relatedTemplateId?: string | null
+  relatedWorkId?: string | null
+  requestFingerprint: string
+  metadata?: Record<string, unknown> | null
+}
+
 /**
  * 复式记账服务
  *
@@ -75,6 +97,8 @@ interface FrozenAggregate {
  */
 @Injectable()
 export class LedgerService {
+  private readonly logger = new Logger(LedgerService.name)
+
   constructor(
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly mainDataSource: DataSource,
@@ -138,13 +162,23 @@ export class LedgerService {
     return Number(legacyResult?.frozen ?? 0) + Number(reservationResult?.frozen ?? 0)
   }
 
-  // -------------------- 查询：通过幂等键查流水 --------------------
+  // -------------------- 查询：通过幂等键查流水 / 操作 --------------------
 
   /**
    * 通过幂等键查询已存在的流水（用于幂等返回）
+   *
+   * 保留供 CreditReservationService 投影双重检查使用。
    */
   async findByIdempotencyKey(idempotencyKey: string): Promise<PointTransaction | null> {
     const repo = this.billingDataSource.getRepository(PointTransaction)
+    return repo.findOne({ where: { idempotencyKey } })
+  }
+
+  /**
+   * 通过幂等键查询已存在的 CreditOperation（V2 幂等返回）
+   */
+  async findOperationByIdempotencyKey(idempotencyKey: string): Promise<CreditOperation | null> {
+    const repo = this.mainDataSource.getRepository(CreditOperation)
     return repo.findOne({ where: { idempotencyKey } })
   }
 
@@ -160,13 +194,13 @@ export class LedgerService {
     return repo.findOne({ where })
   }
 
-  // -------------------- 写入：流水记录 --------------------
+  // -------------------- 写入：流水记录（保留供投影使用） --------------------
 
   /**
    * 写入一条流水记录（billing 库）
    *
-   * 由各业务方法在 main 库事务提交后调用。
-   * 若 idempotencyKey 已存在（唯一约束冲突），抛出 QueryFailedError，由调用方处理。
+   * 保留供 CreditReservationService.projectOutbox 投影使用。
+   * V2 写操作不再调用此方法，改为写 CreditOperation + outbox。
    */
   async writeTransaction(
     params: WriteTransactionParams,
@@ -189,6 +223,109 @@ export class LedgerService {
       description: params.description || '',
     })
     return repo.save(entity)
+  }
+
+  // -------------------- V2 写入：CreditOperation + Outbox --------------------
+
+  /**
+   * 计算请求指纹（payload hash），与 idempotency_key 共同保证幂等。
+   *
+   * 相同 idempotencyKey + 不同 fingerprint 会触发唯一约束冲突，
+   * 检测出幂等键复用但参数不一致的误用。
+   */
+  private computeRequestFingerprint(payload: Record<string, unknown>): string {
+    const sorted = Object.keys(payload)
+      .sort()
+      .map((k) => `${k}=${payload[k] ?? ''}`)
+      .join('&')
+    return createHash('sha256').update(sorted).digest('hex')
+  }
+
+  /**
+   * 在 main 库事务内创建 CreditOperation + CreditOperationOutbox。
+   *
+   * 幂等性：先按 (userId, type, idempotencyKey, requestFingerprint) 查找已有记录，
+   * 存在则直接返回（不重复创建），保证同事务内余额更新与操作记录原子提交。
+   */
+  private async createOperationAndOutbox(
+    manager: EntityManager,
+    params: CreateOperationParams,
+  ): Promise<CreditOperation> {
+    const operationRepo = manager.getRepository(CreditOperation)
+    const outboxRepo = manager.getRepository(CreditOperationOutbox)
+
+    // 幂等：按唯一索引字段查找已有操作
+    const existing = await operationRepo.findOne({
+      where: {
+        userId: params.userId,
+        type: params.type,
+        idempotencyKey: params.idempotencyKey,
+        requestFingerprint: params.requestFingerprint,
+      },
+    })
+    if (existing) {
+      return existing
+    }
+
+    const operation = operationRepo.create({
+      userId: params.userId,
+      type: params.type,
+      amount: params.amount,
+      relatedOrderId: params.relatedOrderId ?? null,
+      relatedTemplateId: params.relatedTemplateId ?? null,
+      relatedWorkId: params.relatedWorkId ?? null,
+      requestFingerprint: params.requestFingerprint,
+      idempotencyKey: params.idempotencyKey,
+      operationId: params.operationId,
+      status: CreditOperationStatus.CONFIRMED,
+      metadata: params.metadata ?? null,
+    })
+    const saved = await operationRepo.save(operation)
+
+    await outboxRepo.save(
+      outboxRepo.create({
+        operationId: saved.operationId,
+        creditOperationId: saved.id,
+        status: OutboxStatus.PENDING,
+        attempts: 0,
+        nextAttemptAt: null,
+        lastError: null,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        eventPayload: {
+          operationId: saved.operationId,
+          creditOperationId: saved.id,
+          userId: saved.userId,
+          type: saved.type,
+          amount: saved.amount,
+          relatedOrderId: saved.relatedOrderId,
+          relatedTemplateId: saved.relatedTemplateId,
+          relatedWorkId: saved.relatedWorkId,
+          metadata: saved.metadata,
+        } as Record<string, unknown>,
+      }),
+    )
+
+    return saved
+  }
+
+  /**
+   * 幂等检查：在事务内、修改用户余额之前查找已存在的 CreditOperation。
+   *
+   * B2.4: 避免重放时重复扣减/增加余额。
+   * 如果已有相同 (userId, type, idempotencyKey, requestFingerprint) 的操作，
+   * 直接返回该操作（含 metadata.balanceAfter），不执行任何余额变更。
+   */
+  private async findExistingOperation(
+    manager: EntityManager,
+    userId: string,
+    type: CreditOperationType,
+    idempotencyKey: string,
+    requestFingerprint: string,
+  ): Promise<CreditOperation | null> {
+    return manager.getRepository(CreditOperation).findOne({
+      where: { userId, type, idempotencyKey, requestFingerprint },
+    })
   }
 
   /** 锁定并验证一笔全额冻结预留尚未结束。 */
@@ -246,15 +383,15 @@ export class LedgerService {
   // -------------------- 业务操作：FREEZE --------------------
 
   /**
-   * 冻结积分
+   * 冻结积分（V2 CreditOperation 架构）
    *
-   * 逻辑：
+   * 逻辑（main 库单事务）：
    *  - 悲观锁锁定 User
    *  - 校验 currentPoints >= amount
    *  - currentPoints -= amount
-   *  - 写入 FREEZE 流水（amount = -N, balance = currentPoints）
+   *  - 写入 CreditOperation(FREEZE) + CreditOperationOutbox(PENDING)
    *
-   * @returns freezeId（= 流水 ID）、balance（操作后可用余额）、frozen（操作后冻结余额）
+   * @returns freezeId（= CreditOperation.id）、balance、frozen、operation
    */
   async freeze(params: {
     userId: string
@@ -262,14 +399,49 @@ export class LedgerService {
     idempotencyKey: string
     workId?: string | null
     description?: string
-  }): Promise<{ freezeId: string; balance: number; frozen: number; tx: PointTransaction }> {
-    const { userId, amount, idempotencyKey, workId, description } = params
+    /**
+     * B2.2: reservationMode=false 被禁止。
+     * 新冻结必须走 CreditReservationService（reservationMode=true），
+     * 直接消费使用 FREEZE + RELEASE 模式。
+     */
+    reservationMode?: boolean
+  }): Promise<{
+    freezeId: string
+    balance: number
+    frozen: number
+    operation: CreditOperation
+  }> {
+    // B3: reservationMode 检查已移至 BillingService.freeze()，
+    // LedgerService 本身不关心 reservationMode，由调用方负责路由。
 
-    return this.mainDataSource.transaction(async (manager) => {
-      // 1. 悲观锁读取用户
+    const { userId, amount, idempotencyKey, workId, description } = params
+    const requestFingerprint = this.computeRequestFingerprint({
+      userId,
+      type: CreditOperationType.FREEZE,
+      amount,
+      workId: workId ?? '',
+    })
+
+    const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
+      // 1. 幂等检查：先查是否已有操作，避免重放时重复扣减余额
+      const existing = await this.findExistingOperation(
+        manager,
+        userId,
+        CreditOperationType.FREEZE,
+        idempotencyKey,
+        requestFingerprint,
+      )
+      if (existing) {
+        return {
+          balance: (existing.metadata?.balanceAfter as number | undefined) ?? 0,
+          operation: existing,
+        }
+      }
+
+      // 2. 悲观锁读取用户
       const user = await this.lockUser(manager, userId)
 
-      // 2. 余额校验
+      // 3. 余额校验
       if (user.currentPoints < amount) {
         throw BusinessException.insufficientCredits(
           `积分不足：当前可用 ${user.currentPoints}，需要 ${amount}`,
@@ -277,44 +449,47 @@ export class LedgerService {
         )
       }
 
-      // 3. 扣减可用余额
+      // 4. 扣减可用余额
       const newBalance = user.currentPoints - amount
       user.currentPoints = newBalance
       await manager.getRepository(User).save(user)
 
-      // 4. 写入流水（先在事务内尝试，billing 库不在 main 事务中，需独立插入）
-      const tx = await this.writeTransaction({
+      // 5. 写入 CreditOperation + outbox（同事务）
+      const op = await this.createOperationAndOutbox(manager, {
         userId,
-        type: PointTransactionType.FREEZE,
-        amount: -amount, // 负数：扣减
-        balanceAfter: newBalance,
+        type: CreditOperationType.FREEZE,
+        amount: -amount,
         idempotencyKey,
-        description: description || `冻结 ${amount} 积分`,
-        workId: workId ?? null,
+        operationId: randomUUID(),
+        relatedWorkId: workId ?? null,
+        requestFingerprint,
+        metadata: {
+          balanceAfter: newBalance,
+          description: description || `冻结 ${amount} 积分`,
+        },
       })
 
-      // 5. 计算冻结后余额（FREEZE 后冻结 += amount）
-      const frozen = await this.getFrozenBalance(userId)
-
-      return {
-        freezeId: tx.id,
-        balance: newBalance,
-        frozen,
-        tx,
-      }
+      return { balance: newBalance, operation: op }
     })
+
+    // 5. 计算冻结后余额（FREEZE 后冻结 += amount）
+    const frozen = await this.getFrozenBalance(userId)
+
+    return {
+      freezeId: operation.id,
+      balance,
+      frozen,
+      operation,
+    }
   }
 
-  // -------------------- 业务操作：SETTLE --------------------
+  // -------------------- 业务操作：SETTLE（保留旧版路径） --------------------
 
   /**
    * 结算冻结积分
    *
-   * 逻辑：
-   *  - 校验 freezeId 对应的 FREEZE 流水存在且属于该用户
-   *  - 校验当前冻结余额 >= amount
-   *  - 可用余额不变（已在 FREEZE 时扣减）
-   *  - 写入 SETTLE 流水（amount = -amount, balance = currentBalance）
+   * 保留旧版路径：仅用于历史 PointTransaction 冻结的结算。
+   * V2 新冻结通过 CreditReservationService 处理（reservationMode=true）。
    *
    * 注意：跨库事务限制下，本方法仅插入 billing 流水，不更新 User。
    */
@@ -363,14 +538,16 @@ export class LedgerService {
   // -------------------- 业务操作：RELEASE --------------------
 
   /**
-   * 释放冻结积分
+   * 释放冻结积分（V2 CreditOperation 架构）
    *
    * 逻辑：
-   *  - 校验 freezeId 对应的 FREEZE 流水存在且属于该用户
-   *  - 校验当前冻结余额 >= amount
-   *  - 悲观锁锁定 User
+   *  - 校验 freezeId 对应的 FREEZE 流水存在且属于该用户（billing 库，历史冻结）
+   *  - 悲观锁锁定 User（main 库事务）
    *  - currentPoints += amount（返还到可用余额）
-   *  - 写入 RELEASE 流水（amount = +amount, balance = currentPoints）
+   *  - 写入 CreditOperation(RELEASE) + CreditOperationOutbox(PENDING)（同事务）
+   *
+   * 注意：freeze 验证仍查 PointTransaction（历史冻结记录），
+   * 新冻结走 CreditReservationService（reservationMode=true）。
    */
   async release(params: {
     userId: string
@@ -378,33 +555,57 @@ export class LedgerService {
     idempotencyKey: string
     freezeId: string
     description?: string
-  }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
+  }): Promise<{ balance: number; frozen: number; operation: CreditOperation }> {
     const { userId, amount, idempotencyKey, freezeId, description } = params
+    const requestFingerprint = this.computeRequestFingerprint({
+      userId,
+      type: CreditOperationType.RELEASE,
+      amount,
+      freezeId,
+    })
 
-    const { balance, tx } = await this.billingDataSource.transaction(async (manager) => {
-      const freezeTx = await this.lockOpenFreeze(manager, freezeId, userId, amount)
-      const result = await this.mainDataSource.transaction(async (mainManager) => {
-        const user = await this.lockUser(mainManager, userId)
-        const newBalance = user.currentPoints + amount
-        user.currentPoints = newBalance
-        await mainManager.getRepository(User).save(user)
-        return newBalance
+    // 1. 校验历史冻结流水（billing 库）
+    await this.billingDataSource.transaction(async (manager) => {
+      await this.lockOpenFreeze(manager, freezeId, userId, amount)
+    })
+
+    // 2. 更新余额 + 写入 CreditOperation + outbox（main 库单事务）
+    const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
+      // 幂等检查：先查是否已有操作，避免重放时重复返还余额
+      const existing = await this.findExistingOperation(
+        manager,
+        userId,
+        CreditOperationType.RELEASE,
+        idempotencyKey,
+        requestFingerprint,
+      )
+      if (existing) {
+        return {
+          balance: (existing.metadata?.balanceAfter as number | undefined) ?? 0,
+          operation: existing,
+        }
+      }
+
+      const user = await this.lockUser(manager, userId)
+      const newBalance = user.currentPoints + amount
+      user.currentPoints = newBalance
+      await manager.getRepository(User).save(user)
+
+      const op = await this.createOperationAndOutbox(manager, {
+        userId,
+        type: CreditOperationType.RELEASE,
+        amount: +amount,
+        idempotencyKey,
+        operationId: randomUUID(),
+        requestFingerprint,
+        metadata: {
+          balanceAfter: newBalance,
+          freezeId,
+          description: description || `释放 ${amount} 积分（freeze: ${freezeId}）`,
+        },
       })
 
-      const transaction = await this.writeTransaction(
-        {
-          userId,
-          type: PointTransactionType.RELEASE,
-          amount,
-          balanceAfter: result,
-          idempotencyKey,
-          description: description || `释放 ${amount} 积分（freeze: ${freezeId}）`,
-          workId: freezeTx.workId,
-          freezeId,
-        },
-        manager,
-      )
-      return { balance: result, tx: transaction }
+      return { balance: newBalance, operation: op }
     })
 
     const frozen = await this.getFrozenBalance(userId)
@@ -412,20 +613,20 @@ export class LedgerService {
     return {
       balance,
       frozen,
-      tx,
+      operation,
     }
   }
 
   // -------------------- 业务操作：GRANT --------------------
 
   /**
-   * 赠送积分（套餐购买后）
+   * 赠送积分（V2 CreditOperation 架构）
    *
-   * 逻辑：
+   * 逻辑（main 库单事务）：
    *  - 悲观锁锁定 User
    *  - currentPoints += amount
    *  - totalPoints += amount
-   *  - 写入 GRANT 流水（amount = +amount, balance = currentPoints）
+   *  - 写入 CreditOperation(GRANT) + CreditOperationOutbox(PENDING)
    */
   async grant(params: {
     userId: string
@@ -434,10 +635,33 @@ export class LedgerService {
     orderId: string
     packageId: string
     description?: string
-  }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
+  }): Promise<{ balance: number; frozen: number; operation: CreditOperation }> {
     const { userId, amount, idempotencyKey, orderId, packageId, description } = params
+    // B5: GRANT 指纹不包含 orderId（orderId 已在 idempotencyKey 中保证唯一），
+    //     与 order-service 保持一致，避免 outbox 重放时 fingerprint 不匹配导致重复入账。
+    const requestFingerprint = this.computeRequestFingerprint({
+      userId,
+      type: CreditOperationType.GRANT,
+      amount,
+      packageId,
+    })
 
-    const result = await this.mainDataSource.transaction(async (manager) => {
+    const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
+      // 幂等检查：先查是否已有操作，避免重放时重复增加余额
+      const existing = await this.findExistingOperation(
+        manager,
+        userId,
+        CreditOperationType.GRANT,
+        idempotencyKey,
+        requestFingerprint,
+      )
+      if (existing) {
+        return {
+          balance: (existing.metadata?.balanceAfter as number | undefined) ?? 0,
+          operation: existing,
+        }
+      }
+
       const user = await this.lockUser(manager, userId)
 
       const newBalance = user.currentPoints + amount
@@ -445,40 +669,45 @@ export class LedgerService {
       user.totalPoints += amount
       await manager.getRepository(User).save(user)
 
-      return { user, newBalance }
-    })
+      const op = await this.createOperationAndOutbox(manager, {
+        userId,
+        type: CreditOperationType.GRANT,
+        amount: +amount,
+        idempotencyKey,
+        operationId: randomUUID(),
+        relatedOrderId: orderId,
+        requestFingerprint,
+        metadata: {
+          balanceAfter: newBalance,
+          packageId,
+          description: description || `套餐赠送 ${amount} 积分（package: ${packageId}）`,
+        },
+      })
 
-    const tx = await this.writeTransaction({
-      userId,
-      type: PointTransactionType.GRANT,
-      amount: +amount,
-      balanceAfter: result.newBalance,
-      idempotencyKey,
-      description: description || `套餐赠送 ${amount} 积分（package: ${packageId}）`,
-      orderId,
+      return { balance: newBalance, operation: op }
     })
 
     const frozen = await this.getFrozenBalance(userId)
 
     return {
-      balance: result.newBalance,
+      balance,
       frozen,
-      tx,
+      operation,
     }
   }
 
   // -------------------- 业务操作：REWARD --------------------
 
   /**
-   * 奖励积分（模板被使用时奖励上传者）
+   * 奖励积分（V2 CreditOperation 架构）
    *
-   * 逻辑：
+   * 逻辑（main 库单事务 + billing 库即时投影）：
    *  - 悲观锁锁定 User
    *  - currentPoints += amount
    *  - totalPoints += amount
-   *  - 写入 REWARD 流水（amount = +amount, balance = currentPoints, templateId 填充）
-   *
-   * 与 grant 的区别：不需要 orderId/packageId，关联字段为 templateId。
+   *  - 写入 CreditOperation(REWARD) + CreditOperationOutbox(PENDING)
+   *  - B6: 同时投影 PointTransaction(REWARD) 到 billing 库
+   *    （CreditOperationOutbox 尚无消费者投影，对账 countRewardsByTemplateId 依赖 PointTransaction）
    */
   async reward(params: {
     userId: string
@@ -486,10 +715,31 @@ export class LedgerService {
     idempotencyKey: string
     templateId: string
     description?: string
-  }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
+  }): Promise<{ balance: number; frozen: number; operation: CreditOperation }> {
     const { userId, amount, idempotencyKey, templateId, description } = params
+    const requestFingerprint = this.computeRequestFingerprint({
+      userId,
+      type: CreditOperationType.REWARD,
+      amount,
+      templateId,
+    })
 
-    const result = await this.mainDataSource.transaction(async (manager) => {
+    const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
+      // 幂等检查：先查是否已有操作，避免重放时重复增加余额
+      const existing = await this.findExistingOperation(
+        manager,
+        userId,
+        CreditOperationType.REWARD,
+        idempotencyKey,
+        requestFingerprint,
+      )
+      if (existing) {
+        return {
+          balance: (existing.metadata?.balanceAfter as number | undefined) ?? 0,
+          operation: existing,
+        }
+      }
+
       const user = await this.lockUser(manager, userId)
 
       const newBalance = user.currentPoints + amount
@@ -497,38 +747,66 @@ export class LedgerService {
       user.totalPoints += amount
       await manager.getRepository(User).save(user)
 
-      return { user, newBalance }
-    })
+      const op = await this.createOperationAndOutbox(manager, {
+        userId,
+        type: CreditOperationType.REWARD,
+        amount: +amount,
+        idempotencyKey,
+        operationId: randomUUID(),
+        relatedTemplateId: templateId,
+        requestFingerprint,
+        metadata: {
+          balanceAfter: newBalance,
+          description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
+        },
+      })
 
-    const tx = await this.writeTransaction({
-      userId,
-      type: PointTransactionType.REWARD,
-      amount: +amount,
-      balanceAfter: result.newBalance,
-      idempotencyKey,
-      description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
-      templateId,
+      // B6: 即时投影到 billing 库 PointTransaction
+      //     对账服务 countRewardsByTemplateId 查询 PointTransaction(REWARD)，
+      //     CreditOperationOutbox 尚无消费者，需在此处即时投影。
+      //     注意：writeTransaction 未传 manager（跨库不能共享事务），
+      //     若 billing 库写入失败不应阻塞 main 库事务，由对账服务兜底。
+      try {
+        await this.writeTransaction({
+          userId,
+          type: PointTransactionType.REWARD,
+          amount: +amount,
+          balanceAfter: newBalance,
+          templateId,
+          idempotencyKey,
+          description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
+        })
+      } catch (err) {
+        // billing 库投影失败：main 库 CreditOperation + outbox 已写入，
+        // 对账服务会在下次运行时补齐 PointTransaction。
+        // 不抛出异常，避免回滚 main 库事务导致用户积分丢失。
+        this.logger.warn(
+          `REWARD billing 库投影失败（对账服务兜底）userId=${userId} templateId=${templateId}: ${(err as Error).message}`,
+        )
+      }
+
+      return { balance: newBalance, operation: op }
     })
 
     const frozen = await this.getFrozenBalance(userId)
 
     return {
-      balance: result.newBalance,
+      balance,
       frozen,
-      tx,
+      operation,
     }
   }
 
   // -------------------- 业务操作：CONSUME --------------------
 
   /**
-   * 直接消费积分（不走冻结流程）
+   * 直接消费积分（V2 CreditOperation 架构）
    *
-   * 逻辑：
+   * 逻辑（main 库单事务）：
    *  - 悲观锁锁定 User
    *  - 校验 currentPoints >= amount
    *  - currentPoints -= amount
-   *  - 写入 CONSUME 流水（amount = -amount, balance = currentPoints）
+   *  - 写入 CreditOperation(CONSUME) + CreditOperationOutbox(PENDING)
    */
   async consume(params: {
     userId: string
@@ -536,10 +814,31 @@ export class LedgerService {
     idempotencyKey: string
     workId?: string | null
     description?: string
-  }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
+  }): Promise<{ balance: number; frozen: number; operation: CreditOperation }> {
     const { userId, amount, idempotencyKey, workId, description } = params
+    const requestFingerprint = this.computeRequestFingerprint({
+      userId,
+      type: CreditOperationType.CONSUME,
+      amount,
+      workId: workId ?? '',
+    })
 
-    const result = await this.mainDataSource.transaction(async (manager) => {
+    const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
+      // 幂等检查：先查是否已有操作，避免重放时重复扣减余额
+      const existing = await this.findExistingOperation(
+        manager,
+        userId,
+        CreditOperationType.CONSUME,
+        idempotencyKey,
+        requestFingerprint,
+      )
+      if (existing) {
+        return {
+          balance: (existing.metadata?.balanceAfter as number | undefined) ?? 0,
+          operation: existing,
+        }
+      }
+
       const user = await this.lockUser(manager, userId)
 
       if (user.currentPoints < amount) {
@@ -553,25 +852,29 @@ export class LedgerService {
       user.currentPoints = newBalance
       await manager.getRepository(User).save(user)
 
-      return { user, newBalance }
-    })
+      const op = await this.createOperationAndOutbox(manager, {
+        userId,
+        type: CreditOperationType.CONSUME,
+        amount: -amount,
+        idempotencyKey,
+        operationId: randomUUID(),
+        relatedWorkId: workId ?? null,
+        requestFingerprint,
+        metadata: {
+          balanceAfter: newBalance,
+          description: description || `消费 ${amount} 积分`,
+        },
+      })
 
-    const tx = await this.writeTransaction({
-      userId,
-      type: PointTransactionType.CONSUME,
-      amount: -amount,
-      balanceAfter: result.newBalance,
-      idempotencyKey,
-      description: description || `消费 ${amount} 积分`,
-      workId: workId ?? null,
+      return { balance: newBalance, operation: op }
     })
 
     const frozen = await this.getFrozenBalance(userId)
 
     return {
-      balance: result.newBalance,
+      balance,
       frozen,
-      tx,
+      operation,
     }
   }
 }

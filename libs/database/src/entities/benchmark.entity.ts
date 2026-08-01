@@ -92,6 +92,14 @@ export class Benchmark {
   @Column({ type: 'text', nullable: true })
   errorMessage: string | null
 
+  /** V2: 冻结操作 ID（main 库 CreditOperation.id），持久化替代 Redis-only 存储 */
+  @Column({ type: 'uuid', name: 'freeze_id', nullable: true })
+  freezeId: string | null
+
+  /** V2: 冻结幂等键（用于 release 补偿，独立于 create 幂等键） */
+  @Column({ type: 'varchar', name: 'freeze_idempotency_key', length: 255, nullable: true })
+  freezeIdempotencyKey: string | null
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
 

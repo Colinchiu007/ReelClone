@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { SeedanceProvider } from './seedance/seedance.provider';
-import { LlmProvider } from './llm/llm.provider';
-import { PromptEngineService } from './llm/prompt-engine.service';
-import { VideoDownloaderService } from './downloader/video-downloader.service';
-import { VideoAnalyzerService } from './analyzer/video-analyzer.service';
-import { FfmpegService } from './ffmpeg/ffmpeg.service';
-import { ModerationService } from './moderation/moderation.service';
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { ExternalResourceModule } from '@reelclone/common'
+import { SeedanceProvider } from './seedance/seedance.provider'
+import { LlmProvider } from './llm/llm.provider'
+import { PromptEngineService } from './llm/prompt-engine.service'
+import { VideoDownloaderService } from './downloader/video-downloader.service'
+import { VideoAnalyzerService } from './analyzer/video-analyzer.service'
+import { FfmpegService } from './ffmpeg/ffmpeg.service'
+import { ModerationService } from './moderation/moderation.service'
 
 /**
  * AI 能力模块
@@ -24,7 +25,7 @@ import { ModerationService } from './moderation/moderation.service';
  *   constructor(private readonly seedance: SeedanceProvider) {}
  */
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, ExternalResourceModule],
   providers: [
     SeedanceProvider,
     LlmProvider,

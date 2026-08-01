@@ -16,10 +16,13 @@ import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import Redis from 'ioredis'
+import { createHash } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { BusinessException, generateIdempotencyKey } from '@reelclone/common'
 import {
   DATABASE_CONNECTIONS,
+  GenerationExecution,
+  GenerationExecutionStage,
   GenerationProvider,
   GenerationTask,
   GenerationTaskStatus,
@@ -144,8 +147,9 @@ export class GenerationService {
    *  3. 创建 Work（status=PENDING）
    *  4. 调用 billing-service 冻结积分
    *  5. 创建 GenerationTask
-   *  6. 启动 Temporal 工作流（Mock 模式跳过）
-   *  7. 缓存幂等结果
+   *  6. 创建 GenerationExecution（durable execution 权威记录，stage=INITIATED）
+   *  7. 启动 Temporal 工作流（Mock 模式跳过）
+   *  8. 缓存幂等结果
    */
   async create(userId: string, dto: CreateGenerationDto): Promise<CreateGenerationResult> {
     // 1. 幂等键
@@ -311,17 +315,52 @@ export class GenerationService {
         throw err
       }
 
-      // 9. 启动 Temporal 工作流
+      // 9. 创建 GenerationExecution（durable execution 权威记录）
+      const executionId = uuidv4()
+      const requestFingerprint = createHash('sha256')
+        .update(`${userId}:${dto.generationType}:${dto.prompt}`)
+        .digest('hex')
+      const executionWorkflowId = this.temporalService.getVideoGenerationWorkflowId({
+        workId: work.id,
+        generationTaskId: task.id,
+      })
+
+      const executionRepo = this.dataSource.getRepository(GenerationExecution)
+      const execution = executionRepo.create({
+        id: executionId,
+        workId: work.id,
+        taskId: task.id,
+        requestFingerprint,
+        workflowId: executionWorkflowId,
+        billingOperationId: idempotencyKey,
+        reservationId: (work.modelConfig.freezeId as string) ?? '',
+        stage: GenerationExecutionStage.INITIATED,
+        attempt: 0,
+        metadata: { generationType: dto.generationType, points },
+      })
+      await executionRepo.save(execution)
+
+      work.modelConfig = {
+        ...work.modelConfig,
+        activeExecutionId: executionId,
+      }
+      await workRepo.save(work)
+
+      this.logger.log(
+        `GenerationExecution 已创建 executionId=${executionId} stage=INITIATED workId=${work.id}`,
+      )
+
+      // 10. 启动 Temporal 工作流
       await this.startWorkflow(work, task, dto, idempotencyKey, points)
 
-      // 10. 缓存幂等结果
+      // 11. 缓存幂等结果
       const result: CreateGenerationResult = {
         workId: work.id,
         taskId: task.id,
       }
       await this.cacheIdempotencyRecord(idempotencyKey, result)
 
-      // 11. 基于模板创作：模板使用次数 +1（非阻塞，失败仅记录日志）
+      // 12. 基于模板创作：模板使用次数 +1（非阻塞，失败仅记录日志）
       if (dto.templateId) {
         try {
           await this.templateClient.incrementUseCount(dto.templateId)
@@ -424,6 +463,7 @@ export class GenerationService {
 
     const taskRepo = this.dataSource.getRepository(GenerationTask)
     const workRepo = this.dataSource.getRepository(Work)
+    const executionRepo = this.dataSource.getRepository(GenerationExecution)
 
     // 1. 真实模式只提交 Temporal 取消请求。退款与最终状态必须等待工作流
     // 在 Provider 侧确认取消后，由不可取消补偿路径完成。
@@ -442,6 +482,13 @@ export class GenerationService {
         this.logger.error(`取消工作流失败 taskId=${taskId}: ${(err as Error).message}`)
         throw BusinessException.taskFailed(`取消工作流失败，请稍后重试: ${(err as Error).message}`)
       }
+      // C1.2: 更新 GenerationExecution 到 PROVIDER_CANCEL_PENDING（等待 Provider 确认）
+      const activeExecId = (work.modelConfig.activeExecutionId as string) ?? null
+      if (activeExecId) {
+        await executionRepo.update(activeExecId, {
+          stage: GenerationExecutionStage.PROVIDER_CANCEL_PENDING,
+        })
+      }
       this.logger.log(`已提交取消请求 taskId=${taskId}，等待 Provider 确认后结算`)
       return
     }
@@ -458,6 +505,14 @@ export class GenerationService {
     await workRepo.update(work.id, {
       status: WorkStatus.CANCELLED,
     })
+
+    // C1.2: 更新 GenerationExecution 到 CANCELED（Mock 模式同步完成）
+    const mockExecId = (work.modelConfig.activeExecutionId as string) ?? null
+    if (mockExecId) {
+      await executionRepo.update(mockExecId, {
+        stage: GenerationExecutionStage.CANCELED,
+      })
+    }
 
     // 4. API 取消与工作流补偿共用同一个 release key。
     await this.releaseBillingReservation(work, this.getBillingReservation(work), `taskId=${taskId}`)
@@ -608,6 +663,7 @@ export class GenerationService {
   ): Promise<void> {
     const taskRepo = this.dataSource.getRepository(GenerationTask)
     const workRepo = this.dataSource.getRepository(Work)
+    const executionRepo = this.dataSource.getRepository(GenerationExecution)
 
     this.assertGenerationTypeSupported(dto.generationType)
 
@@ -631,6 +687,13 @@ export class GenerationService {
         resultUrl: mockResultUrl,
         thumbnailKey: mockThumbnailKey,
       })
+      // C1: 更新 GenerationExecution 到 COMPLETED（Mock 模式直接完成）
+      const activeExecutionId = (work.modelConfig.activeExecutionId as string) ?? null
+      if (activeExecutionId) {
+        await executionRepo.update(activeExecutionId, {
+          stage: GenerationExecutionStage.COMPLETED,
+        })
+      }
       this.logger.log(`[Mock] 模拟工作流已立即完成 workId=${work.id} taskId=${task.id}`)
       return
     }
@@ -691,6 +754,13 @@ export class GenerationService {
           status: WorkStatus.PENDING,
           errorLog: { step: 'workflow_start_unknown', message: (err as Error).message },
         })
+        // C1: 更新 GenerationExecution 到 WORKFLOW_START_UNKNOWN
+        const activeExecId = (work.modelConfig.activeExecutionId as string) ?? null
+        if (activeExecId) {
+          await executionRepo.update(activeExecId, {
+            stage: GenerationExecutionStage.WORKFLOW_START_UNKNOWN,
+          })
+        }
         throw BusinessException.taskFailed(`工作流启动状态未确认: ${(err as Error).message}`)
       }
 
@@ -715,6 +785,13 @@ export class GenerationService {
         status: WorkStatus.FAILED,
         errorLog: { step: 'workflow_start', message: (err as Error).message },
       })
+      // C1: 更新 GenerationExecution 到 FAILED
+      const failedExecId = (work.modelConfig.activeExecutionId as string) ?? null
+      if (failedExecId) {
+        await executionRepo.update(failedExecId, {
+          stage: GenerationExecutionStage.FAILED,
+        })
+      }
       await this.releaseBillingReservation(
         work,
         this.getBillingReservation(work),

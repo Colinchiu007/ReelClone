@@ -1,18 +1,22 @@
 /**
  * 短信验证码服务
  *
- * 职责：
- * - 发送验证码（Mock 模式 + 真实 SMS 模式）
- * - 校验验证码
+ * 职责（SubTask A4.3 重构）：
+ * - 通过显式 `@Inject('SMS_ADAPTER')` 注入 SmsAdapter，业务函数零分支
+ * - 不再有 `if (process.env.NODE_ENV === 'production') throw ...` 占位逻辑
+ * - 发送验证码后记录 messageId 到 DB（用于状态查询）
  * - Redis 限流：同一手机号 60s 内只能发一次
+ * - 校验验证码：5 次尝试限制（防暴力破解）
+ * - 日志脱敏：仅打印验证码前两位
  *
- * Mock 模式（SMS_MOCK_MODE=true 或 SMS_ACCESS_KEY_ID 为空）：
- * - 验证码固定为 123456
- * - 通过日志打印，不真实发送
+ * Mock 模式（adapter.isMock === true）：
+ * - 验证码固定为 123456（便于本地联调与单元测试断言）
+ * - 由 MockSmsAdapter 打印日志，不真实发送
  *
  * Redis Key 设计：
  * - sms:code:{mobile}:{purpose} → code（TTL 300s）
  * - sms:lockout:{mobile} → 1（TTL 60s，防重复发送）
+ * - sms:attempts:{mobile}:{purpose} → 计数（TTL 300s，5 次尝试限制）
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -21,6 +25,7 @@ import Redis from 'ioredis'
 import * as crypto from 'crypto'
 import { SmsCode, SmsCodePurpose, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
 import { BusinessException, ErrorCode } from '@reelclone/common'
+import { SMS_ADAPTER, type SmsAdapter } from '@reelclone/adapters-sms'
 
 /** 验证码默认过期时间（秒） */
 const CODE_EXPIRE_SECONDS = 300
@@ -34,6 +39,23 @@ const MAX_VERIFY_ATTEMPTS = 5
 /** Mock 模式固定验证码 */
 const MOCK_CODE = '123456'
 
+/**
+ * 根据 purpose 解析对应 SMS 模板 CODE
+ *
+ * 优先级：
+ *  1. SMS_TEMPLATE_{PURPOSE}（如 SMS_TEMPLATE_BIND_MOBILE）
+ *  2. SMS_TEMPLATE_CODE（向后兼容的全局默认模板）
+ */
+function resolveTemplateCode(purpose: SmsCodePurpose): string {
+  const purposeKey = `SMS_TEMPLATE_${purpose}`
+  const purposeTemplate = (process.env[purposeKey] ?? '').trim()
+  if (purposeTemplate.length > 0) {
+    return purposeTemplate
+  }
+  // 回退到全局默认模板
+  return (process.env.SMS_TEMPLATE_CODE ?? '').trim()
+}
+
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name)
@@ -42,24 +64,17 @@ export class SmsService {
     @InjectRepository(SmsCode, DATABASE_CONNECTIONS.MAIN)
     private readonly smsCodeRepository: Repository<SmsCode>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Inject(SMS_ADAPTER) private readonly smsAdapter: SmsAdapter,
   ) {}
 
   /**
    * 是否为 Mock 模式
+   *
+   * 直接读取 adapter.isMock 标志，业务代码不再读取 process.env。
+   * 控制器用于决定是否回显 mockCode 给客户端。
    */
   isMockMode(): boolean {
-    return process.env.SMS_MOCK_MODE === 'true' || !process.env.SMS_ACCESS_KEY_ID
-  }
-
-  /**
-   * 生产环境安全检查：禁止 Mock 模式启动
-   */
-  private assertNotMockInProduction(): void {
-    if (process.env.NODE_ENV === 'production' && this.isMockMode()) {
-      throw new Error(
-        'SMS 服务在生产环境中不允许使用 Mock 模式，请配置 SMS_ACCESS_KEY_ID 或设置 SMS_MOCK_MODE=false',
-      )
-    }
+    return this.smsAdapter.isMock
   }
 
   /**
@@ -70,8 +85,6 @@ export class SmsService {
    * @returns 生成的验证码（Mock 模式下返回固定值）
    */
   async sendCode(mobile: string, purpose: SmsCodePurpose): Promise<string> {
-    this.assertNotMockInProduction()
-
     const lockoutKey = `sms:lockout:${mobile}`
     const codeKey = `sms:code:${mobile}:${purpose}`
 
@@ -85,8 +98,8 @@ export class SmsService {
       })
     }
 
-    // 2. 生成验证码
-    const code = this.isMockMode() ? MOCK_CODE : this.generateRandomCode()
+    // 2. 生成验证码（Mock 模式固定值，real 模式密码学安全随机）
+    const code = this.smsAdapter.isMock ? MOCK_CODE : this.generateRandomCode()
 
     // 3. 存入 Redis（TTL 300s）
     await this.redis.set(codeKey, code, 'EX', CODE_EXPIRE_SECONDS)
@@ -94,7 +107,7 @@ export class SmsService {
     // 4. 设置发送间隔锁（TTL 60s）
     await this.redis.set(lockoutKey, '1', 'EX', SEND_LOCKOUT_SECONDS)
 
-    // 5. 持久化到数据库（审计记录）
+    // 5. 持久化到数据库（审计记录，含 messageId 用于状态查询）
     const expiredAt = new Date(Date.now() + CODE_EXPIRE_SECONDS * 1000)
     const smsCode = this.smsCodeRepository.create({
       mobile,
@@ -102,16 +115,38 @@ export class SmsService {
       purpose,
       expiredAt,
       usedAt: null,
+      providerMessageId: null,
     })
-    await this.smsCodeRepository.save(smsCode)
+    const saved = await this.smsCodeRepository.save(smsCode)
 
-    // 6. 发送（Mock 模式仅日志，真实模式调用 SMS API）
-    if (this.isMockMode()) {
+    // 6. 通过显式注入的 adapter 发送短信
+    //    - Mock：仅日志输出
+    //    - Real：调用阿里云/腾讯云 SMS API
+    //    发送失败时业务异常向上抛出，但 Redis 验证码与 DB 记录已写入（用户可凭此校验，
+    //    避免短信供应商抖动导致用户完全无法操作；messageId 留空以便后续对账）
+    const templateCode = resolveTemplateCode(purpose)
+    try {
+      const result = await this.smsAdapter.sendSms(mobile, templateCode, { code })
+
+      // 7. 记录 messageId 到 DB（用于后续状态查询）
+      if (result.status === 'sent' && result.messageId) {
+        await this.smsCodeRepository.update(saved.id, {
+          providerMessageId: result.messageId,
+        })
+      }
+
+      // 日志脱敏：仅打印验证码前两位
       this.logger.log(
-        `[Mock SMS] mobile=${mobile}, purpose=${purpose}, code=${code.slice(0, 2)}***`,
+        `SMS sent: mobile=${mobile}, purpose=${purpose}, code=${code.slice(0, 2)}***, messageId=${result.messageId}`,
       )
-    } else {
-      await this.sendRealSms(mobile, code)
+    } catch (err) {
+      // 发送失败：记录错误日志（含脱敏验证码），向上抛出业务异常
+      // Redis 验证码 + DB 记录保留，便于用户重试与对账
+      const reason = err instanceof Error ? err.message : 'unknown'
+      this.logger.error(
+        `SMS send failed: mobile=${mobile}, purpose=${purpose}, code=${code.slice(0, 2)}***, reason=${reason}`,
+      )
+      throw err
     }
 
     return code
@@ -129,7 +164,7 @@ export class SmsService {
     const codeKey = `sms:code:${mobile}:${purpose}`
     const attemptsKey = `sms:attempts:${mobile}:${purpose}`
 
-    // 1. 检查尝试次数（防暴力破解）
+    // 1. 检查尝试次数（防暴力破解，5 次尝试限制）
     const attempts = await this.redis.incr(attemptsKey)
     if (attempts === 1) {
       await this.redis.expire(attemptsKey, CODE_EXPIRE_SECONDS)
@@ -200,16 +235,5 @@ export class SmsService {
    */
   private generateRandomCode(): string {
     return crypto.randomInt(100000, 1000000).toString()
-  }
-
-  /**
-   * 调用真实短信服务商 API 发送验证码
-   * （占位实现，实际项目对接阿里云/腾讯云短信）
-   */
-  private async sendRealSms(_mobile: string, _code: string): Promise<void> {
-    // 真实模式未实现时抛错，避免静默成功
-    throw new Error(
-      'SmsService.sendRealSms: 真实 SMS 发送未实现，请配置 SMS_MOCK_MODE=true 或补充真实实现',
-    )
   }
 }

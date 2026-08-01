@@ -1,4 +1,10 @@
-import { GenerationTaskStatus, Work, WorkStatus as DatabaseWorkStatus } from '@reelclone/database'
+import {
+  GenerationExecution,
+  GenerationExecutionStage,
+  GenerationTaskStatus,
+  Work,
+  WorkStatus as DatabaseWorkStatus,
+} from '@reelclone/database'
 import { DataSource } from 'typeorm'
 import { TypeOrmWorkflowStateStore } from './workflow-state.store'
 
@@ -18,8 +24,15 @@ describe('TypeOrmWorkflowStateStore', () => {
   const taskRepo = {
     update: jest.fn().mockResolvedValue({ affected: 1 }),
   }
+  const executionRepo = {
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
+  }
   const dataSource = {
-    getRepository: jest.fn((entity: unknown) => (entity === Work ? workRepo : taskRepo)),
+    getRepository: jest.fn((entity: unknown) => {
+      if (entity === Work) return workRepo
+      if (entity === GenerationExecution) return executionRepo
+      return taskRepo
+    }),
   } as unknown as DataSource
   const store = new TypeOrmWorkflowStateStore(dataSource)
 
@@ -28,7 +41,7 @@ describe('TypeOrmWorkflowStateStore', () => {
     workUpdateQuery.execute.mockResolvedValue({ affected: 1 })
     workRepo.findOne.mockResolvedValue({
       id: 'work-1',
-      modelConfig: { activeGenerationTaskId: 'task-current' },
+      modelConfig: { activeGenerationTaskId: 'task-current', activeExecutionId: 'exec-1' },
     } as unknown as Work)
   })
 
@@ -135,5 +148,76 @@ describe('TypeOrmWorkflowStateStore', () => {
         errorLog: expect.objectContaining({ stage: 'provider_state_unknown' }),
       }),
     )
+  })
+
+  // -------------------- C1.3: GenerationExecution stage 更新 --------------------
+
+  it('C1.3: 完成时将 GenerationExecution 更新为 COMPLETED', async () => {
+    await store.updateWorkStatus(
+      'work-1',
+      'completed' as never,
+      { resultKey: 'out.mp4' },
+      'task-current',
+    )
+
+    expect(executionRepo.update).toHaveBeenCalledWith('exec-1', {
+      stage: GenerationExecutionStage.COMPLETED,
+    })
+  })
+
+  it('C1.3: 取消时将 GenerationExecution 更新为 CANCELED', async () => {
+    await store.updateWorkStatus('work-1', 'canceled' as never, undefined, 'task-current')
+
+    expect(executionRepo.update).toHaveBeenCalledWith('exec-1', {
+      stage: GenerationExecutionStage.CANCELED,
+    })
+  })
+
+  it('C1.3: 超时时将 GenerationExecution 更新为 FAILED', async () => {
+    await store.updateWorkStatus('work-1', 'timeout' as never, undefined, 'task-current')
+
+    expect(executionRepo.update).toHaveBeenCalledWith('exec-1', {
+      stage: GenerationExecutionStage.FAILED,
+    })
+  })
+
+  it('C1.3: 失败时将 GenerationExecution 更新为 FAILED', async () => {
+    await store.updateWorkStatus(
+      'work-1',
+      'failed' as never,
+      { error: 'provider error' },
+      'task-current',
+    )
+
+    expect(executionRepo.update).toHaveBeenCalledWith('exec-1', {
+      stage: GenerationExecutionStage.FAILED,
+    })
+  })
+
+  it('C1.3: 无 activeExecutionId 时跳过 Execution 更新', async () => {
+    workRepo.findOne.mockResolvedValue({
+      id: 'work-1',
+      modelConfig: { activeGenerationTaskId: 'task-current' },
+    } as unknown as Work)
+
+    await store.updateWorkStatus(
+      'work-1',
+      'completed' as never,
+      { resultKey: 'out.mp4' },
+      'task-current',
+    )
+
+    expect(executionRepo.update).not.toHaveBeenCalled()
+  })
+
+  it('C1.3: 处理中状态不更新 GenerationExecution（非终态）', async () => {
+    await store.updateWorkStatus(
+      'work-1',
+      'processing' as never,
+      { providerTaskId: 'p1' },
+      'task-current',
+    )
+
+    expect(executionRepo.update).not.toHaveBeenCalled()
   })
 })

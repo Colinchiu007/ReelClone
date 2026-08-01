@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
   // -------------------- 全局前缀 --------------------
   // 所有 HTTP 路由前缀为 /api/v1，WebSocket 路径 /ws 由 Gateway 自行声明，不受影响
   app.setGlobalPrefix('api/v1', {
-    exclude: [],
+    exclude: ['livez', 'readyz'],
   })
 
   // -------------------- 全局管道 --------------------

@@ -26,6 +26,7 @@ jest.mock('@reelclone/temporal', () => ({
 
 import { BusinessException } from '@reelclone/common'
 import {
+  GenerationExecution,
   GenerationProvider,
   GenerationTask,
   GenerationTaskStatus,
@@ -116,16 +117,24 @@ describe('GenerationService', () => {
   let configService: jest.Mocked<{ get: jest.Mock }>
   let workRepo: jest.Mocked<Repository<Work>>
   let taskRepo: jest.Mocked<Repository<GenerationTask>>
+  let executionRepo: jest.Mocked<Repository<GenerationExecution>>
 
   beforeEach(() => {
     redis = mockRedis()
     workRepo = mockRepo<Work>()
     taskRepo = mockRepo<GenerationTask>()
+    executionRepo = mockRepo<GenerationExecution>()
 
     dataSource = {
       getRepository: jest.fn((entity: unknown) => {
         if (entity === Work || (entity as { name?: string }).name === 'Work') {
           return workRepo
+        }
+        if (
+          entity === GenerationExecution ||
+          (entity as { name?: string }).name === 'GenerationExecution'
+        ) {
+          return executionRepo
         }
         return taskRepo
       }),
@@ -490,7 +499,11 @@ describe('GenerationService', () => {
         id: 'work-1',
         userId: 'user-1',
         cost: 900,
-        modelConfig: { freezeId: 'freeze-tx-1', idempotencyKey: 'create-generation-1' },
+        modelConfig: {
+          freezeId: 'freeze-tx-1',
+          idempotencyKey: 'create-generation-1',
+          activeExecutionId: 'exec-1',
+        },
       }
       ;(task as { work: Work }).work = work as Work
 
@@ -507,6 +520,11 @@ describe('GenerationService', () => {
       expect(workRepo.update).toHaveBeenCalledWith(
         'work-1',
         expect.objectContaining({ status: WorkStatus.CANCELLED }),
+      )
+      // C1.2: 应更新 GenerationExecution 到 CANCELED
+      expect(executionRepo.update).toHaveBeenCalledWith(
+        'exec-1',
+        expect.objectContaining({ stage: 'CANCELED' }),
       )
       // 应释放积分
       expect(billingClient.release).toHaveBeenCalled()
@@ -530,6 +548,7 @@ describe('GenerationService', () => {
         modelConfig: {
           freezeId: 'freeze-tx-1',
           idempotencyKey: 'create-generation-1',
+          activeExecutionId: 'exec-1',
         },
       }
       ;(task as { work: Work }).work = work as Work
@@ -541,6 +560,8 @@ describe('GenerationService', () => {
       expect(taskRepo.update).not.toHaveBeenCalled()
       expect(workRepo.update).not.toHaveBeenCalled()
       expect(billingClient.release).not.toHaveBeenCalled()
+      // C1.2: 取消失败不应更新 Execution
+      expect(executionRepo.update).not.toHaveBeenCalled()
     })
 
     it('真实模式下使用确定性工作流 ID 取消 Seedance 任务，等待工作流确认后才更新状态和退款', async () => {
@@ -558,7 +579,11 @@ describe('GenerationService', () => {
         id: 'work-1',
         userId: 'user-1',
         cost: 900,
-        modelConfig: { freezeId: 'freeze-tx-1', idempotencyKey: 'create-generation-1' },
+        modelConfig: {
+          freezeId: 'freeze-tx-1',
+          idempotencyKey: 'create-generation-1',
+          activeExecutionId: 'exec-1',
+        },
       }
       ;(task as { work: Work }).work = work as Work
       taskRepo.findOne.mockResolvedValue(task as GenerationTask)
@@ -574,6 +599,36 @@ describe('GenerationService', () => {
       expect(taskRepo.update).not.toHaveBeenCalled()
       expect(workRepo.update).not.toHaveBeenCalled()
       expect(billingClient.release).not.toHaveBeenCalled()
+      // C1.2: 真实模式取消应将 Execution 更新为 PROVIDER_CANCEL_PENDING
+      expect(executionRepo.update).toHaveBeenCalledWith(
+        'exec-1',
+        expect.objectContaining({ stage: 'PROVIDER_CANCEL_PENDING' }),
+      )
+    })
+
+    it('C1.2: 取消时无 activeExecutionId 则跳过 Execution 更新', async () => {
+      const task: Partial<GenerationTask> = {
+        id: 'task-1',
+        workId: 'work-1',
+        status: GenerationTaskStatus.RUNNING,
+        providerTaskId: 'mock-wf-1',
+      }
+      const work: Partial<Work> = {
+        id: 'work-1',
+        userId: 'user-1',
+        cost: 900,
+        modelConfig: { freezeId: 'freeze-tx-1', idempotencyKey: 'create-generation-1' },
+      }
+      ;(task as { work: Work }).work = work as Work
+      taskRepo.findOne.mockResolvedValue(task as GenerationTask)
+
+      await service.cancel('user-1', 'task-1')
+
+      // 无 activeExecutionId 时不应调用 executionRepo.update
+      expect(executionRepo.update).not.toHaveBeenCalled()
+      // 正常流程仍应完成
+      expect(taskRepo.update).toHaveBeenCalled()
+      expect(workRepo.update).toHaveBeenCalled()
     })
   })
 

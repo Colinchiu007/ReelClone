@@ -161,6 +161,14 @@ describe('BenchmarkService', () => {
           benchmarkId: 'bench-001',
         }),
       )
+      // B3: freezeId + freezeIdempotencyKey 应持久化到 DB
+      expect(repo.update).toHaveBeenCalledWith(
+        'bench-001',
+        expect.objectContaining({
+          freezeId: 'tx-freeze-001',
+          freezeIdempotencyKey: expect.stringContaining('benchmark-freeze:bench-001:'),
+        }),
+      )
       // Mock 模式下应直接更新状态为 COMPLETED 并写入分析结果
       expect(repo.update).toHaveBeenCalledWith(
         'bench-001',
@@ -391,11 +399,11 @@ describe('BenchmarkService', () => {
         id: 'b1',
         userId: 'user-001',
         status: BenchmarkStatus.PENDING,
+        freezeId: 'tx-freeze-001',
+        freezeIdempotencyKey: 'benchmark-freeze:b1:uuid-1',
       }
+      // findOne 被调用两次：cancel() 校验 + compensateRelease() 读 freezeId
       repo.findOne.mockResolvedValue(benchmark as Benchmark)
-
-      // 预设 freezeId 缓存
-      await redis.set('benchmark:freeze:b1', 'tx-freeze-001', 'EX', 604800)
 
       billingClient.release.mockResolvedValue({
         success: true,
@@ -411,7 +419,14 @@ describe('BenchmarkService', () => {
         'b1',
         expect.objectContaining({ status: BenchmarkStatus.CANCELLED }),
       )
-      expect(billingClient.release).toHaveBeenCalled()
+      // B3: release 应使用 DB 持久化的 freezeIdempotencyKey
+      expect(billingClient.release).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-001',
+          freezeId: 'tx-freeze-001',
+          idempotencyKey: 'benchmark-freeze:b1:uuid-1',
+        }),
+      )
       // Mock 模式不应调用 Temporal
       expect(temporalAdapter.cancelWorkflow).not.toHaveBeenCalled()
     })
@@ -431,9 +446,10 @@ describe('BenchmarkService', () => {
         id: 'b1',
         userId: 'user-001',
         status: BenchmarkStatus.ANALYZING,
+        freezeId: 'tx-freeze-001',
+        freezeIdempotencyKey: 'benchmark-freeze:b1:uuid-2',
       }
       repo.findOne.mockResolvedValue(benchmark as Benchmark)
-      await redis.set('benchmark:freeze:b1', 'tx-freeze-001', 'EX', 604800)
       billingClient.release.mockResolvedValue({
         success: true,
         balance: 1000,

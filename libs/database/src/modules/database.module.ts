@@ -22,6 +22,10 @@ import { SystemConfig } from '../entities/system-config.entity'
 import { AuditLog } from '../entities/audit-log.entity'
 import { CreditReservation } from '../entities/credit-reservation.entity'
 import { BillingProjectionOutbox } from '../entities/billing-projection-outbox.entity'
+import { CreditOperation } from '../entities/credit-operation.entity'
+import { CreditOperationOutbox } from '../entities/credit-operation-outbox.entity'
+import { GenerationExecution } from '../entities/generation-execution.entity'
+import { OrderPaymentEvent } from '../entities/order-payment-event.entity'
 
 /** 实体构造器类型（避免直接使用 Function 字面量） */
 export type EntityConstructor = new (...args: unknown[]) => unknown
@@ -53,6 +57,10 @@ export const MAIN_ENTITIES: EntityConstructor[] = [
   AuditLog,
   CreditReservation,
   BillingProjectionOutbox,
+  CreditOperation,
+  CreditOperationOutbox,
+  GenerationExecution,
+  OrderPaymentEvent,
 ]
 
 /** billing 库实体清单 */

@@ -29,6 +29,17 @@ export {
   BillingProjectionType,
   BillingProjectionDeliveryStatus,
 } from './entities/billing-projection-outbox.entity'
+export {
+  CreditOperation,
+  CreditOperationType,
+  CreditOperationStatus,
+} from './entities/credit-operation.entity'
+export { CreditOperationOutbox, OutboxStatus } from './entities/credit-operation-outbox.entity'
+export {
+  GenerationExecution,
+  GenerationExecutionStage,
+} from './entities/generation-execution.entity'
+export { OrderPaymentEvent, PaymentEventStatus } from './entities/order-payment-event.entity'
 
 // ---------------- 模块 ----------------
 export {
@@ -54,4 +65,9 @@ export {
   AddSystemConfig1700000000005,
   AddCreditReservationsAndBillingOutbox1700000000011,
   AddReservationId1700000000012,
+  AddCreditOperations1700000000013,
+  AddGenerationExecutions1700000000014,
+  AddUserPackageOrderIdUnique1700000000015,
+  AddSmsCodeProviderMessageId1700000000016,
+  AddOrderPaymentEvents1700000000017,
 } from './migrations'

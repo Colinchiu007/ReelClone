@@ -5,18 +5,16 @@
  *  - DatabaseModule.forFeature([User], 'main')  注入 main 库的 User 仓储
  *  - PassportModule                              启用 Passport 默认策略
  *  - JwtModule.registerAsync                     注册 JWT（异步读取 jwtConfig）
+ *  - WechatAdapterModule                         运行时绑定 Mock/Real WechatAdapter（fail closed）
  *  - 自定义 providers：AuthService / WechatService / JwtCustomService / JwtStrategy
  */
 import { Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
-import {
-  DatabaseModule,
-  User,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { DatabaseModule, User, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { jwtConfig, type JwtConfig } from '@reelclone/common'
+import { WechatAdapterModule } from '@reelclone/adapters-wechat'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { WechatService } from './wechat.service'
@@ -38,6 +36,7 @@ import { JwtStrategy } from './jwt.strategy'
         },
       }),
     }),
+    WechatAdapterModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, WechatService, JwtCustomService, JwtStrategy],

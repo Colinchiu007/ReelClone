@@ -14,8 +14,10 @@ import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule)
 
-  // 全局前缀
-  app.setGlobalPrefix('api/v1')
+  // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['livez', 'readyz'],
+  })
 
   // 全局 Pipe / Interceptor / Filter
   app.useGlobalPipes(createValidationPipe())

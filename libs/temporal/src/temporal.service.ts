@@ -13,6 +13,7 @@ import {
   TASK_QUEUE,
   WORKFLOW_ID_PREFIX,
   type BenchmarkParams,
+  type GenerationReconcilerParams,
   type TemplateGenerationInput,
   type VideoGenParams,
 } from './types'
@@ -172,5 +173,46 @@ export class TemporalService {
   async onClose(): Promise<void> {
     await closeClient()
     this.clientPromise = null
+  }
+
+  /**
+   * C5: 启动 GenerationExecution Reconciler（单实例）
+   *
+   * 使用固定 workflowId 确保全局只有一个 reconciler 在运行。
+   * 如果已存在运行中的 reconciler，操作会被 Temporal 幂等忽略。
+   *
+   * @param params 重建参数（扫描间隔 / 批次大小）
+   * @returns 工作流 ID（固定值）
+   */
+  async startGenerationReconciler(params?: GenerationReconcilerParams): Promise<string> {
+    const client = await this.getClient()
+    const workflowId = WORKFLOW_ID_PREFIX.RECONCILER
+
+    try {
+      await client.workflow.start('generationReconcilerWorkflow', {
+        workflowId,
+        taskQueue: TASK_QUEUE.DEFAULT,
+        args: [params ?? {}],
+        // 长运行工作流：无执行超时
+        workflowExecutionTimeout: '0',
+        retry: {
+          initialInterval: '10 seconds',
+          maximumInterval: '5 minutes',
+          backoffCoefficient: 2,
+          maximumAttempts: 1,
+        },
+      })
+      this.logger.log(`Reconciler 工作流已启动 workflowId=${workflowId}`)
+    } catch (err: unknown) {
+      // 已存在同 ID 的工作流 — 幂等，不报错
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('already exists') || msg.includes('AlreadyStarted')) {
+        this.logger.debug(`Reconciler 已在运行中，跳过 workflowId=${workflowId}`)
+      } else {
+        throw err
+      }
+    }
+
+    return workflowId
   }
 }

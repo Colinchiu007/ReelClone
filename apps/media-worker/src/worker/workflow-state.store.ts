@@ -1,5 +1,7 @@
 import type { WorkStatus as TemporalWorkStatus, WorkflowStateStore } from '@reelclone/temporal'
 import {
+  GenerationExecution,
+  GenerationExecutionStage,
   GenerationTask,
   GenerationTaskStatus,
   Work,
@@ -43,6 +45,19 @@ function workStatusFor(status: TemporalWorkStatus): DatabaseWorkStatus {
 
 function isTerminal(status: TemporalWorkStatus): boolean {
   return status !== 'pending' && status !== 'processing'
+}
+
+/** C1.3: 将 Temporal 终态映射到 GenerationExecution 终态 stage。 */
+function executionStageFor(status: TemporalWorkStatus): GenerationExecutionStage {
+  switch (status) {
+    case 'completed':
+      return GenerationExecutionStage.COMPLETED
+    case 'canceled':
+      return GenerationExecutionStage.CANCELED
+    default:
+      // failed / timeout / 未知终态均归入 FAILED
+      return GenerationExecutionStage.FAILED
+  }
 }
 
 /**
@@ -135,7 +150,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     }
 
     if (generationTaskId) {
-      // 条件直接放到 UPDATE 中，避免“先读 active task，随后旧工作流覆盖新任务”的竞态窗口。
+      // 条件直接放到 UPDATE 中，避免"先读 active task，随后旧工作流覆盖新任务"的竞态窗口。
       const updateResult = await workRepo
         .createQueryBuilder()
         .update(Work)
@@ -152,6 +167,17 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
       // 仅兼容没有 generationTaskId 的旧工作流；新版工作流必须走上方条件更新。
       await workRepo.update(workId, workUpdate as never)
     }
+
+    // C1.3: 终态时更新 GenerationExecution stage
+    if (isTerminal(status)) {
+      const activeExecutionId = (work.modelConfig.activeExecutionId as string) ?? null
+      if (activeExecutionId) {
+        const executionRepo = this.mainDataSource.getRepository(GenerationExecution)
+        const stage = executionStageFor(status)
+        await executionRepo.update(activeExecutionId, { stage })
+      }
+    }
+
     return true
   }
 }

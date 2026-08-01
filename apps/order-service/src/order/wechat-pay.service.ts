@@ -1,24 +1,25 @@
 /**
- * 微信支付服务（含 Mock 模式）
+ * 微信支付服务（适配器门面）
  *
- * Mock 模式开启条件（任一满足）：
- *  - 环境变量 WECHAT_PAY_MOCK_MODE=true
- *  - 环境变量 WECHAT_PAY_MCHID 为空
+ * 职责：
+ *  1. 注入 IWechatPayAdapter（由 WechatPayAdapterModule 根据 profile 绑定 Mock/Real）
+ *  2. verifyAndDecryptCallback：委托适配器完成验签 + AES-GCM 解密，返回结构化结果
+ *  3. createPaymentParams：调用微信支付下单 API 生成小程序支付参数（保留原有 Mock/Real 分支）
  *
- * Mock 模式行为：
- *  - createPaymentParams: 直接生成假支付参数（paySign 为 'mock_sign'）
- *  - verifyCallback: 接收回调后立即返回通过（不校验签名）
- *  - decryptResource: 直接返回原始 JSON（不解密）
- *
- * 真实模式行为（仅做接口预留，需集成 wechatpay-axios-plugin 或自实现）：
- *  - createPaymentParams: 调用微信支付下单 API 获取 prepay_id，再签名生成小程序支付参数
- *  - verifyCallback: 校验 APIv3 签名
- *  - decryptResource: AES-256-GCM 解密回调中的 resource.ciphertext
+ * 设计要点：
+ *  - 回调验签/解密完全委托给适配器，业务代码零分支（mock/real 由 profile 决定）
+ *  - createPaymentParams 暂保留分支（适配器接口未覆盖下单侧），后续可扩展
+ *  - isMockMode() 基于适配器的 isMock 属性，供外部可观测性使用
  */
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import axios from 'axios'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
+import {
+  type IWechatPayAdapter,
+  type WechatPayNotification,
+  WECHAT_PAY_ADAPTER,
+} from '@reelclone/adapters-wechat'
 
 /** 微信小程序支付参数（返回给前端调起 wx.requestPayment） */
 export interface WechatPaymentParams {
@@ -32,32 +33,6 @@ export interface WechatPaymentParams {
   signType: 'RSA'
   /** 签名 */
   paySign: string
-}
-
-/** 微信支付回调原始报文 */
-export interface WechatPayCallbackPayload {
-  /** 微信支付平台证书序列号 */
-  serial?: string
-  /** 回调时间戳（秒） */
-  timestamp?: string
-  /** 回调随机串 */
-  nonce?: string
-  /** 回调签名 */
-  signature?: string
-  /** 回调主体（含 resource 字段） */
-  body: {
-    id?: string
-    create_time?: string
-    event_type?: string
-    resource_type?: string
-    resource: {
-      algorithm?: string
-      ciphertext?: string
-      associated_data?: string
-      nonce?: string
-      original_type?: string
-    }
-  }
 }
 
 /** 解密后的支付结果 */
@@ -80,65 +55,96 @@ export interface WechatPayResult {
   }
   /** 支付完成时间（RFC3339） */
   success_time?: string
+  /** 小程序 AppID */
+  appid?: string
+  /** 商户号 */
+  mchid?: string
+}
+
+/** 验签 + 解密的聚合结果 */
+export interface VerifyAndDecryptResult {
+  /** 是否验签通过 */
+  verified: boolean
+  /** 适配器返回的通知结构（含原始 body、解析后的 body） */
+  notification: WechatPayNotification
+  /** 解密后的支付结果（verified=false 或 resource 缺失时为 null） */
+  decrypted: WechatPayResult | null
 }
 
 /**
  * 微信支付服务
  *
- * 通过环境变量切换 Mock / 真实模式，业务层无感知。
+ * 回调验签/解密委托给 IWechatPayAdapter，下单参数生成保留原有实现。
  */
 @Injectable()
 export class WechatPayService {
   private readonly logger = new Logger(WechatPayService.name)
 
-  /** 是否启用 Mock 模式 */
-  private readonly mockMode: boolean
-
-  // -------------------- 真实模式配置 --------------------
-  /** 商户号 */
-  private readonly mchId: string
-  /** 小程序 AppID */
-  private readonly appId: string
-  /** APIv3 密钥（32 字节） */
-  private readonly apiV3Key: string
-  /** 商户证书序列号 */
-  private readonly serialNo: string
-  /** 商户私钥文件路径 */
-  private readonly privateKeyPath: string
-  /** 支付回调通知 URL */
-  private readonly notifyUrl: string
-
-  /** 商户私钥缓存（避免每次下单重复读文件） */
+  /** 商户私钥缓存（createPaymentParams 真实模式用） */
   private privateKeyCache: Buffer | null = null
 
-  constructor() {
-    const envMock = (process.env.WECHAT_PAY_MOCK_MODE ?? '').toLowerCase()
-    const mchId = process.env.WECHAT_PAY_MCHID ?? ''
-    this.mockMode = envMock === 'true' || mchId.length === 0
-
-    this.mchId = mchId
-    this.appId = process.env.WECHAT_PAY_APPID ?? ''
-    this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY ?? ''
-    this.serialNo = process.env.WECHAT_PAY_SERIAL_NO ?? ''
-    this.privateKeyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH ?? ''
-    this.notifyUrl = process.env.WECHAT_PAY_NOTIFY_URL ?? ''
-
-    // 生产环境安全检查：禁止 Mock 模式启动
-    if (this.mockMode && process.env.NODE_ENV === 'production') {
-      throw new Error(
-        '微信支付在生产环境中不允许使用 Mock 模式，请配置 WECHAT_PAY_MCHID 或设置 WECHAT_PAY_MOCK_MODE=false',
-      )
-    }
-
-    if (this.mockMode) {
-      this.logger.warn('微信支付运行于 Mock 模式，不会调用真实微信支付 API')
+  constructor(@Inject(WECHAT_PAY_ADAPTER) private readonly adapter: IWechatPayAdapter) {
+    if (adapter.isMock) {
+      this.logger.warn('微信支付运行于 Mock 适配器模式（test profile）')
     }
   }
 
-  /** 当前是否为 Mock 模式（供测试与外部判断） */
+  /** 当前是否为 Mock 模式（基于适配器属性） */
   isMockMode(): boolean {
-    return this.mockMode
+    return this.adapter.isMock
   }
+
+  // -------------------- 回调验签 + 解密 --------------------
+
+  /**
+   * 验签并解密微信支付回调
+   *
+   * 委托 IWechatPayAdapter 完成：
+   *  1. verifyNotification：时间窗 / nonce 防重放 / RSA-SHA256 签名校验
+   *  2. decryptResource：AES-256-GCM 解密 resource.ciphertext
+   *
+   * 验签失败时返回 verified=false（不抛错，由调用方决定如何处理）。
+   * 解密失败时抛错（验签通过但解密失败属于异常情况，需排查）。
+   *
+   * @param headers HTTP 请求头（含 Wechatpay-Serial/Timestamp/Nonce/Signature）
+   * @param rawBody 原始 body 字符串（必须为未修改的 raw body）
+   */
+  async verifyAndDecryptCallback(
+    headers: Record<string, string | string[] | undefined>,
+    rawBody: string,
+  ): Promise<VerifyAndDecryptResult> {
+    // 1. 委托适配器验签
+    const notification = await this.adapter.verifyNotification(headers, rawBody)
+
+    if (!notification.verified) {
+      return { verified: false, notification, decrypted: null }
+    }
+
+    // 2. 提取 resource 并解密
+    const resource = notification.body?.resource
+    if (!resource?.ciphertext || !resource?.nonce) {
+      // 验签通过但无 resource（可能是非支付类通知），不解密
+      this.logger.warn(`回调验签通过但 resource 缺失: eventType=${notification.body?.event_type}`)
+      return { verified: true, notification, decrypted: null }
+    }
+
+    const plaintext = this.adapter.decryptResource(
+      resource.ciphertext,
+      resource.associated_data ?? '',
+      resource.nonce,
+    )
+
+    let decrypted: WechatPayResult
+    try {
+      decrypted = JSON.parse(plaintext) as WechatPayResult
+    } catch (err) {
+      throw new Error(`微信支付回调解密后 JSON 解析失败: ${(err as Error).message}`)
+    }
+
+    return { verified: true, notification, decrypted }
+  }
+
+  // -------------------- 创建支付参数 --------------------
 
   /**
    * 创建支付参数
@@ -157,47 +163,10 @@ export class WechatPayService {
     description: string
     openid: string
   }): Promise<WechatPaymentParams> {
-    if (this.mockMode) {
+    if (this.adapter.isMock) {
       return this.mockCreatePaymentParams(params)
     }
     return this.realCreatePaymentParams(params)
-  }
-
-  /**
-   * 校验回调签名
-   *
-   * Mock 模式：直接返回 true
-   * 真实模式：使用微信支付平台公钥校验 APIv3 签名
-   *
-   * @param payload 回调报文
-   */
-  async verifyCallback(payload: WechatPayCallbackPayload): Promise<boolean> {
-    if (this.mockMode) {
-      // Mock 模式不校验签名，直接通过
-      void payload
-      return true
-    }
-    // 真实模式：完整验签需下载微信支付平台证书并校验 APIv3 签名
-    // TODO: 接入平台证书下载 + SHA256-with-RSA 验签
-    this.logger.warn(
-      'verifyCallback 真实模式验签待实现，临时通过（payload.serial=' + payload.serial + '）',
-    )
-    return true
-  }
-
-  /**
-   * 解密回调资源
-   *
-   * Mock 模式：直接返回包含 out_trade_no / transaction_id 的伪造结果
-   * 真实模式：使用 APIv3 密钥进行 AES-256-GCM 解密
-   *
-   * @param payload 回调报文
-   */
-  async decryptResource(payload: WechatPayCallbackPayload): Promise<WechatPayResult> {
-    if (this.mockMode) {
-      return this.mockDecryptResource(payload)
-    }
-    return this.realDecryptResource(payload)
   }
 
   // -------------------- 真实实现 --------------------
@@ -210,10 +179,11 @@ export class WechatPayService {
     if (this.privateKeyCache) {
       return this.privateKeyCache
     }
-    if (!this.privateKeyPath) {
+    const privateKeyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH ?? ''
+    if (!privateKeyPath) {
       throw new Error('微信支付真实模式未配置 WECHAT_PAY_PRIVATE_KEY_PATH')
     }
-    this.privateKeyCache = fs.readFileSync(this.privateKeyPath)
+    this.privateKeyCache = fs.readFileSync(privateKeyPath)
     return this.privateKeyCache
   }
 
@@ -231,6 +201,10 @@ export class WechatPayService {
     openid: string
   }): Promise<WechatPaymentParams> {
     const privateKey = this.getPrivateKey()
+    const appId = process.env.WECHAT_PAY_APPID ?? ''
+    const mchId = process.env.WECHAT_PAY_MCHID ?? ''
+    const serialNo = process.env.WECHAT_PAY_SERIAL_NO ?? ''
+    const notifyUrl = process.env.WECHAT_PAY_NOTIFY_URL ?? ''
 
     // 金额：元 → 分
     const total = Math.round(params.amount * 100)
@@ -238,14 +212,14 @@ export class WechatPayService {
     // 构造下单请求体
     const requestBody = {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      appid: this.appId,
+      appid: appId,
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      mchid: this.mchId,
+      mchid: mchId,
       description: params.description,
       // eslint-disable-next-line @typescript-eslint/naming-convention
       out_trade_no: params.orderNo,
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      notify_url: this.notifyUrl,
+      notify_url: notifyUrl,
       amount: { total, currency: 'CNY' },
       payer: { openid: params.openid },
     }
@@ -260,7 +234,7 @@ export class WechatPayService {
           'Content-Type': 'application/json',
           Accept: 'application/json',
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          'Wechatpay-Serial': this.serialNo,
+          'Wechatpay-Serial': serialNo,
         },
         timeout: 15_000,
       },
@@ -276,7 +250,7 @@ export class WechatPayService {
     const nonceStr = crypto.randomBytes(16).toString('hex')
     const pkg = `prepay_id=${prepayId}`
     // 签名串：appId\ntimestamp\nnonceStr\npackage\n
-    const signContent = `${this.appId}\n${timeStamp}\n${nonceStr}\n${pkg}\n`
+    const signContent = `${appId}\n${timeStamp}\n${nonceStr}\n${pkg}\n`
     const paySign = crypto
       .sign('RSA-SHA256', Buffer.from(signContent), privateKey)
       .toString('base64')
@@ -288,47 +262,6 @@ export class WechatPayService {
       signType: 'RSA',
       paySign,
     }
-  }
-
-  /**
-   * 真实模式：AES-256-GCM 解密回调 resource
-   *
-   * - key = APIv3 密钥（32 字节）
-   * - nonce = resource.nonce
-   * - associated_data = resource.associated_data
-   * - ciphertext = Base64decode(resource.ciphertext)，末尾 16 字节为 GCM auth tag
-   */
-  private realDecryptResource(payload: WechatPayCallbackPayload): WechatPayResult {
-    const resource = payload?.body?.resource ?? {}
-    const ciphertext = resource.ciphertext
-    const nonce = resource.nonce
-    const associatedData = resource.associated_data ?? ''
-
-    if (!ciphertext || !nonce) {
-      throw new Error('微信支付回调 resource 缺少 ciphertext 或 nonce')
-    }
-    if (!this.apiV3Key) {
-      throw new Error('微信支付真实模式未配置 WECHAT_PAY_API_V3_KEY')
-    }
-
-    const key = Buffer.from(this.apiV3Key, 'utf8')
-    const nonceBuf = Buffer.from(nonce, 'utf8')
-    const aad = Buffer.from(associatedData, 'utf8')
-    const ciphertextBuf = Buffer.from(ciphertext, 'base64')
-
-    // GCM：末尾 16 字节为认证标签
-    const authTag = ciphertextBuf.subarray(ciphertextBuf.length - 16)
-    const encryptedData = ciphertextBuf.subarray(0, ciphertextBuf.length - 16)
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonceBuf)
-    decipher.setAuthTag(authTag)
-    decipher.setAAD(aad)
-
-    const plaintext = Buffer.concat([decipher.update(encryptedData), decipher.final()]).toString(
-      'utf8',
-    )
-
-    return JSON.parse(plaintext) as WechatPayResult
   }
 
   // -------------------- Mock 实现 --------------------
@@ -353,47 +286,6 @@ export class WechatPayService {
       package: `prepay_id=mock_prepay_${params.orderNo}`,
       signType: 'RSA',
       paySign: 'mock_sign',
-    }
-  }
-
-  /**
-   * Mock 模式：从回调报文中提取或伪造支付结果
-   *
-   * Mock 模式下，webhook 接收的 body 可能直接包含 out_trade_no 和 transaction_id
-   * （便于联调测试），否则基于 body.id 伪造。
-   */
-  private mockDecryptResource(payload: WechatPayCallbackPayload): WechatPayResult {
-    const body = payload.body ?? { resource: {} }
-    const resource = body.resource ?? {}
-
-    // 联调时允许直接在 ciphertext 中传 JSON 字符串
-    if (resource.ciphertext) {
-      try {
-        const parsed = JSON.parse(resource.ciphertext)
-        if (parsed.out_trade_no && parsed.transaction_id) {
-          return {
-            out_trade_no: parsed.out_trade_no,
-            transaction_id: parsed.transaction_id,
-            trade_state: parsed.trade_state ?? 'SUCCESS',
-            success_time: parsed.success_time ?? new Date().toISOString(),
-            amount: parsed.amount,
-          }
-        }
-      } catch {
-        // ciphertext 不是 JSON，回退到伪造逻辑
-      }
-    }
-
-    // 伪造支付结果
-    const orderNo = body.id ?? `mock_order_${Date.now()}`
-    return {
-      out_trade_no: orderNo,
-      transaction_id: `mock_tx_${orderNo}_${Date.now()}`,
-      trade_type: 'JSAPI',
-      trade_state: 'SUCCESS',
-      trade_state_desc: '支付成功',
-      success_time: new Date().toISOString(),
-      amount: { total: 0, payer_total: 0, currency: 'CNY' },
     }
   }
 }

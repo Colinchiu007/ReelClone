@@ -17,6 +17,7 @@
  *   - notification  Work / Benchmark 状态更新 / Redis 推送 / 微信订阅消息
  *   - oss           上传 / 签名 URL
  *   - template      用户上传视频转模板 / 下载 / 分析 / 封面 / 完成 / 失败
+ *   - reconciler    C5: GenerationExecution 悬挂状态扫描与恢复
  */
 import {
   seedanceActivities,
@@ -26,6 +27,7 @@ import {
   notificationActivities,
   ossActivities,
   templateActivities,
+  reconcilerActivities,
 } from '@reelclone/temporal'
 
 /** 所有 Activity 名称清单（用于校验装配完整性） */
@@ -64,6 +66,12 @@ export const ACTIVITY_NAMES = [
   'uploadThumbnail',
   'finalizeTemplate',
   'markTemplateFailed',
+  // reconciler（C5）
+  'scanPendingExecutions',
+  'claimExecution',
+  'queryProviderTaskStatus',
+  'updateExecutionStage',
+  'releaseClaim',
 ] as const
 
 /**
@@ -80,5 +88,6 @@ export function buildActivities() {
     ...notificationActivities,
     ...ossActivities,
     ...templateActivities,
+    ...reconcilerActivities,
   }
 }

@@ -13,10 +13,13 @@ import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule)
+  // rawBody: true 保留原始请求体，供微信支付回调验签使用
+  const app = await NestFactory.create(AppModule, { rawBody: true })
 
-  // 全局前缀
-  app.setGlobalPrefix('api/v1')
+  // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['livez', 'readyz'],
+  })
 
   // 全局 Pipe：参数校验
   app.useGlobalPipes(AppValidationPipe)
