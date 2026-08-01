@@ -38,7 +38,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify openapi-typescript version
+        run: npx openapi-typescript --version
 
       # Nx 本地缓存：覆盖 home 目录与工作区两种可能的缓存位置
       # key 按 commit 唯一，保证每次运行都能写入增量缓存；restore-keys 回退到最近的 OS 缓存
