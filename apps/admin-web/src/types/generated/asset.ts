@@ -4,400 +4,400 @@
  * Source hash: 8c277aa007c2
  */
 export interface paths {
-  '/api/v1/assets/upload-token': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post: operations['AssetController_createUploadToken']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/assets': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 资产列表（分页 + 筛选） */
-    get: operations['AssetController_findAll']
-    put?: never
-    /** 创建资产记录（直传 OSS 完成后登记） */
-    post: operations['AssetController_create']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/assets/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: operations['AssetController_findOne']
-    put?: never
-    post?: never
-    /** 删除资产 */
-    delete: operations['AssetController_delete']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/avatar-groups': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: operations['AvatarGroupController_findAll']
-    put?: never
-    /** 创建真人形象组 */
-    post: operations['AvatarGroupController_create']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/avatar-groups/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get: operations['AvatarGroupController_findOne']
-    put: operations['AvatarGroupController_update']
-    post?: never
-    /** 删除真人形象组（级联删除组内资产） */
-    delete: operations['AvatarGroupController_delete']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/assets/upload-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AssetController_createUploadToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 资产列表（分页 + 筛选） */
+        get: operations["AssetController_findAll"];
+        put?: never;
+        /** 创建资产记录（直传 OSS 完成后登记） */
+        post: operations["AssetController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AssetController_findOne"];
+        put?: never;
+        post?: never;
+        /** 删除资产 */
+        delete: operations["AssetController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/avatar-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AvatarGroupController_findAll"];
+        put?: never;
+        /** 创建真人形象组 */
+        post: operations["AvatarGroupController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/avatar-groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AvatarGroupController_findOne"];
+        put: operations["AvatarGroupController_update"];
+        post?: never;
+        /** 删除真人形象组（级联删除组内资产） */
+        delete: operations["AvatarGroupController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    UploadTokenDto: {
-      /**
-       * @description 文件类型，用于推导 OSS Key 前缀（image/video/audio）
-       * @example image
-       * @enum {string}
-       */
-      fileType: 'image' | 'video' | 'audio'
-      /**
-       * @description 原始文件名（用于推断扩展名）
-       * @example avatar.png
-       */
-      fileName: string
-      /**
-       * @description MIME 类型（透传给客户端，不参与 Key 生成）
-       * @example image/png
-       */
-      contentType?: string
-    }
-    CreateAssetDto: {
-      /**
-       * @description 对象存储 Key（由 upload-token 接口返回）
-       * @example assets/image/user-uuid/20260731-avatar.png
-       */
-      ossKey: string
-      /**
-       * @description 文件名
-       * @example avatar.png
-       */
-      name: string
-      /**
-       * @description 资产类型（IMAGE/VIDEO/AUDIO）
-       * @example IMAGE
-       * @enum {string}
-       */
-      type: 'IMAGE' | 'VIDEO' | 'AUDIO'
-      /**
-       * @description 文件大小（字节）
-       * @example 102400
-       */
-      size: number
-      /**
-       * @description MIME 类型
-       * @example image/png
-       */
-      mimeType?: string
-      /**
-       * @description 音视频时长（秒）
-       * @example 15
-       */
-      duration?: number
-      /**
-       * @description 缩略图 OSS Key
-       * @example thumbnails/image/user-uuid/20260731-avatar.png
-       */
-      thumbnailKey?: string
-      /**
-       * @description 所属真人形象组 ID（可空）
-       * @example a1b2c3d4-uuid
-       */
-      avatarGroupId?: string
-    }
-    CreateAvatarGroupDto: {
-      /**
-       * @description 组名称（同用户下唯一）
-       * @example 我的形象组
-       */
-      name: string
-      /**
-       * @description 描述
-       * @example 用于短视频口播的真人形象
-       */
-      description?: string
-      /**
-       * @description 授权书 OSS Key（可后续补充）
-       * @example avatars/auth/user-uuid/authorization.pdf
-       */
-      authorizationKey?: string
-    }
-    UpdateAvatarGroupDto: {
-      /**
-       * @description 组名称（若变更需重新校验唯一性）
-       * @example 我的形象组-改名
-       */
-      name?: string
-      /**
-       * @description 描述
-       * @example 用于短视频口播的真人形象
-       */
-      description?: string
-      /**
-       * @description 授权书 OSS Key
-       * @example avatars/auth/user-uuid/authorization.pdf
-       */
-      authorizationKey?: string
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        UploadTokenDto: {
+            /**
+             * @description 文件类型，用于推导 OSS Key 前缀（image/video/audio）
+             * @example image
+             * @enum {string}
+             */
+            fileType: "image" | "video" | "audio";
+            /**
+             * @description 原始文件名（用于推断扩展名）
+             * @example avatar.png
+             */
+            fileName: string;
+            /**
+             * @description MIME 类型（透传给客户端，不参与 Key 生成）
+             * @example image/png
+             */
+            contentType?: string;
+        };
+        CreateAssetDto: {
+            /**
+             * @description 对象存储 Key（由 upload-token 接口返回）
+             * @example assets/image/user-uuid/20260731-avatar.png
+             */
+            ossKey: string;
+            /**
+             * @description 文件名
+             * @example avatar.png
+             */
+            name: string;
+            /**
+             * @description 资产类型（IMAGE/VIDEO/AUDIO）
+             * @example IMAGE
+             * @enum {string}
+             */
+            type: "IMAGE" | "VIDEO" | "AUDIO";
+            /**
+             * @description 文件大小（字节）
+             * @example 102400
+             */
+            size: number;
+            /**
+             * @description MIME 类型
+             * @example image/png
+             */
+            mimeType?: string;
+            /**
+             * @description 音视频时长（秒）
+             * @example 15
+             */
+            duration?: number;
+            /**
+             * @description 缩略图 OSS Key
+             * @example thumbnails/image/user-uuid/20260731-avatar.png
+             */
+            thumbnailKey?: string;
+            /**
+             * @description 所属真人形象组 ID（可空）
+             * @example a1b2c3d4-uuid
+             */
+            avatarGroupId?: string;
+        };
+        CreateAvatarGroupDto: {
+            /**
+             * @description 组名称（同用户下唯一）
+             * @example 我的形象组
+             */
+            name: string;
+            /**
+             * @description 描述
+             * @example 用于短视频口播的真人形象
+             */
+            description?: string;
+            /**
+             * @description 授权书 OSS Key（可后续补充）
+             * @example avatars/auth/user-uuid/authorization.pdf
+             */
+            authorizationKey?: string;
+        };
+        UpdateAvatarGroupDto: {
+            /**
+             * @description 组名称（若变更需重新校验唯一性）
+             * @example 我的形象组-改名
+             */
+            name?: string;
+            /**
+             * @description 描述
+             * @example 用于短视频口播的真人形象
+             */
+            description?: string;
+            /**
+             * @description 授权书 OSS Key
+             * @example avatars/auth/user-uuid/authorization.pdf
+             */
+            authorizationKey?: string;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  AssetController_createUploadToken: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UploadTokenDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AssetController_findAll: {
-    parameters: {
-      query?: {
-        /** @description 资产类型筛选（IMAGE/VIDEO/AUDIO） */
-        type?: 'IMAGE' | 'VIDEO' | 'AUDIO'
-        /** @description 真人形象组筛选（查询组内资产） */
-        avatarGroupId?: string
-        /** @description 文件名关键词（模糊匹配） */
-        keyword?: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AssetController_create: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateAssetDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AssetController_findOne: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AssetController_delete: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AvatarGroupController_findAll: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AvatarGroupController_create: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateAvatarGroupDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AvatarGroupController_findOne: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AvatarGroupController_update: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateAvatarGroupDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AvatarGroupController_delete: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
+    AssetController_createUploadToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadTokenDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AssetController_findAll: {
+        parameters: {
+            query?: {
+                /** @description 资产类型筛选（IMAGE/VIDEO/AUDIO） */
+                type?: "IMAGE" | "VIDEO" | "AUDIO";
+                /** @description 真人形象组筛选（查询组内资产） */
+                avatarGroupId?: string;
+                /** @description 文件名关键词（模糊匹配） */
+                keyword?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AssetController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAssetDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AssetController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AssetController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarGroupController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarGroupController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAvatarGroupDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarGroupController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarGroupController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAvatarGroupDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AvatarGroupController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

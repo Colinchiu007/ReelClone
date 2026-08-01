@@ -4,1284 +4,1283 @@
  * Source hash: 684365721fc0
  */
 export interface paths {
-  '/api/v1/admin/health': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 健康检查 */
-    get: operations['AppController_health']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/users': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 分页查询用户列表 */
-    get: operations['AdminUserController_listUsers']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/users/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 查询用户详情 */
-    get: operations['AdminUserController_getUserDetail']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/users/{id}/status': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 封禁 / 解封用户 */
-    put: operations['AdminUserController_updateStatus']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/users/{id}/role': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 变更用户角色（仅 SUPER_ADMIN） */
-    put: operations['AdminUserController_updateRole']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/users/{id}/grant-points': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 人工调账（赠送积分） */
-    post: operations['AdminUserController_grantPoints']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/reviews/pending': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 聚合待审核列表 */
-    get: operations['AdminReviewController_pending']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/templates/{id}/review': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 模板审核 */
-    post: operations['AdminReviewController_reviewTemplate']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/avatar-groups/{id}/authorization': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 形象组授权审核 */
-    put: operations['AdminReviewController_reviewAvatarGroup']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/works': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 全平台作品列表（分页 + 筛选） */
-    get: operations['AdminContentController_listWorks']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/works/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    post?: never
-    /** 强制下架作品 */
-    delete: operations['AdminContentController_takedownWork']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/templates': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 全状态模板列表 */
-    get: operations['AdminContentController_listTemplates']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/templates/{id}/status': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 模板上下架 */
-    put: operations['AdminContentController_updateTemplateStatus']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/packages': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 套餐列表（全状态） */
-    get: operations['AdminPackageController_findAll']
-    put?: never
-    /** 创建套餐 */
-    post: operations['AdminPackageController_create']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/packages/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 编辑套餐 */
-    put: operations['AdminPackageController_update']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/packages/{id}/status': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 上架 / 下架套餐 */
-    put: operations['AdminPackageController_updateStatus']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/orders': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 全平台订单列表（分页 + 多条件筛选） */
-    get: operations['AdminOrderController_list']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/orders/{id}/refund': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 订单退款（敏感操作） */
-    post: operations['AdminOrderController_refund']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/stats/overview': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 概览指标（DAU / 新增用户 / GMV / 生成量 / 积分消耗 + 趋势） */
-    get: operations['AdminStatsController_overview']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/stats/points-flow': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 积分流水查询 */
-    get: operations['AdminStatsController_pointsFlow']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/reconcile/results': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 查看对账结果 */
-    get: operations['AdminReconcileController_getResults']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/reconcile': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 手动触发对账 */
-    post: operations['AdminReconcileController_trigger']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/notifications/broadcast': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 广播公告 */
-    post: operations['AdminNotificationController_broadcast']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/notifications/send': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 定向推送通知 */
-    post: operations['AdminNotificationController_send']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/admin/config/api-keys': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 查看各 Provider 的 Key 配置状态 */
-    get: operations['AdminConfigController_listApiKeys']
-    /** 更新指定 Provider 的 Key 列表 */
-    put: operations['AdminConfigController_updateApiKeys']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/admin/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 健康检查 */
+        get: operations["AppController_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 分页查询用户列表 */
+        get: operations["AdminUserController_listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询用户详情 */
+        get: operations["AdminUserController_getUserDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 封禁 / 解封用户 */
+        put: operations["AdminUserController_updateStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 变更用户角色（仅 SUPER_ADMIN） */
+        put: operations["AdminUserController_updateRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}/grant-points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 人工调账（赠送积分） */
+        post: operations["AdminUserController_grantPoints"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 聚合待审核列表 */
+        get: operations["AdminReviewController_pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/templates/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 模板审核 */
+        post: operations["AdminReviewController_reviewTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/avatar-groups/{id}/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 形象组授权审核 */
+        put: operations["AdminReviewController_reviewAvatarGroup"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/works": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 全平台作品列表（分页 + 筛选） */
+        get: operations["AdminContentController_listWorks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/works/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 强制下架作品 */
+        delete: operations["AdminContentController_takedownWork"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 全状态模板列表 */
+        get: operations["AdminContentController_listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/templates/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 模板上下架 */
+        put: operations["AdminContentController_updateTemplateStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 套餐列表（全状态） */
+        get: operations["AdminPackageController_findAll"];
+        put?: never;
+        /** 创建套餐 */
+        post: operations["AdminPackageController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/packages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 编辑套餐 */
+        put: operations["AdminPackageController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/packages/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 上架 / 下架套餐 */
+        put: operations["AdminPackageController_updateStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 全平台订单列表（分页 + 多条件筛选） */
+        get: operations["AdminOrderController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 订单退款（敏感操作） */
+        post: operations["AdminOrderController_refund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 概览指标（DAU / 新增用户 / GMV / 生成量 / 积分消耗 + 趋势） */
+        get: operations["AdminStatsController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stats/points-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分流水查询 */
+        get: operations["AdminStatsController_pointsFlow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reconcile/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看对账结果 */
+        get: operations["AdminReconcileController_getResults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 手动触发对账 */
+        post: operations["AdminReconcileController_trigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/notifications/broadcast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 广播公告 */
+        post: operations["AdminNotificationController_broadcast"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/notifications/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 定向推送通知 */
+        post: operations["AdminNotificationController_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/config/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看各 Provider 的 Key 配置状态 */
+        get: operations["AdminConfigController_listApiKeys"];
+        /** 更新指定 Provider 的 Key 列表 */
+        put: operations["AdminConfigController_updateApiKeys"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    UpdateUserStatusDto: {
-      /**
-       * @description 目标状态（ACTIVE 正常 / FROZEN 封禁）
-       * @example FROZEN
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'FROZEN' | 'DELETED'
-    }
-    UpdateUserRoleDto: {
-      /**
-       * @description 目标角色（USER / ADMIN / SUPER_ADMIN）
-       * @example ADMIN
-       * @enum {string}
-       */
-      role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
-    }
-    GrantPointsDto: {
-      /**
-       * @description 调账数量（正整数，>0）
-       * @example 100
-       */
-      amount: number
-      /**
-       * @description 调账原因（用于操作日志，最多 256 字符）
-       * @example 补偿用户积分
-       */
-      reason: string
-    }
-    ReviewTemplateDto: {
-      /**
-       * @description 审核后状态（ACTIVE 审核通过并上线 / REJECTED 拒绝）
-       * @example ACTIVE
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'REJECTED'
-      /**
-       * @description 审核备注（可选）
-       * @example 模板内容符合规范，审核通过
-       */
-      reviewNote?: string
-    }
-    ReviewAvatarGroupDto: {
-      /**
-       * @description 授权状态（APPROVED 授权通过 / EXPIRED 授权过期）
-       * @example APPROVED
-       * @enum {string}
-       */
-      status: 'APPROVED' | 'EXPIRED'
-      /**
-       * @description 审核备注（可选）
-       * @example 形象组符合规范，授权通过
-       */
-      note?: string
-    }
-    TakedownWorkDto: {
-      /**
-       * @description 下架原因（必填，1-500 字符）
-       * @example 内容违规
-       */
-      reason: string
-    }
-    UpdateTemplateStatusDto: {
-      /**
-       * @description 目标状态，仅允许 ACTIVE（上架）/ OFFLINE（下架）
-       * @example ACTIVE
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'OFFLINE'
-    }
-    CreatePackageDto: {
-      /**
-       * @description 套餐名称（最多 64 字符）
-       * @example 基础套餐
-       */
-      name: string
-      /**
-       * @description 套餐描述（可选）
-       * @example 适合个人创作者的基础套餐
-       */
-      description?: string
-      /**
-       * @description 价格（元，最多两位小数）
-       * @example 9.9
-       */
-      price: number
-      /**
-       * @description 原价（元，最多两位小数，可选）
-       * @example 19.9
-       */
-      originalPrice?: number
-      /**
-       * @description 包含积分数量（可选）
-       * @example 1000
-       */
-      points?: number
-      /**
-       * @description 赠送积分数量（可选）
-       * @example 200
-       */
-      bonusPoints?: number
-      /**
-       * @description 有效期（天，可选）
-       * @example 30
-       */
-      duration?: number
-      /**
-       * @description 功能特性（JSON 字符串数组，可选）
-       * @example [
-       *       "高清导出",
-       *       "无水印"
-       *     ]
-       */
-      features?: string[]
-      /**
-       * @description 套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性）
-       * @example ONE_TIME
-       * @enum {string}
-       */
-      type: 'SUBSCRIPTION' | 'ONE_TIME'
-      /**
-       * @description 排序值（可选，值越小越靠前）
-       * @example 1
-       */
-      sort?: number
-    }
-    UpdatePackageDto: {
-      /**
-       * @description 套餐名称（最多 64 字符，可选）
-       * @example 基础套餐
-       */
-      name?: string
-      /**
-       * @description 套餐描述（可选）
-       * @example 适合个人创作者的基础套餐
-       */
-      description?: string
-      /**
-       * @description 价格（元，最多两位小数，可选）
-       * @example 9.9
-       */
-      price?: number
-      /**
-       * @description 原价（元，最多两位小数，可选）
-       * @example 19.9
-       */
-      originalPrice?: number
-      /**
-       * @description 包含积分数量（可选）
-       * @example 1000
-       */
-      points?: number
-      /**
-       * @description 赠送积分数量（可选）
-       * @example 200
-       */
-      bonusPoints?: number
-      /**
-       * @description 有效期（天，可选）
-       * @example 30
-       */
-      duration?: number
-      /**
-       * @description 功能特性（JSON 字符串数组，可选）
-       * @example [
-       *       "高清导出",
-       *       "无水印"
-       *     ]
-       */
-      features?: string[]
-      /**
-       * @description 套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性，可选）
-       * @example ONE_TIME
-       * @enum {string}
-       */
-      type?: 'SUBSCRIPTION' | 'ONE_TIME'
-      /**
-       * @description 排序值（可选，值越小越靠前）
-       * @example 1
-       */
-      sort?: number
-    }
-    UpdatePackageStatusDto: {
-      /**
-       * @description 目标状态（ACTIVE 上架 / OFFLINE 下架）
-       * @example ACTIVE
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'OFFLINE'
-    }
-    RefundOrderDto: {
-      /**
-       * @description 退款原因（必填，1-500 字符，用于审计日志）
-       * @example 用户申请退款
-       */
-      reason: string
-    }
-    BroadcastDto: {
-      /**
-       * @description 公告标题（最多 128 字符）
-       * @example 系统维护通知
-       */
-      title: string
-      /**
-       * @description 公告内容（最多 4000 字符）
-       * @example 系统将于今晚 22:00-23:00 进行维护升级，请提前保存工作。
-       */
-      content: string
-      /**
-       * @description 广播范围（all 推送给所有用户 / active 推送给最近 7 天活跃用户），默认 all
-       * @example all
-       * @enum {string}
-       */
-      range?: 'all' | 'active'
-    }
-    SendNotificationDto: {
-      /**
-       * @description 接收用户 ID
-       * @example user-uuid-001
-       */
-      userId: string
-      /**
-       * @description 通知标题（最多 128 字符）
-       * @example 充值成功通知
-       */
-      title: string
-      /**
-       * @description 通知内容（最多 4000 字符）
-       * @example 您充值 100 元已到账，获得 1000 积分。
-       */
-      content: string
-    }
-    UpdateApiKeysDto: {
-      /**
-       * @description 目标 Provider（seedance / llm / oss）
-       * @example seedance
-       * @enum {string}
-       */
-      provider: 'seedance' | 'llm' | 'oss'
-      /**
-       * @description Key 列表（覆盖式更新，空数组表示清空）
-       * @example [
-       *       "sk-xxxxx",
-       *       "sk-yyyyy"
-       *     ]
-       */
-      keys: string[]
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        UpdateUserStatusDto: {
+            /**
+             * @description 目标状态（ACTIVE 正常 / FROZEN 封禁）
+             * @example FROZEN
+             * @enum {string}
+             */
+            status: "ACTIVE" | "FROZEN" | "DELETED";
+        };
+        UpdateUserRoleDto: {
+            /**
+             * @description 目标角色（USER / ADMIN / SUPER_ADMIN）
+             * @example ADMIN
+             * @enum {string}
+             */
+            role: "USER" | "ADMIN" | "SUPER_ADMIN";
+        };
+        GrantPointsDto: {
+            /**
+             * @description 调账数量（正整数，>0）
+             * @example 100
+             */
+            amount: number;
+            /**
+             * @description 调账原因（用于操作日志，最多 256 字符）
+             * @example 补偿用户积分
+             */
+            reason: string;
+        };
+        ReviewTemplateDto: {
+            /**
+             * @description 审核后状态（ACTIVE 审核通过并上线 / REJECTED 拒绝）
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "REJECTED";
+            /**
+             * @description 审核备注（可选）
+             * @example 模板内容符合规范，审核通过
+             */
+            reviewNote?: string;
+        };
+        ReviewAvatarGroupDto: {
+            /**
+             * @description 授权状态（APPROVED 授权通过 / EXPIRED 授权过期）
+             * @example APPROVED
+             * @enum {string}
+             */
+            status: "APPROVED" | "EXPIRED";
+            /**
+             * @description 审核备注（可选）
+             * @example 形象组符合规范，授权通过
+             */
+            note?: string;
+        };
+        TakedownWorkDto: {
+            /**
+             * @description 下架原因（必填，1-500 字符）
+             * @example 内容违规
+             */
+            reason: string;
+        };
+        UpdateTemplateStatusDto: {
+            /**
+             * @description 目标状态，仅允许 ACTIVE（上架）/ OFFLINE（下架）
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "OFFLINE";
+        };
+        CreatePackageDto: {
+            /**
+             * @description 套餐名称（最多 64 字符）
+             * @example 基础套餐
+             */
+            name: string;
+            /**
+             * @description 套餐描述（可选）
+             * @example 适合个人创作者的基础套餐
+             */
+            description?: string;
+            /**
+             * @description 价格（元，最多两位小数）
+             * @example 9.9
+             */
+            price: number;
+            /**
+             * @description 原价（元，最多两位小数，可选）
+             * @example 19.9
+             */
+            originalPrice?: number;
+            /**
+             * @description 包含积分数量（可选）
+             * @example 1000
+             */
+            points?: number;
+            /**
+             * @description 赠送积分数量（可选）
+             * @example 200
+             */
+            bonusPoints?: number;
+            /**
+             * @description 有效期（天，可选）
+             * @example 30
+             */
+            duration?: number;
+            /**
+             * @description 功能特性（JSON 字符串数组，可选）
+             * @example [
+             *       "高清导出",
+             *       "无水印"
+             *     ]
+             */
+            features?: string[];
+            /**
+             * @description 套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性）
+             * @example ONE_TIME
+             * @enum {string}
+             */
+            type: "SUBSCRIPTION" | "ONE_TIME";
+            /**
+             * @description 排序值（可选，值越小越靠前）
+             * @example 1
+             */
+            sort?: number;
+        };
+        UpdatePackageDto: {
+            /**
+             * @description 套餐名称（最多 64 字符，可选）
+             * @example 基础套餐
+             */
+            name?: string;
+            /**
+             * @description 套餐描述（可选）
+             * @example 适合个人创作者的基础套餐
+             */
+            description?: string;
+            /**
+             * @description 价格（元，最多两位小数，可选）
+             * @example 9.9
+             */
+            price?: number;
+            /**
+             * @description 原价（元，最多两位小数，可选）
+             * @example 19.9
+             */
+            originalPrice?: number;
+            /**
+             * @description 包含积分数量（可选）
+             * @example 1000
+             */
+            points?: number;
+            /**
+             * @description 赠送积分数量（可选）
+             * @example 200
+             */
+            bonusPoints?: number;
+            /**
+             * @description 有效期（天，可选）
+             * @example 30
+             */
+            duration?: number;
+            /**
+             * @description 功能特性（JSON 字符串数组，可选）
+             * @example [
+             *       "高清导出",
+             *       "无水印"
+             *     ]
+             */
+            features?: string[];
+            /**
+             * @description 套餐类型（SUBSCRIPTION 订阅 / ONE_TIME 一次性，可选）
+             * @example ONE_TIME
+             * @enum {string}
+             */
+            type?: "SUBSCRIPTION" | "ONE_TIME";
+            /**
+             * @description 排序值（可选，值越小越靠前）
+             * @example 1
+             */
+            sort?: number;
+        };
+        UpdatePackageStatusDto: {
+            /**
+             * @description 目标状态（ACTIVE 上架 / OFFLINE 下架）
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "OFFLINE";
+        };
+        RefundOrderDto: {
+            /**
+             * @description 退款原因（必填，1-500 字符，用于审计日志）
+             * @example 用户申请退款
+             */
+            reason: string;
+        };
+        BroadcastDto: {
+            /**
+             * @description 公告标题（最多 128 字符）
+             * @example 系统维护通知
+             */
+            title: string;
+            /**
+             * @description 公告内容（最多 4000 字符）
+             * @example 系统将于今晚 22:00-23:00 进行维护升级，请提前保存工作。
+             */
+            content: string;
+            /**
+             * @description 广播范围（all 推送给所有用户 / active 推送给最近 7 天活跃用户），默认 all
+             * @example all
+             * @enum {string}
+             */
+            range?: "all" | "active";
+        };
+        SendNotificationDto: {
+            /**
+             * @description 接收用户 ID
+             * @example user-uuid-001
+             */
+            userId: string;
+            /**
+             * @description 通知标题（最多 128 字符）
+             * @example 充值成功通知
+             */
+            title: string;
+            /**
+             * @description 通知内容（最多 4000 字符）
+             * @example 您充值 100 元已到账，获得 1000 积分。
+             */
+            content: string;
+        };
+        UpdateApiKeysDto: {
+            /**
+             * @description 目标 Provider（seedance / llm / oss）
+             * @example seedance
+             * @enum {string}
+             */
+            provider: "seedance" | "llm" | "oss";
+            /**
+             * @description Key 列表（覆盖式更新，空数组表示清空）
+             * @example [
+             *       "sk-xxxxx",
+             *       "sk-yyyyy"
+             *     ]
+             */
+            keys: string[];
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  AppController_health: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminUserController_listUsers: {
-    parameters: {
-      query?: {
-        /** @description 页码，从 1 开始，默认 1 */
-        page?: number
-        /** @description 每页条数，默认 20，最大 100 */
-        pageSize?: number
-        /** @description 搜索关键字（昵称 / 手机号模糊匹配，最多 64 字符） */
-        keyword?: string
-        /** @description 用户状态筛选（ACTIVE / FROZEN） */
-        status?: 'ACTIVE' | 'FROZEN' | 'DELETED'
-        /** @description 用户角色筛选（USER / ADMIN / SUPER_ADMIN） */
-        role?: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminUserController_getUserDetail: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminUserController_updateStatus: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateUserStatusDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminUserController_updateRole: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateUserRoleDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminUserController_grantPoints: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['GrantPointsDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminReviewController_pending: {
-    parameters: {
-      query: {
-        type: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminReviewController_reviewTemplate: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReviewTemplateDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminReviewController_reviewAvatarGroup: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReviewAvatarGroupDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminContentController_listWorks: {
-    parameters: {
-      query?: {
-        /** @description 作品状态筛选（可选） */
-        status?:
-          'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'REJECTED' | 'DELETED'
-        /** @description 创作者 ID 筛选（可选） */
-        userId?: string
-        /** @description 创建时间下界（可选，ISO 8601） */
-        startDate?: string
-        /** @description 创建时间上界（可选，ISO 8601） */
-        endDate?: string
-        /** @description 页码，1 基，默认 1 */
-        page?: number
-        /** @description 每页条数，默认 20，最大 100 */
-        pageSize?: number
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminContentController_takedownWork: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['TakedownWorkDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminContentController_listTemplates: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminContentController_updateTemplateStatus: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateTemplateStatusDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminPackageController_findAll: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminPackageController_create: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreatePackageDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminPackageController_update: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdatePackageDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminPackageController_updateStatus: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdatePackageStatusDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminOrderController_list: {
-    parameters: {
-      query?: {
-        /** @description 页码，默认 1 */
-        page?: number
-        /** @description 每页条数，默认 20，最大 100 */
-        pageSize?: number
-        /** @description 订单状态筛选（可选） */
-        status?: 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED'
-        /** @description 用户 ID 筛选（可选） */
-        userId?: string
-        /** @description 起始时间（可选，ISO 8601），筛选 createdAt >= startDate */
-        startDate?: string
-        /** @description 结束时间（可选，ISO 8601），筛选 createdAt <= endDate */
-        endDate?: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminOrderController_refund: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RefundOrderDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminStatsController_overview: {
-    parameters: {
-      query?: {
-        /** @description 时间范围（7d 最近 7 天 / 30d 最近 30 天），默认 7d */
-        range?: '7d' | '30d'
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminStatsController_pointsFlow: {
-    parameters: {
-      query?: {
-        /** @description 页码，默认 1 */
-        page?: number
-        /** @description 每页条数，默认 20，最大 100 */
-        pageSize?: number
-        /** @description 用户 ID 筛选（可选） */
-        userId?: string
-        /** @description 起始时间（可选，ISO 8601），筛选 createdAt >= startDate */
-        startDate?: string
-        /** @description 结束时间（可选，ISO 8601），筛选 createdAt <= endDate */
-        endDate?: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminReconcileController_getResults: {
-    parameters: {
-      query: {
-        date: string
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminReconcileController_trigger: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminNotificationController_broadcast: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['BroadcastDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminNotificationController_send: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SendNotificationDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminConfigController_listApiKeys: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  AdminConfigController_updateApiKeys: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateApiKeysDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
+    AppController_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUserController_listUsers: {
+        parameters: {
+            query?: {
+                /** @description 页码，从 1 开始，默认 1 */
+                page?: number;
+                /** @description 每页条数，默认 20，最大 100 */
+                pageSize?: number;
+                /** @description 搜索关键字（昵称 / 手机号模糊匹配，最多 64 字符） */
+                keyword?: string;
+                /** @description 用户状态筛选（ACTIVE / FROZEN） */
+                status?: "ACTIVE" | "FROZEN" | "DELETED";
+                /** @description 用户角色筛选（USER / ADMIN / SUPER_ADMIN） */
+                role?: "USER" | "ADMIN" | "SUPER_ADMIN";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUserController_getUserDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUserController_updateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUserController_updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUserController_grantPoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantPointsDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminReviewController_pending: {
+        parameters: {
+            query: {
+                type: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminReviewController_reviewTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminReviewController_reviewAvatarGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewAvatarGroupDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminContentController_listWorks: {
+        parameters: {
+            query?: {
+                /** @description 作品状态筛选（可选） */
+                status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED" | "REJECTED" | "DELETED";
+                /** @description 创作者 ID 筛选（可选） */
+                userId?: string;
+                /** @description 创建时间下界（可选，ISO 8601） */
+                startDate?: string;
+                /** @description 创建时间上界（可选，ISO 8601） */
+                endDate?: string;
+                /** @description 页码，1 基，默认 1 */
+                page?: number;
+                /** @description 每页条数，默认 20，最大 100 */
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminContentController_takedownWork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakedownWorkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminContentController_listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminContentController_updateTemplateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTemplateStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminPackageController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminPackageController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePackageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminPackageController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminPackageController_updateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePackageStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminOrderController_list: {
+        parameters: {
+            query?: {
+                /** @description 页码，默认 1 */
+                page?: number;
+                /** @description 每页条数，默认 20，最大 100 */
+                pageSize?: number;
+                /** @description 订单状态筛选（可选） */
+                status?: "PENDING" | "PAID" | "CANCELLED" | "REFUNDED";
+                /** @description 用户 ID 筛选（可选） */
+                userId?: string;
+                /** @description 起始时间（可选，ISO 8601），筛选 createdAt >= startDate */
+                startDate?: string;
+                /** @description 结束时间（可选，ISO 8601），筛选 createdAt <= endDate */
+                endDate?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminOrderController_refund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundOrderDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminStatsController_overview: {
+        parameters: {
+            query?: {
+                /** @description 时间范围（7d 最近 7 天 / 30d 最近 30 天），默认 7d */
+                range?: "7d" | "30d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminStatsController_pointsFlow: {
+        parameters: {
+            query?: {
+                /** @description 页码，默认 1 */
+                page?: number;
+                /** @description 每页条数，默认 20，最大 100 */
+                pageSize?: number;
+                /** @description 用户 ID 筛选（可选） */
+                userId?: string;
+                /** @description 起始时间（可选，ISO 8601），筛选 createdAt >= startDate */
+                startDate?: string;
+                /** @description 结束时间（可选，ISO 8601），筛选 createdAt <= endDate */
+                endDate?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminReconcileController_getResults: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminReconcileController_trigger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminNotificationController_broadcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BroadcastDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminNotificationController_send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendNotificationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminConfigController_listApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminConfigController_updateApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateApiKeysDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }
