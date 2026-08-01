@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { randomUUID } from 'node:crypto'
 import { BusinessException } from '@reelclone/common'
 import {
   BillingProjectionDeliveryStatus,
@@ -14,6 +15,36 @@ import {
 } from '@reelclone/database'
 import { DataSource } from 'typeorm'
 import { LedgerService } from './ledger.service'
+
+/** 指数退避基数（毫秒）。 */
+const BACKOFF_BASE_MS = 5_000
+/** 退避上限（毫秒）— 1 小时。 */
+const BACKOFF_MAX_MS = 3_600_000
+/** 租约存活时间（毫秒）。 */
+const LEASE_TTL_MS = 30_000
+/** 最大重试次数，超过后标记 DEAD。 */
+const MAX_ATTEMPTS = 10
+
+/** 计算指数退避延迟。 */
+export function computeBackoffMs(attempts: number): number {
+  const backoff = BACKOFF_BASE_MS * Math.pow(2, attempts)
+  return Math.min(backoff, BACKOFF_MAX_MS)
+}
+
+/** outbox inspect 结果（供运维工具使用）。 */
+export interface OutboxInspectResult {
+  id: string
+  reservationId: string
+  type: string
+  deliveryStatus: string
+  attempts: number
+  nextAttemptAt: Date | null
+  lastError: string | null
+  leaseOwner: string | null
+  leaseExpiresAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
 
 interface FreezeReservationParams {
   userId: string
@@ -48,6 +79,7 @@ export interface ReservationOperationResult {
 @Injectable()
 export class CreditReservationService {
   private readonly logger = new Logger(CreditReservationService.name)
+  private readonly ownerToken = randomUUID()
 
   constructor(
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
@@ -144,28 +176,32 @@ export class CreditReservationService {
     })
   }
 
-  async projectPending(limit = 100): Promise<void> {
-    const outboxRepo = this.mainDataSource.getRepository(BillingProjectionOutbox)
-    const pending = await outboxRepo
-      .createQueryBuilder('outbox')
-      .where('outbox.deliveryStatus = :status', {
-        status: BillingProjectionDeliveryStatus.PENDING,
-      })
-      // 失败项会更新 updatedAt，避免固定的前 N 条永久阻塞后续事件。
-      .orderBy('outbox.updatedAt', 'ASC')
-      .take(limit)
-      .getMany()
+  /**
+   * 每 15 秒由 cron 调度：原子 claim 批量 PENDING outbox → 逐条投影。
+   * claim 使用 FOR UPDATE SKIP LOCKED + lease 机制，多实例安全。
+   */
+  async projectPending(
+    limit = 100,
+  ): Promise<{ claimed: number; projected: number; failed: number }> {
+    const claimed = await this.claimBatch(limit)
+    let projected = 0
+    let failed = 0
 
-    for (const outbox of pending) {
+    for (const outbox of claimed) {
       try {
-        await this.projectOutbox(outbox.id)
+        const result = await this.projectOutbox(outbox.id)
+        if (result) projected++
+        else failed++
       } catch (err) {
+        failed++
         this.logger.error(
           `账务投影失败 outboxId=${outbox.id}: ${err instanceof Error ? err.message : String(err)}`,
         )
-        await this.deferOutbox(outbox.id)
+        await this.handleFailedOutbox(outbox.id, outbox.attempts, err)
       }
     }
+
+    return { claimed: claimed.length, projected, failed }
   }
 
   private async transitionTerminal(
@@ -271,8 +307,33 @@ export class CreditReservationService {
   }
 
   /**
+   * 原子 claim 批量 PENDING outbox。使用 FOR UPDATE SKIP LOCKED + lease，
+   * 多实例并行安全：退避期内或租约未过期的记录不会被其他实例领取。
+   */
+  private async claimBatch(limit: number): Promise<BillingProjectionOutbox[]> {
+    const leaseExpiresAt = new Date(Date.now() + LEASE_TTL_MS)
+    const rows: BillingProjectionOutbox[] = await this.mainDataSource.query(
+      `UPDATE billing_projection_outbox
+       SET lease_owner = $1, lease_expires_at = $2, updated_at = NOW()
+       WHERE id IN (
+         SELECT id FROM billing_projection_outbox
+         WHERE delivery_status = 'PENDING'
+           AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
+           AND (lease_expires_at IS NULL OR lease_expires_at <= NOW())
+         ORDER BY next_attempt_at NULLS FIRST, created_at
+         LIMIT $3
+         FOR UPDATE SKIP LOCKED
+       )
+       RETURNING *`,
+      [this.ownerToken, leaseExpiresAt, limit],
+    )
+    return rows
+  }
+
+  /**
    * 以 main 库行锁领取单条 outbox，并在锁持有期间完成 billing 投影。
-   * 进程崩溃时事务回滚为 PENDING，billing 幂等键保证重放不会重复记账。
+   * 进程崩溃时事务回滚为 PENDING（lease 过期后可被重新领取），
+   * billing 幂等键保证重放不会重复记账。
    */
   private async projectOutbox(outboxId: string): Promise<PointTransaction | null> {
     return this.mainDataSource.transaction(async (manager) => {
@@ -317,9 +378,15 @@ export class CreditReservationService {
         })
       }
 
+      // 投影成功：标记 DELIVERED 并释放租约。
       await outboxRepo.update(
         { id: outbox.id, deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
-        { deliveryStatus: BillingProjectionDeliveryStatus.DELIVERED, deliveredAt: new Date() },
+        {
+          deliveryStatus: BillingProjectionDeliveryStatus.DELIVERED,
+          deliveredAt: new Date(),
+          leaseOwner: null,
+          leaseExpiresAt: null,
+        },
       )
       if (outbox.type !== BillingProjectionType.FREEZE) {
         await manager
@@ -330,18 +397,144 @@ export class CreditReservationService {
     })
   }
 
-  private async deferOutbox(outboxId: string): Promise<void> {
+  /**
+   * 投影失败处理：递增 attempts，计算指数退避 nextAttemptAt。
+   * 超过 MAX_ATTEMPTS 时标记 DEAD（毒丸）。
+   */
+  private async handleFailedOutbox(
+    outboxId: string,
+    currentAttempts: number,
+    error: unknown,
+  ): Promise<void> {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const newAttempts = currentAttempts + 1
+
+    if (newAttempts >= MAX_ATTEMPTS) {
+      this.logger.error(
+        `账务投影毒丸 outboxId=${outboxId} 已达最大重试 ${MAX_ATTEMPTS} 次，标记 DEAD: ${errorMessage}`,
+      )
+      await this.markDead(outboxId, errorMessage)
+      return
+    }
+
+    const nextAttemptAt = new Date(Date.now() + computeBackoffMs(newAttempts))
     try {
-      await this.mainDataSource
-        .getRepository(BillingProjectionOutbox)
-        .update(
-          { id: outboxId, deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
-          { updatedAt: new Date() },
-        )
+      await this.mainDataSource.getRepository(BillingProjectionOutbox).update(
+        { id: outboxId, deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
+        {
+          attempts: newAttempts,
+          nextAttemptAt,
+          lastError: errorMessage,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+        },
+      )
     } catch (err) {
       this.logger.warn(
-        `账务投影失败项延期更新失败 outboxId=${outboxId}: ${err instanceof Error ? err.message : String(err)}`,
+        `账务投影退避更新失败 outboxId=${outboxId}: ${err instanceof Error ? err.message : String(err)}`,
       )
+    }
+  }
+
+  /** 标记 outbox 为 DEAD（毒丸终态），释放租约。 */
+  private async markDead(outboxId: string, lastError: string): Promise<void> {
+    try {
+      await this.mainDataSource.getRepository(BillingProjectionOutbox).update(
+        { id: outboxId, deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
+        {
+          deliveryStatus: BillingProjectionDeliveryStatus.DEAD,
+          lastError,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+        },
+      )
+    } catch (err) {
+      this.logger.error(
+        `标记 DEAD 失败 outboxId=${outboxId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+
+  /** 查询指定 reservation 的所有 outbox 记录（供运维 inspect 使用）。 */
+  async inspectOutbox(reservationId: string): Promise<OutboxInspectResult[]> {
+    const rows = await this.mainDataSource
+      .getRepository(BillingProjectionOutbox)
+      .find({ where: { reservationId }, order: { createdAt: 'ASC' } })
+    return rows.map((r) => ({
+      id: r.id,
+      reservationId: r.reservationId,
+      type: r.type,
+      deliveryStatus: r.deliveryStatus,
+      attempts: r.attempts,
+      nextAttemptAt: r.nextAttemptAt,
+      lastError: r.lastError,
+      leaseOwner: r.leaseOwner,
+      leaseExpiresAt: r.leaseExpiresAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }))
+  }
+
+  /**
+   * 手动重放 DEAD outbox：将状态重置为 PENDING 并清除退避信息。
+   * billing 幂等键保证重放不会重复记账，安全调用。
+   */
+  async replayOutbox(outboxId: string): Promise<void> {
+    const repo = this.mainDataSource.getRepository(BillingProjectionOutbox)
+    const outbox = await repo.findOne({ where: { id: outboxId } })
+    if (!outbox) {
+      throw BusinessException.validationError('outbox 记录不存在', { outboxId })
+    }
+    if (outbox.deliveryStatus !== BillingProjectionDeliveryStatus.DEAD) {
+      throw BusinessException.validationError('只能重放 DEAD 状态的 outbox', {
+        outboxId,
+        currentStatus: outbox.deliveryStatus,
+      })
+    }
+    await repo.update(
+      { id: outboxId, deliveryStatus: BillingProjectionDeliveryStatus.DEAD },
+      {
+        deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+        attempts: 0,
+        nextAttemptAt: null,
+        lastError: null,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+      },
+    )
+    this.logger.log(
+      `手动重放 outboxId=${outboxId} 类型=${outbox.type} reservationId=${outbox.reservationId}`,
+    )
+  }
+
+  /** 查询 DEAD 状态的 outbox 汇总（供告警和人工排查）。 */
+  async getDeadLetterSummary(): Promise<{
+    total: number
+    oldestCreatedAt: Date | null
+    items: OutboxInspectResult[]
+  }> {
+    const repo = this.mainDataSource.getRepository(BillingProjectionOutbox)
+    const deadItems = await repo.find({
+      where: { deliveryStatus: BillingProjectionDeliveryStatus.DEAD },
+      order: { createdAt: 'ASC' },
+      take: 50,
+    })
+    return {
+      total: deadItems.length,
+      oldestCreatedAt: deadItems.length > 0 ? deadItems[0].createdAt : null,
+      items: deadItems.map((r) => ({
+        id: r.id,
+        reservationId: r.reservationId,
+        type: r.type,
+        deliveryStatus: r.deliveryStatus,
+        attempts: r.attempts,
+        nextAttemptAt: r.nextAttemptAt,
+        lastError: r.lastError,
+        leaseOwner: r.leaseOwner,
+        leaseExpiresAt: r.leaseExpiresAt,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
     }
   }
 

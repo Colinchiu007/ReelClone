@@ -18,6 +18,7 @@ export enum BillingProjectionType {
 export enum BillingProjectionDeliveryStatus {
   PENDING = 'PENDING',
   DELIVERED = 'DELIVERED',
+  DEAD = 'DEAD',
 }
 
 /**
@@ -39,6 +40,7 @@ export enum BillingProjectionDeliveryStatus {
 })
 @Index('IDX_billing_projection_outbox_delivery_created', ['deliveryStatus', 'createdAt'])
 @Index('IDX_billing_projection_outbox_reservation_type', ['reservationId', 'type'])
+@Index('IDX_billing_projection_outbox_claim', ['deliveryStatus', 'nextAttemptAt', 'leaseExpiresAt'])
 export class BillingProjectionOutbox {
   @PrimaryGeneratedColumn('uuid')
   id: string
@@ -81,6 +83,26 @@ export class BillingProjectionOutbox {
   /** billing 投影确认完成的时间。 */
   @Column({ type: 'timestamptz', nullable: true })
   deliveredAt: Date | null
+
+  /** 已尝试投影次数（含成功那次）。 */
+  @Column({ type: 'int', default: 0 })
+  attempts: number
+
+  /** 下次允许尝试的时间（指数退避）。NULL 表示可立即尝试。 */
+  @Column({ type: 'timestamptz', nullable: true })
+  nextAttemptAt: Date | null
+
+  /** 最近一次失败原因。 */
+  @Column({ type: 'text', nullable: true })
+  lastError: string | null
+
+  /** 当前持有租约的 dispatcher 实例 ID。NULL 表示无租约。 */
+  @Column({ type: 'uuid', nullable: true })
+  leaseOwner: string | null
+
+  /** 租约到期时间。NULL 表示无租约。 */
+  @Column({ type: 'timestamptz', nullable: true })
+  leaseExpiresAt: Date | null
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date

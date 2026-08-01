@@ -10,7 +10,7 @@ import {
   User,
 } from '@reelclone/database'
 import { DataSource, EntityManager, ObjectLiteral, Repository } from 'typeorm'
-import { CreditReservationService } from './credit-reservation.service'
+import { CreditReservationService, computeBackoffMs } from './credit-reservation.service'
 import { LedgerService } from './ledger.service'
 
 function mockRepo<T extends ObjectLiteral>(): jest.Mocked<Repository<T>> {
@@ -59,6 +59,7 @@ describe('CreditReservationService', () => {
     } as unknown as jest.Mocked<EntityManager>
     mainDataSource = {
       transaction: jest.fn(async (fn: (m: EntityManager) => Promise<unknown>) => fn(manager)),
+      query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn((entity: unknown) => {
         if (entity === User) return userRepo
         if (entity === CreditReservation) return reservationRepo
@@ -215,6 +216,7 @@ describe('CreditReservationService', () => {
       balanceSnapshot: 100,
       idempotencyKey: 'generation:release',
       deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+      attempts: 0,
     } as BillingProjectionOutbox
     const transaction = {
       id: 'billing-release-1',
@@ -229,14 +231,16 @@ describe('CreditReservationService', () => {
       type: BillingProjectionType.FREEZE,
       deliveryStatus: BillingProjectionDeliveryStatus.DELIVERED,
     } as BillingProjectionOutbox
-    outboxRepo.createQueryBuilder
-      .mockReturnValueOnce(queryBuilder([outbox]) as never)
-      .mockReturnValueOnce(queryBuilder(outbox) as never)
+    // claimBatch 返回已领取的 outbox
+    mainDataSource.query.mockResolvedValueOnce([outbox])
+    // projectOutbox 内部 lock 领取
+    outboxRepo.createQueryBuilder.mockReturnValue(queryBuilder(outbox) as never)
     outboxRepo.findOne.mockResolvedValue(freeze)
     ledger.findByIdempotencyKey.mockResolvedValue(transaction)
 
-    await service.projectPending()
+    const result = await service.projectPending()
 
+    expect(result).toEqual({ claimed: 1, projected: 1, failed: 0 })
     expect(ledger.writeTransaction).not.toHaveBeenCalled()
     expect(outboxRepo.update).toHaveBeenCalledWith(
       { id: 'outbox-1', deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
@@ -259,6 +263,7 @@ describe('CreditReservationService', () => {
       balanceSnapshot: 100,
       idempotencyKey: 'generation:release',
       deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+      attempts: 0,
     } as BillingProjectionOutbox
     const freeze = {
       ...terminal,
@@ -266,15 +271,15 @@ describe('CreditReservationService', () => {
       type: BillingProjectionType.FREEZE,
       deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
     } as BillingProjectionOutbox
-    outboxRepo.createQueryBuilder
-      .mockReturnValueOnce(queryBuilder([terminal]) as never)
-      .mockReturnValueOnce(queryBuilder(terminal) as never)
+    mainDataSource.query.mockResolvedValueOnce([terminal])
+    outboxRepo.createQueryBuilder.mockReturnValue(queryBuilder(terminal) as never)
     outboxRepo.findOne.mockResolvedValue(freeze)
 
     await service.projectPending()
 
     expect(ledger.findByIdempotencyKey).not.toHaveBeenCalled()
     expect(ledger.writeTransaction).not.toHaveBeenCalled()
+    // projectOutbox 内部不更新（FREEZE 未交付），但外层 projectPending 不会调 update
     expect(outboxRepo.update).not.toHaveBeenCalled()
   })
 
@@ -289,14 +294,202 @@ describe('CreditReservationService', () => {
       balanceSnapshot: 90,
       idempotencyKey: 'generation:freeze',
       deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+      attempts: 0,
     } as BillingProjectionOutbox
-    outboxRepo.createQueryBuilder
-      .mockReturnValueOnce(queryBuilder([outbox]) as never)
-      .mockReturnValueOnce(queryBuilder(null) as never)
+    mainDataSource.query.mockResolvedValueOnce([outbox])
+    outboxRepo.createQueryBuilder.mockReturnValue(queryBuilder(null) as never)
 
     await service.projectPending()
 
     expect(ledger.findByIdempotencyKey).not.toHaveBeenCalled()
     expect(ledger.writeTransaction).not.toHaveBeenCalled()
+  })
+
+  // --- C6: computeBackoffMs ---
+
+  describe('computeBackoffMs', () => {
+    it('首次退避为 10 秒（5s × 2^1）', () => {
+      expect(computeBackoffMs(1)).toBe(10_000)
+    })
+
+    it('指数增长', () => {
+      expect(computeBackoffMs(2)).toBe(20_000)
+      expect(computeBackoffMs(3)).toBe(40_000)
+      expect(computeBackoffMs(4)).toBe(80_000)
+    })
+
+    it('上限为 1 小时', () => {
+      expect(computeBackoffMs(20)).toBe(3_600_000)
+    })
+  })
+
+  // --- C6: handleFailedOutbox ---
+
+  describe('handleFailedOutbox (via projectPending failure)', () => {
+    it('失败后递增 attempts 并设置退避', async () => {
+      const outbox = {
+        id: 'outbox-fail-1',
+        reservationId: 'reservation-1',
+        userId: 'user-1',
+        workId: 'work-1',
+        type: BillingProjectionType.FREEZE,
+        amount: 10,
+        balanceSnapshot: 90,
+        idempotencyKey: 'freeze-fail',
+        deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+        attempts: 0,
+      } as BillingProjectionOutbox
+      mainDataSource.query.mockResolvedValueOnce([outbox])
+      // projectOutbox 内部 lock 返回 null（模拟领取失败）
+      outboxRepo.createQueryBuilder.mockReturnValue(queryBuilder(null) as never)
+
+      // scheduleProjection 内部查询返回空
+      outboxRepo.find.mockResolvedValue([])
+
+      const result = await service.projectPending()
+
+      // claimBatch 返回 1 条，但 projectOutbox 返回 null（被锁定），计入 failed
+      expect(result.claimed).toBe(1)
+      expect(result.failed).toBe(1)
+    })
+
+    it('超过 MAX_ATTEMPTS 后标记 DEAD', async () => {
+      const outbox = {
+        id: 'outbox-poison-1',
+        reservationId: 'reservation-1',
+        userId: 'user-1',
+        workId: 'work-1',
+        type: BillingProjectionType.FREEZE,
+        amount: 10,
+        balanceSnapshot: 90,
+        idempotencyKey: 'freeze-poison',
+        deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+        attempts: 9, // 第 10 次失败 → markDead
+      } as BillingProjectionOutbox
+      mainDataSource.query.mockResolvedValueOnce([outbox])
+      // projectOutbox 内部 lock 返回 outbox → 进入 billing 写入
+      // 但 findByIdempotencyKey 抛出异常 → 模拟 billing 不可用
+      const qbForLock = queryBuilder(outbox)
+      outboxRepo.createQueryBuilder.mockReturnValue(qbForLock as never)
+      outboxRepo.findOne.mockResolvedValue(null) // 无 freeze 依赖检查
+      ledger.findByIdempotencyKey.mockRejectedValue(new Error('billing connection refused'))
+
+      const result = await service.projectPending()
+
+      expect(result.failed).toBe(1)
+      // 会调用 update 标记 DEAD（attempts 9 + 1 = 10 >= MAX_ATTEMPTS）
+      expect(outboxRepo.update).toHaveBeenCalledWith(
+        { id: 'outbox-poison-1', deliveryStatus: BillingProjectionDeliveryStatus.PENDING },
+        expect.objectContaining({
+          deliveryStatus: BillingProjectionDeliveryStatus.DEAD,
+        }),
+      )
+    })
+  })
+
+  // --- C6: inspectOutbox ---
+
+  describe('inspectOutbox', () => {
+    it('返回指定 reservation 的 outbox 记录', async () => {
+      const outbox = {
+        id: 'outbox-1',
+        reservationId: 'reservation-1',
+        type: BillingProjectionType.FREEZE,
+        deliveryStatus: BillingProjectionDeliveryStatus.DELIVERED,
+        attempts: 1,
+        nextAttemptAt: null,
+        lastError: null,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+      } as BillingProjectionOutbox
+      outboxRepo.find.mockResolvedValue([outbox])
+
+      const result = await service.inspectOutbox('reservation-1')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('outbox-1')
+      expect(result[0].deliveryStatus).toBe('DELIVERED')
+    })
+  })
+
+  // --- C6: replayOutbox ---
+
+  describe('replayOutbox', () => {
+    it('将 DEAD outbox 重置为 PENDING', async () => {
+      const deadOutbox = {
+        id: 'outbox-dead-1',
+        deliveryStatus: BillingProjectionDeliveryStatus.DEAD,
+        type: BillingProjectionType.SETTLE,
+        reservationId: 'reservation-1',
+      } as BillingProjectionOutbox
+      outboxRepo.findOne.mockResolvedValue(deadOutbox)
+
+      await service.replayOutbox('outbox-dead-1')
+
+      expect(outboxRepo.update).toHaveBeenCalledWith(
+        { id: 'outbox-dead-1', deliveryStatus: BillingProjectionDeliveryStatus.DEAD },
+        expect.objectContaining({
+          deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+          attempts: 0,
+          nextAttemptAt: null,
+          lastError: null,
+        }),
+      )
+    })
+
+    it('不存在的 outbox 抛出异常', async () => {
+      outboxRepo.findOne.mockResolvedValue(null)
+
+      await expect(service.replayOutbox('nonexistent')).rejects.toThrow(BusinessException)
+    })
+
+    it('非 DEAD 状态的 outbox 抛出异常', async () => {
+      const pendingOutbox = {
+        id: 'outbox-pending-1',
+        deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+      } as BillingProjectionOutbox
+      outboxRepo.findOne.mockResolvedValue(pendingOutbox)
+
+      await expect(service.replayOutbox('outbox-pending-1')).rejects.toThrow(BusinessException)
+    })
+  })
+
+  // --- C6: getDeadLetterSummary ---
+
+  describe('getDeadLetterSummary', () => {
+    it('无 DEAD 记录时返回空汇总', async () => {
+      outboxRepo.find.mockResolvedValue([])
+
+      const result = await service.getDeadLetterSummary()
+
+      expect(result.total).toBe(0)
+      expect(result.oldestCreatedAt).toBeNull()
+      expect(result.items).toHaveLength(0)
+    })
+
+    it('返回 DEAD 记录汇总', async () => {
+      const deadOutbox = {
+        id: 'outbox-dead-1',
+        reservationId: 'reservation-1',
+        type: BillingProjectionType.FREEZE,
+        deliveryStatus: BillingProjectionDeliveryStatus.DEAD,
+        attempts: 10,
+        nextAttemptAt: null,
+        lastError: 'billing timeout',
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+      } as BillingProjectionOutbox
+      outboxRepo.find.mockResolvedValue([deadOutbox])
+
+      const result = await service.getDeadLetterSummary()
+
+      expect(result.total).toBe(1)
+      expect(result.oldestCreatedAt).toEqual(new Date('2026-01-01'))
+      expect(result.items[0].lastError).toBe('billing timeout')
+    })
   })
 })
