@@ -30,6 +30,7 @@ import { ReconciliationCron } from './reconciliation.cron'
 import { ReconciliationService } from './reconciliation.service'
 import { CreditReservationService } from './credit-reservation.service'
 import { BillingProjectionCron } from './billing-projection.cron'
+import { HistoricalDataInventoryService } from './historical-data-inventory.service'
 
 @Module({
   imports: [
@@ -49,7 +50,8 @@ import { BillingProjectionCron } from './billing-projection.cron'
     ReconciliationService,
     ReconciliationCron,
     BillingProjectionCron,
+    HistoricalDataInventoryService,
   ],
-  exports: [BillingService, LedgerService, CreditReservationService, ReconciliationService],
+  exports: [BillingService, LedgerService, CreditReservationService, ReconciliationService, HistoricalDataInventoryService],
 })
 export class BillingModule {}
