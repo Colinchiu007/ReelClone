@@ -4,295 +4,295 @@
  * Source hash: b367463e25fa
  */
 export interface paths {
-  '/api/v1/users/me': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 获取当前登录用户信息 */
-    get: operations['UserController_getCurrentUser']
-    /** 更新当前用户信息 */
-    put: operations['UserController_updateUser']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/users/{id}/profile': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 获取公开用户主页信息 */
-    get: operations['UserController_getPublicProfile']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/users/bind-mobile': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 绑定手机号 */
-    post: operations['UserController_bindMobile']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/users/password': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    /** 修改密码 */
-    put: operations['UserController_changePassword']
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/sms/send': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 发送短信验证码 */
-    post: operations['UserController_sendSmsCode']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取当前登录用户信息 */
+        get: operations["UserController_getCurrentUser"];
+        /** 更新当前用户信息 */
+        put: operations["UserController_updateUser"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取公开用户主页信息 */
+        get: operations["UserController_getPublicProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/bind-mobile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 绑定手机号 */
+        post: operations["UserController_bindMobile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 修改密码 */
+        put: operations["UserController_changePassword"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sms/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发送短信验证码 */
+        post: operations["UserController_sendSmsCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    UpdateUserDto: {
-      /**
-       * @description 用户昵称
-       * @example 张三
-       */
-      nickname?: string
-      /**
-       * @description 用户头像 URL
-       * @example https://thirdwx.qlogo.cn/mmopen/abc123/132
-       */
-      avatarUrl?: string
-      /**
-       * @description 用户邮箱
-       * @example zhangsan@example.com
-       */
-      email?: string
-      /**
-       * @description 行业偏好标签列表
-       * @example [
-       *       "互联网",
-       *       "教育"
-       *     ]
-       */
-      industryPreferences?: string[]
-    }
-    BindMobileDto: {
-      /**
-       * @description 手机号（中国大陆 11 位）
-       * @example 13800138000
-       */
-      mobile: string
-      /**
-       * @description 短信验证码（6-8 位数字）
-       * @example 123456
-       */
-      code: string
-    }
-    ChangePasswordDto: {
-      /**
-       * @description 旧密码（用户已设置密码时必填）
-       * @example OldPass@1234
-       */
-      oldPassword?: string
-      /**
-       * @description 新密码（8-64 位）
-       * @example NewPass@1234
-       */
-      newPassword: string
-      /**
-       * @description 短信验证码（用户未设置密码时必填）
-       * @example 123456
-       */
-      code?: string
-      /**
-       * @description 手机号（配合短信验证码使用，中国大陆 11 位）
-       * @example 13800138000
-       */
-      mobile?: string
-    }
-    SendSmsDto: {
-      /**
-       * @description 手机号（中国大陆 11 位）
-       * @example 13800138000
-       */
-      mobile: string
-      /**
-       * @description 验证码用途（BIND_MOBILE 绑定手机号 / RESET_PASSWORD 重置密码）
-       * @example BIND_MOBILE
-       * @enum {string}
-       */
-      purpose: 'BIND_MOBILE' | 'RESET_PASSWORD'
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        UpdateUserDto: {
+            /**
+             * @description 用户昵称
+             * @example 张三
+             */
+            nickname?: string;
+            /**
+             * @description 用户头像 URL
+             * @example https://thirdwx.qlogo.cn/mmopen/abc123/132
+             */
+            avatarUrl?: string;
+            /**
+             * @description 用户邮箱
+             * @example zhangsan@example.com
+             */
+            email?: string;
+            /**
+             * @description 行业偏好标签列表
+             * @example [
+             *       "互联网",
+             *       "教育"
+             *     ]
+             */
+            industryPreferences?: string[];
+        };
+        BindMobileDto: {
+            /**
+             * @description 手机号（中国大陆 11 位）
+             * @example 13800138000
+             */
+            mobile: string;
+            /**
+             * @description 短信验证码（6-8 位数字）
+             * @example 123456
+             */
+            code: string;
+        };
+        ChangePasswordDto: {
+            /**
+             * @description 旧密码（用户已设置密码时必填）
+             * @example OldPass@1234
+             */
+            oldPassword?: string;
+            /**
+             * @description 新密码（8-64 位）
+             * @example NewPass@1234
+             */
+            newPassword: string;
+            /**
+             * @description 短信验证码（用户未设置密码时必填）
+             * @example 123456
+             */
+            code?: string;
+            /**
+             * @description 手机号（配合短信验证码使用，中国大陆 11 位）
+             * @example 13800138000
+             */
+            mobile?: string;
+        };
+        SendSmsDto: {
+            /**
+             * @description 手机号（中国大陆 11 位）
+             * @example 13800138000
+             */
+            mobile: string;
+            /**
+             * @description 验证码用途（BIND_MOBILE 绑定手机号 / RESET_PASSWORD 重置密码）
+             * @example BIND_MOBILE
+             * @enum {string}
+             */
+            purpose: "BIND_MOBILE" | "RESET_PASSWORD";
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  UserController_getCurrentUser: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  UserController_updateUser: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateUserDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  UserController_getPublicProfile: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  UserController_bindMobile: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['BindMobileDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  UserController_changePassword: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ChangePasswordDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  UserController_sendSmsCode: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['SendSmsDto']
-      }
-    }
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
+    UserController_getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserController_updateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserController_getPublicProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserController_bindMobile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindMobileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserController_sendSmsCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendSmsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

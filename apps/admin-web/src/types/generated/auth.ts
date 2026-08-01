@@ -4,407 +4,407 @@
  * Source hash: 98138c02dc0b
  */
 export interface paths {
-  '/api/v1/auth/admin-login': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 管理员登录（手机号 + 密码） */
-    post: operations['adminLogin']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/wechat-login': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 微信小程序登录 */
-    post: operations['wxLogin']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/refresh-token': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 刷新 Token */
-    post: operations['refreshToken']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/logout': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 登出（将当前 Token 加入黑名单） */
-    post: operations['logout']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/auth/health': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 健康检查 */
-    get: operations['health']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/auth/admin-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 管理员登录（手机号 + 密码） */
+        post: operations["adminLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/wechat-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 微信小程序登录 */
+        post: operations["wxLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 刷新 Token */
+        post: operations["refreshToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 登出（将当前 Token 加入黑名单） */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 健康检查 */
+        get: operations["health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    ApiResponseWrapper: {
-      /**
-       * @description 业务错误码，0 表示成功
-       * @example 0
-       */
-      code: number
-      /**
-       * @description 提示信息
-       * @example success
-       */
-      message: string
-      /** @description 链路追踪 ID，便于日志关联 */
-      traceId?: string
-    }
-    AdminLoginDto: {
-      /**
-       * @description 手机号（作为管理员账号）
-       * @example 13800138000
-       */
-      mobile: string
-      /**
-       * @description 密码（至少 6 位）
-       * @example secret123
-       */
-      password: string
-    }
-    WechatLoginDto: {
-      /**
-       * @description wx.login() 返回的临时登录凭证 code（5 分钟有效）
-       * @example 081KxF000abcDEF123
-       */
-      code: string
-      /**
-       * @description 用户昵称（首次注册时使用）
-       * @example 张三
-       */
-      nickname?: string
-      /**
-       * @description 用户头像 URL（首次注册时使用）
-       * @example https://thirdwx.qlogo.cn/...
-       */
-      avatarUrl?: string
-    }
-    RefreshTokenDto: {
-      /**
-       * @description Refresh Token（长效，用于换发新的 Access Token）
-       * @example eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-       */
-      refreshToken: string
-    }
-    AdminLoginResultDto: {
-      /**
-       * @description Access Token
-       * @example eyJ...
-       */
-      accessToken: string
-      /**
-       * @description Refresh Token
-       * @example eyJ...
-       */
-      refreshToken: string
-      user: components['schemas']['AdminUserInfoDto']
-    }
-    AdminUserInfoDto: {
-      /**
-       * @description 用户 ID
-       * @example uuid-xxx
-       */
-      id: string
-      /**
-       * @description 用户昵称
-       * @example admin
-       */
-      nickname: string
-      /**
-       * @description 用户角色
-       * @example ADMIN
-       * @enum {string}
-       */
-      role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
-    }
-    WxLoginResultDto: {
-      /**
-       * @description Access Token（短效，1 小时）
-       * @example eyJ...
-       */
-      accessToken: string
-      /**
-       * @description Refresh Token（长效，7 天）
-       * @example eyJ...
-       */
-      refreshToken: string
-      user: components['schemas']['AuthUserResponseDto']
-      /**
-       * @description 是否为新用户（首次注册）
-       * @example false
-       */
-      isNewUser: boolean
-    }
-    AuthUserResponseDto: {
-      /**
-       * @description 用户 ID
-       * @example uuid-xxx
-       */
-      id: string
-      /**
-       * @description 微信 OpenID
-       * @example o1234567890
-       */
-      openId: string
-      /**
-       * @description 微信 UnionID（未绑定则为 null）
-       * @example u1234567890
-       */
-      unionId: string | null
-      /**
-       * @description 用户昵称
-       * @example 张三
-       */
-      nickname: string
-      /**
-       * @description 用户头像 URL
-       * @example https://thirdwx.qlogo.cn/...
-       */
-      avatarUrl: string | null
-      /**
-       * @description 手机号（未绑定为 null）
-       * @example 13800138000
-       */
-      mobile: string | null
-      /**
-       * @description 用户状态
-       * @example ACTIVE
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'FROZEN' | 'DELETED'
-      /**
-       * @description 当前可用积分
-       * @example 100
-       */
-      currentPoints: number
-      /**
-       * @description 累计获得积分
-       * @example 100
-       */
-      totalPoints: number
-    }
-    RefreshTokenResultDto: {
-      /**
-       * @description 新的 Access Token
-       * @example eyJ...
-       */
-      accessToken: string
-      /**
-       * @description 新的 Refresh Token
-       * @example eyJ...
-       */
-      refreshToken: string
-    }
-    LogoutResultDto: {
-      /**
-       * @description 是否成功
-       * @example true
-       */
-      success: boolean
-    }
-    HealthResultDto: {
-      /**
-       * @description 状态
-       * @example ok
-       */
-      status: string
-      /**
-       * @description 服务名
-       * @example auth-service
-       */
-      service: string
-      /**
-       * @description 时间戳
-       * @example 2026-07-30T00:00:00.000Z
-       */
-      timestamp: string
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        ApiResponseWrapper: {
+            /**
+             * @description 业务错误码，0 表示成功
+             * @example 0
+             */
+            code: number;
+            /**
+             * @description 提示信息
+             * @example success
+             */
+            message: string;
+            /** @description 链路追踪 ID，便于日志关联 */
+            traceId?: string;
+        };
+        AdminLoginDto: {
+            /**
+             * @description 手机号（作为管理员账号）
+             * @example 13800138000
+             */
+            mobile: string;
+            /**
+             * @description 密码（至少 6 位）
+             * @example secret123
+             */
+            password: string;
+        };
+        WechatLoginDto: {
+            /**
+             * @description wx.login() 返回的临时登录凭证 code（5 分钟有效）
+             * @example 081KxF000abcDEF123
+             */
+            code: string;
+            /**
+             * @description 用户昵称（首次注册时使用）
+             * @example 张三
+             */
+            nickname?: string;
+            /**
+             * @description 用户头像 URL（首次注册时使用）
+             * @example https://thirdwx.qlogo.cn/...
+             */
+            avatarUrl?: string;
+        };
+        RefreshTokenDto: {
+            /**
+             * @description Refresh Token（长效，用于换发新的 Access Token）
+             * @example eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+             */
+            refreshToken: string;
+        };
+        AdminLoginResultDto: {
+            /**
+             * @description Access Token
+             * @example eyJ...
+             */
+            accessToken: string;
+            /**
+             * @description Refresh Token
+             * @example eyJ...
+             */
+            refreshToken: string;
+            user: components["schemas"]["AdminUserInfoDto"];
+        };
+        AdminUserInfoDto: {
+            /**
+             * @description 用户 ID
+             * @example uuid-xxx
+             */
+            id: string;
+            /**
+             * @description 用户昵称
+             * @example admin
+             */
+            nickname: string;
+            /**
+             * @description 用户角色
+             * @example ADMIN
+             * @enum {string}
+             */
+            role: "USER" | "ADMIN" | "SUPER_ADMIN";
+        };
+        WxLoginResultDto: {
+            /**
+             * @description Access Token（短效，1 小时）
+             * @example eyJ...
+             */
+            accessToken: string;
+            /**
+             * @description Refresh Token（长效，7 天）
+             * @example eyJ...
+             */
+            refreshToken: string;
+            user: components["schemas"]["AuthUserResponseDto"];
+            /**
+             * @description 是否为新用户（首次注册）
+             * @example false
+             */
+            isNewUser: boolean;
+        };
+        AuthUserResponseDto: {
+            /**
+             * @description 用户 ID
+             * @example uuid-xxx
+             */
+            id: string;
+            /**
+             * @description 微信 OpenID
+             * @example o1234567890
+             */
+            openId: string;
+            /**
+             * @description 微信 UnionID（未绑定则为 null）
+             * @example u1234567890
+             */
+            unionId: string | null;
+            /**
+             * @description 用户昵称
+             * @example 张三
+             */
+            nickname: string;
+            /**
+             * @description 用户头像 URL
+             * @example https://thirdwx.qlogo.cn/...
+             */
+            avatarUrl: string | null;
+            /**
+             * @description 手机号（未绑定为 null）
+             * @example 13800138000
+             */
+            mobile: string | null;
+            /**
+             * @description 用户状态
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "FROZEN" | "DELETED";
+            /**
+             * @description 当前可用积分
+             * @example 100
+             */
+            currentPoints: number;
+            /**
+             * @description 累计获得积分
+             * @example 100
+             */
+            totalPoints: number;
+        };
+        RefreshTokenResultDto: {
+            /**
+             * @description 新的 Access Token
+             * @example eyJ...
+             */
+            accessToken: string;
+            /**
+             * @description 新的 Refresh Token
+             * @example eyJ...
+             */
+            refreshToken: string;
+        };
+        LogoutResultDto: {
+            /**
+             * @description 是否成功
+             * @example true
+             */
+            success: boolean;
+        };
+        HealthResultDto: {
+            /**
+             * @description 状态
+             * @example ok
+             */
+            status: string;
+            /**
+             * @description 服务名
+             * @example auth-service
+             */
+            service: string;
+            /**
+             * @description 时间戳
+             * @example 2026-07-30T00:00:00.000Z
+             */
+            timestamp: string;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  adminLogin: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['AdminLoginDto']
-      }
-    }
-    responses: {
-      /** @description 统一响应包装 */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ApiResponseWrapper'] & {
-            data?: components['schemas']['AdminLoginResultDto']
-          }
-        }
-      }
-    }
-  }
-  wxLogin: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['WechatLoginDto']
-      }
-    }
-    responses: {
-      /** @description 统一响应包装 */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ApiResponseWrapper'] & {
-            data?: components['schemas']['WxLoginResultDto']
-          }
-        }
-      }
-    }
-  }
-  refreshToken: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RefreshTokenDto']
-      }
-    }
-    responses: {
-      /** @description 统一响应包装 */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ApiResponseWrapper'] & {
-            data?: components['schemas']['RefreshTokenResultDto']
-          }
-        }
-      }
-    }
-  }
-  logout: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description 统一响应包装 */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ApiResponseWrapper'] & {
-            data?: components['schemas']['LogoutResultDto']
-          }
-        }
-      }
-    }
-  }
-  health: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description 统一响应包装 */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/json': components['schemas']['ApiResponseWrapper'] & {
-            data?: components['schemas']['HealthResultDto']
-          }
-        }
-      }
-    }
-  }
+    adminLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginDto"];
+            };
+        };
+        responses: {
+            /** @description 统一响应包装 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseWrapper"] & {
+                        data?: components["schemas"]["AdminLoginResultDto"];
+                    };
+                };
+            };
+        };
+    };
+    wxLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WechatLoginDto"];
+            };
+        };
+        responses: {
+            /** @description 统一响应包装 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseWrapper"] & {
+                        data?: components["schemas"]["WxLoginResultDto"];
+                    };
+                };
+            };
+        };
+    };
+    refreshToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenDto"];
+            };
+        };
+        responses: {
+            /** @description 统一响应包装 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseWrapper"] & {
+                        data?: components["schemas"]["RefreshTokenResultDto"];
+                    };
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 统一响应包装 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseWrapper"] & {
+                        data?: components["schemas"]["LogoutResultDto"];
+                    };
+                };
+            };
+        };
+    };
+    health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 统一响应包装 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseWrapper"] & {
+                        data?: components["schemas"]["HealthResultDto"];
+                    };
+                };
+            };
+        };
+    };
 }

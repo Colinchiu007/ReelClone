@@ -4,764 +4,764 @@
  * Source hash: 1eb507540ff9
  */
 export interface paths {
-  '/api/v1/templates': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 模板广场列表（公开，分页 + 筛选 + 排序） */
-    get: operations['TemplateController_list']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/upload': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 用户上传视频转模板 */
-    post: operations['TemplateController_upload']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/upload/{workflowId}/status': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 查询上传转模板进度 */
-    get: operations['TemplateController_uploadStatus']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/my-uploaded': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 我上传的模板列表 */
-    get: operations['TemplateController_myUploaded']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/publish': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 用户发布模板 */
-    post: operations['TemplateController_publish']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/internal/publish': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 发布模板（内部 API） */
-    post: operations['TemplateController_internalPublish']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/internal/finalize': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 完成模板（内部 API） */
-    post: operations['TemplateController_internalFinalize']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/internal/fail': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 标记模板失败（内部 API） */
-    post: operations['TemplateController_internalFail']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/pending-review': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 待审核模板列表 */
-    get: operations['TemplateController_pendingReview']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/my-published': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 我发布的模板列表 */
-    get: operations['TemplateController_myPublished']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/favorites': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 我的收藏列表 */
-    get: operations['TemplateController_myFavorites']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 模板详情 */
-    get: operations['TemplateController_detail']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/{id}/review': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 审核模板 */
-    post: operations['TemplateController_review']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/{id}/increment-use': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 模板使用次数 +1 */
-    post: operations['TemplateController_incrementUse']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/templates/{id}/favorite': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 收藏模板 */
-    post: operations['TemplateController_favorite']
-    /** 取消收藏 */
-    delete: operations['TemplateController_unfavorite']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/users/industry-preferences': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 获取当前用户的行业偏好 */
-    get: operations['IndustryController_getPreferences']
-    put?: never
-    /** 设置行业偏好 */
-    post: operations['IndustryController_setPreferences']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 模板广场列表（公开，分页 + 筛选 + 排序） */
+        get: operations["TemplateController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 用户上传视频转模板 */
+        post: operations["TemplateController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/upload/{workflowId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询上传转模板进度 */
+        get: operations["TemplateController_uploadStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/my-uploaded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我上传的模板列表 */
+        get: operations["TemplateController_myUploaded"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 用户发布模板 */
+        post: operations["TemplateController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/internal/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发布模板（内部 API） */
+        post: operations["TemplateController_internalPublish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/internal/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 完成模板（内部 API） */
+        post: operations["TemplateController_internalFinalize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/internal/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 标记模板失败（内部 API） */
+        post: operations["TemplateController_internalFail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/pending-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 待审核模板列表 */
+        get: operations["TemplateController_pendingReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/my-published": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我发布的模板列表 */
+        get: operations["TemplateController_myPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的收藏列表 */
+        get: operations["TemplateController_myFavorites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 模板详情 */
+        get: operations["TemplateController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 审核模板 */
+        post: operations["TemplateController_review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}/increment-use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 模板使用次数 +1 */
+        post: operations["TemplateController_incrementUse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/templates/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 收藏模板 */
+        post: operations["TemplateController_favorite"];
+        /** 取消收藏 */
+        delete: operations["TemplateController_unfavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/industry-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取当前用户的行业偏好 */
+        get: operations["IndustryController_getPreferences"];
+        put?: never;
+        /** 设置行业偏好 */
+        post: operations["IndustryController_setPreferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    UploadTemplateDto: {
-      /**
-       * @description 已上传的视频资产 ID（asset-service 登记）
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      assetId: string
-      /**
-       * @description 模板标题
-       * @example 好物开箱三连
-       */
-      title: string
-      /**
-       * @description 模板详细描述
-       * @example 适用于新品开箱展示，节奏明快，三段式结构。
-       */
-      description?: string
-      /**
-       * @description 分类
-       * @example 开箱
-       */
-      category?: string
-      /**
-       * @description 适用行业
-       * @example 好物种草
-       */
-      industry?: string
-      /**
-       * @description 适用平台 DOUYIN / XIAOHONGSHU / ...
-       * @example DOUYIN
-       */
-      platform?: string
-      /**
-       * @description 标签数组
-       * @example [
-       *       "开箱",
-       *       "新品",
-       *       "种草"
-       *     ]
-       */
-      tags?: string[]
-    }
-    PublishTemplateDto: {
-      /**
-       * @description 模板标题
-       * @example 好物开箱三连
-       */
-      title: string
-      /**
-       * @description 详细描述
-       * @example 适用于新品开箱展示，节奏明快，三段式结构。
-       */
-      description?: string
-      /**
-       * @description 提示词（来自作品的 prompt）
-       * @example 一只手拿起产品展示细节，镜头特写切换
-       */
-      prompt: string
-      /**
-       * @description 封面 OSS Key（来自作品缩略图）
-       * @example thumbnails/work/20260731-cover.png
-       */
-      coverKey?: string
-      /**
-       * @description 视频 OSS Key（来自作品结果）
-       * @example videos/work/20260731-result.mp4
-       */
-      videoKey?: string
-      /**
-       * @description 分类
-       * @example 开箱
-       */
-      category?: string
-      /**
-       * @description 适用行业
-       * @example 好物种草
-       */
-      industry?: string
-      /**
-       * @description 适用平台
-       * @example DOUYIN
-       */
-      platform?: string
-      /**
-       * @description 标签数组
-       * @example [
-       *       "开箱",
-       *       "新品",
-       *       "种草"
-       *     ]
-       */
-      tags?: string[]
-      /**
-       * @description 来源作品 ID
-       * @example a1b2c3d4-uuid
-       */
-      sourceWorkId?: string
-    }
-    FinalizeTemplateInternalDto: Record<string, never>
-    FailTemplateDto: Record<string, never>
-    ReviewTemplateDto: {
-      /**
-       * @description 审核后状态（ACTIVE 或 REJECTED）
-       * @example ACTIVE
-       * @enum {string}
-       */
-      status: 'ACTIVE' | 'OFFLINE' | 'PENDING_REVIEW' | 'REJECTED' | 'ANALYZING' | 'ANALYSIS_FAILED'
-      /**
-       * @description 审核备注
-       * @example 内容符合规范，审核通过。
-       */
-      reviewNote?: string
-    }
-    IndustryPreferenceDto: {
-      /**
-       * @description 行业标签列表（1-3 个）
-       * @example [
-       *       "好物种草",
-       *       "本地生活"
-       *     ]
-       */
-      industries: string[]
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        UploadTemplateDto: {
+            /**
+             * @description 已上传的视频资产 ID（asset-service 登记）
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            assetId: string;
+            /**
+             * @description 模板标题
+             * @example 好物开箱三连
+             */
+            title: string;
+            /**
+             * @description 模板详细描述
+             * @example 适用于新品开箱展示，节奏明快，三段式结构。
+             */
+            description?: string;
+            /**
+             * @description 分类
+             * @example 开箱
+             */
+            category?: string;
+            /**
+             * @description 适用行业
+             * @example 好物种草
+             */
+            industry?: string;
+            /**
+             * @description 适用平台 DOUYIN / XIAOHONGSHU / ...
+             * @example DOUYIN
+             */
+            platform?: string;
+            /**
+             * @description 标签数组
+             * @example [
+             *       "开箱",
+             *       "新品",
+             *       "种草"
+             *     ]
+             */
+            tags?: string[];
+        };
+        PublishTemplateDto: {
+            /**
+             * @description 模板标题
+             * @example 好物开箱三连
+             */
+            title: string;
+            /**
+             * @description 详细描述
+             * @example 适用于新品开箱展示，节奏明快，三段式结构。
+             */
+            description?: string;
+            /**
+             * @description 提示词（来自作品的 prompt）
+             * @example 一只手拿起产品展示细节，镜头特写切换
+             */
+            prompt: string;
+            /**
+             * @description 封面 OSS Key（来自作品缩略图）
+             * @example thumbnails/work/20260731-cover.png
+             */
+            coverKey?: string;
+            /**
+             * @description 视频 OSS Key（来自作品结果）
+             * @example videos/work/20260731-result.mp4
+             */
+            videoKey?: string;
+            /**
+             * @description 分类
+             * @example 开箱
+             */
+            category?: string;
+            /**
+             * @description 适用行业
+             * @example 好物种草
+             */
+            industry?: string;
+            /**
+             * @description 适用平台
+             * @example DOUYIN
+             */
+            platform?: string;
+            /**
+             * @description 标签数组
+             * @example [
+             *       "开箱",
+             *       "新品",
+             *       "种草"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description 来源作品 ID
+             * @example a1b2c3d4-uuid
+             */
+            sourceWorkId?: string;
+        };
+        FinalizeTemplateInternalDto: Record<string, never>;
+        FailTemplateDto: Record<string, never>;
+        ReviewTemplateDto: {
+            /**
+             * @description 审核后状态（ACTIVE 或 REJECTED）
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "OFFLINE" | "PENDING_REVIEW" | "REJECTED" | "ANALYZING" | "ANALYSIS_FAILED";
+            /**
+             * @description 审核备注
+             * @example 内容符合规范，审核通过。
+             */
+            reviewNote?: string;
+        };
+        IndustryPreferenceDto: {
+            /**
+             * @description 行业标签列表（1-3 个）
+             * @example [
+             *       "好物种草",
+             *       "本地生活"
+             *     ]
+             */
+            industries: string[];
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  TemplateController_list: {
-    parameters: {
-      query?: {
-        /** @description 平台筛选（DOUYIN/XIAOHONGSHU/BILIBILI/WECHAT_VIDEO/KUAISHOU） */
-        platform?: string
-        /** @description 行业筛选 */
-        industry?: string
-        /** @description 关键词（标题模糊匹配） */
-        keyword?: string
-        /** @description 排序方式: heat(综合热度) / latest(创建时间) / iq(iqScore) */
-        sortBy?: 'heat' | 'latest' | 'iq'
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_upload: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UploadTemplateDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_uploadStatus: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        workflowId: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_myUploaded: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_publish: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PublishTemplateDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_internalPublish: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_internalFinalize: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['FinalizeTemplateInternalDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_internalFail: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['FailTemplateDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_pendingReview: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_myPublished: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_myFavorites: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_detail: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_review: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReviewTemplateDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_incrementUse: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_favorite: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  TemplateController_unfavorite: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  IndustryController_getPreferences: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  IndustryController_setPreferences: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['IndustryPreferenceDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
+    TemplateController_list: {
+        parameters: {
+            query?: {
+                /** @description 平台筛选（DOUYIN/XIAOHONGSHU/BILIBILI/WECHAT_VIDEO/KUAISHOU） */
+                platform?: string;
+                /** @description 行业筛选 */
+                industry?: string;
+                /** @description 关键词（标题模糊匹配） */
+                keyword?: string;
+                /** @description 排序方式: heat(综合热度) / latest(创建时间) / iq(iqScore) */
+                sortBy?: "heat" | "latest" | "iq";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_uploadStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_myUploaded: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_internalPublish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_internalFinalize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalizeTemplateInternalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_internalFail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FailTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_pendingReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_myPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_myFavorites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_incrementUse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_favorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TemplateController_unfavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IndustryController_getPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IndustryController_setPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IndustryPreferenceDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

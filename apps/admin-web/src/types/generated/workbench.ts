@@ -4,459 +4,442 @@
  * Source hash: 3b023a18097b
  */
 export interface paths {
-  '/api/v1/generations': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 任务列表（分页 + 筛选） */
-    get: operations['GenerationController_findAll']
-    put?: never
-    /** 提交生成任务 */
-    post: operations['GenerationController_create']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/generations/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 任务详情 */
-    get: operations['GenerationController_findOne']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/generations/{id}/cancel': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 取消任务 */
-    post: operations['GenerationController_cancel']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/generations/{id}/retry': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 重试任务 */
-    post: operations['GenerationController_retry']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/works': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 作品列表（分页 + 筛选） */
-    get: operations['WorkController_findAll']
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/works/{id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /** 作品详情（校验所有权） */
-    get: operations['WorkController_findOne']
-    put?: never
-    post?: never
-    /** 删除作品（软删除，保留 OSS 文件 30 天） */
-    delete: operations['WorkController_delete']
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/api/v1/works/{id}/publish-template': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /** 作品转模板（发布已完成作品为模板） */
-    post: operations['WorkController_publishTemplate']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/api/v1/generations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 任务列表（分页 + 筛选） */
+        get: operations["GenerationController_findAll"];
+        put?: never;
+        /** 提交生成任务 */
+        post: operations["GenerationController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 任务详情 */
+        get: operations["GenerationController_findOne"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generations/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消任务 */
+        post: operations["GenerationController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generations/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重试任务 */
+        post: operations["GenerationController_retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/works": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 作品列表（分页 + 筛选） */
+        get: operations["WorkController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/works/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 作品详情（校验所有权） */
+        get: operations["WorkController_findOne"];
+        put?: never;
+        post?: never;
+        /** 删除作品（软删除，保留 OSS 文件 30 天） */
+        delete: operations["WorkController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/works/{id}/publish-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 作品转模板（发布已完成作品为模板） */
+        post: operations["WorkController_publishTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    CreateGenerationDto: {
-      /**
-       * @description 生成类型（文生视频/图生视频/3D 建模/编辑视频等）
-       * @example TEXT_TO_VIDEO
-       * @enum {string}
-       */
-      generationType:
-        | 'TEXT_TO_VIDEO'
-        | 'IMAGE_TO_VIDEO_FIRST'
-        | 'IMAGE_TO_VIDEO_FIRST_LAST'
-        | '3D_MODELING'
-        | 'EDIT_VIDEO'
-        | 'EXTEND_VIDEO'
-        | 'TEXT_GENERATE'
-        | 'IMAGE_GENERATE'
-      /**
-       * @description 提示词（最多 2000 字符）
-       * @example 一只柴犬在草地上奔跑，电影感镜头
-       */
-      prompt: string
-      /**
-       * @description 模型 ID（默认 seedance2-pro）
-       * @example seedance2-pro
-       */
-      model?: string
-      /**
-       * @description 分辨率（视频类：480p/720p/1080p）
-       * @example 720p
-       * @enum {string}
-       */
-      resolution?: '480p' | '720p' | '1080p'
-      /**
-       * @description 宽高比（9:16 竖屏 / 16:9 横屏 / 1:1 正方形）
-       * @example 9:16
-       * @enum {string}
-       */
-      aspectRatio?: '9:16' | '16:9' | '1:1'
-      /**
-       * @description 时长（秒，视频类，可选 5 或 10）
-       * @example 5
-       */
-      duration?: number
-      /**
-       * @description 参考图 asset key 数组
-       * @example [
-       *       "assets/image/user-uuid/20260731-ref1.png"
-       *     ]
-       */
-      referenceImages?: string[]
-      /**
-       * @description 参考视频 asset key
-       * @example assets/video/user-uuid/20260731-ref.mp4
-       */
-      referenceVideo?: string
-      /**
-       * @description 参考音频 asset key
-       * @example assets/audio/user-uuid/20260731-bg.mp3
-       */
-      referenceAudio?: string
-      /**
-       * @description 首帧图 asset key
-       * @example assets/image/user-uuid/20260731-first.png
-       */
-      firstFrame?: string
-      /**
-       * @description 尾帧图 asset key
-       * @example assets/image/user-uuid/20260731-last.png
-       */
-      lastFrame?: string
-      /**
-       * @description 幂等键（重复请求返回已有 work，最多 128 字符）
-       * @example a3f5b8c9-1d2e-3f4a-5b6c-7d8e9f0a1b2c
-       */
-      idempotencyKey?: string
-      /**
-       * @description 来源模板 ID（基于模板创作时传入，用于模板使用次数 +1）
-       * @example a1b2c3d4-uuid
-       */
-      templateId?: string
-      /**
-       * @description 对标解析 ID（从对标解析一键复刻时传入，用于溯源）
-       * @example b2c3d4e5-uuid
-       */
-      benchmarkId?: string
-    }
-    PublishFromWorkDto: {
-      /**
-       * @description 模板标题（最多 128 字符）
-       * @example 夏日饮品推广短视频模板
-       */
-      title: string
-      /**
-       * @description 详细描述（最多 2000 字符）
-       * @example 适用于饮品/快消品推广，含品牌 LOGO 占位与字幕样式
-       */
-      description?: string
-      /**
-       * @description 分类（最多 64 字符）
-       * @example 营销推广
-       */
-      category?: string
-      /**
-       * @description 适用行业（最多 64 字符）
-       * @example 餐饮/快消
-       */
-      industry?: string
-      /**
-       * @description 适用平台（最多 32 字符，如 douyin/wechat/xhs）
-       * @example douyin
-       */
-      platform?: string
-      /**
-       * @description 标签数组
-       * @example [
-       *       "夏日",
-       *       "饮品",
-       *       "推广"
-       *     ]
-       */
-      tags?: string[]
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        CreateGenerationDto: {
+            /**
+             * @description 生成类型（文生视频/图生视频/3D 建模/编辑视频等）
+             * @example TEXT_TO_VIDEO
+             * @enum {string}
+             */
+            generationType: "TEXT_TO_VIDEO" | "IMAGE_TO_VIDEO_FIRST" | "IMAGE_TO_VIDEO_FIRST_LAST" | "3D_MODELING" | "EDIT_VIDEO" | "EXTEND_VIDEO" | "TEXT_GENERATE" | "IMAGE_GENERATE";
+            /**
+             * @description 提示词（最多 2000 字符）
+             * @example 一只柴犬在草地上奔跑，电影感镜头
+             */
+            prompt: string;
+            /**
+             * @description 模型 ID（默认 seedance2-pro）
+             * @example seedance2-pro
+             */
+            model?: string;
+            /**
+             * @description 分辨率（视频类：480p/720p/1080p）
+             * @example 720p
+             * @enum {string}
+             */
+            resolution?: "480p" | "720p" | "1080p";
+            /**
+             * @description 宽高比（9:16 竖屏 / 16:9 横屏 / 1:1 正方形）
+             * @example 9:16
+             * @enum {string}
+             */
+            aspectRatio?: "9:16" | "16:9" | "1:1";
+            /**
+             * @description 时长（秒，视频类，可选 5 或 10）
+             * @example 5
+             */
+            duration?: number;
+            /**
+             * @description 参考图 asset key 数组
+             * @example [
+             *       "assets/image/user-uuid/20260731-ref1.png"
+             *     ]
+             */
+            referenceImages?: string[];
+            /**
+             * @description 参考视频 asset key
+             * @example assets/video/user-uuid/20260731-ref.mp4
+             */
+            referenceVideo?: string;
+            /**
+             * @description 参考音频 asset key
+             * @example assets/audio/user-uuid/20260731-bg.mp3
+             */
+            referenceAudio?: string;
+            /**
+             * @description 首帧图 asset key
+             * @example assets/image/user-uuid/20260731-first.png
+             */
+            firstFrame?: string;
+            /**
+             * @description 尾帧图 asset key
+             * @example assets/image/user-uuid/20260731-last.png
+             */
+            lastFrame?: string;
+            /**
+             * @description 幂等键（重复请求返回已有 work，最多 128 字符）
+             * @example a3f5b8c9-1d2e-3f4a-5b6c-7d8e9f0a1b2c
+             */
+            idempotencyKey?: string;
+            /**
+             * @description 来源模板 ID（基于模板创作时传入，用于模板使用次数 +1）
+             * @example a1b2c3d4-uuid
+             */
+            templateId?: string;
+            /**
+             * @description 对标解析 ID（从对标解析一键复刻时传入，用于溯源）
+             * @example b2c3d4e5-uuid
+             */
+            benchmarkId?: string;
+        };
+        PublishFromWorkDto: {
+            /**
+             * @description 模板标题（最多 128 字符）
+             * @example 夏日饮品推广短视频模板
+             */
+            title: string;
+            /**
+             * @description 详细描述（最多 2000 字符）
+             * @example 适用于饮品/快消品推广，含品牌 LOGO 占位与字幕样式
+             */
+            description?: string;
+            /**
+             * @description 分类（最多 64 字符）
+             * @example 营销推广
+             */
+            category?: string;
+            /**
+             * @description 适用行业（最多 64 字符）
+             * @example 餐饮/快消
+             */
+            industry?: string;
+            /**
+             * @description 适用平台（最多 32 字符，如 douyin/wechat/xhs）
+             * @example douyin
+             */
+            platform?: string;
+            /**
+             * @description 标签数组
+             * @example [
+             *       "夏日",
+             *       "饮品",
+             *       "推广"
+             *     ]
+             */
+            tags?: string[];
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  GenerationController_findAll: {
-    parameters: {
-      query?: {
-        /** @description 页码，从 1 开始 */
-        page?: number
-        /** @description 每页条数（1-100） */
-        pageSize?: number
-        /** @description 任务状态筛选（PENDING/RUNNING/COMPLETED/FAILED） */
-        status?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
-        /** @description 生成类型筛选（文生视频/图生视频/3D 建模等） */
-        generationType?:
-          | 'TEXT_TO_VIDEO'
-          | 'IMAGE_TO_VIDEO_FIRST'
-          | 'IMAGE_TO_VIDEO_FIRST_LAST'
-          | '3D_MODELING'
-          | 'EDIT_VIDEO'
-          | 'EXTEND_VIDEO'
-          | 'TEXT_GENERATE'
-          | 'IMAGE_GENERATE'
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  GenerationController_create: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateGenerationDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  GenerationController_findOne: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  GenerationController_cancel: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  GenerationController_retry: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  WorkController_findAll: {
-    parameters: {
-      query?: {
-        /** @description 页码，从 1 开始 */
-        page?: number
-        /** @description 每页条数（1-100） */
-        pageSize?: number
-        /** @description 作品状态筛选（PENDING/PROCESSING/COMPLETED/FAILED/CANCELLED/REJECTED/DELETED） */
-        status?:
-          'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'REJECTED' | 'DELETED'
-        /** @description 作品类型筛选（TEXT/IMAGE/VIDEO） */
-        workType?: 'TEXT' | 'IMAGE' | 'VIDEO'
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  WorkController_findOne: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  WorkController_delete: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
-  WorkController_publishTemplate: {
-    parameters: {
-      query?: never
-      header?: never
-      path: {
-        id: string
-      }
-      cookie?: never
-    }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PublishFromWorkDto']
-      }
-    }
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown
-        }
-        content?: never
-      }
-    }
-  }
+    GenerationController_findAll: {
+        parameters: {
+            query?: {
+                /** @description 页码，从 1 开始 */
+                page?: number;
+                /** @description 每页条数（1-100） */
+                pageSize?: number;
+                /** @description 任务状态筛选（PENDING/RUNNING/COMPLETED/FAILED） */
+                status?: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+                /** @description 生成类型筛选（文生视频/图生视频/3D 建模等） */
+                generationType?: "TEXT_TO_VIDEO" | "IMAGE_TO_VIDEO_FIRST" | "IMAGE_TO_VIDEO_FIRST_LAST" | "3D_MODELING" | "EDIT_VIDEO" | "EXTEND_VIDEO" | "TEXT_GENERATE" | "IMAGE_GENERATE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GenerationController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGenerationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GenerationController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GenerationController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GenerationController_retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkController_findAll: {
+        parameters: {
+            query?: {
+                /** @description 页码，从 1 开始 */
+                page?: number;
+                /** @description 每页条数（1-100） */
+                pageSize?: number;
+                /** @description 作品状态筛选（PENDING/PROCESSING/COMPLETED/FAILED/CANCELLED/REJECTED/DELETED） */
+                status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED" | "REJECTED" | "DELETED";
+                /** @description 作品类型筛选（TEXT/IMAGE/VIDEO） */
+                workType?: "TEXT" | "IMAGE" | "VIDEO";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WorkController_publishTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishFromWorkDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }
