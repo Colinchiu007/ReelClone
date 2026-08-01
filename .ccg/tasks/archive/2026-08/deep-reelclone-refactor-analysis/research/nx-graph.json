@@ -1,0 +1,2324 @@
+{
+  "graph": {
+    "nodes": {
+      "notification-service": {
+        "name": "notification-service",
+        "type": "app",
+        "data": {
+          "root": "apps/notification-service",
+          "sourceRoot": "apps/notification-service/src",
+          "name": "notification-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:notification", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start"]
+            },
+            "description": "ReelClone 通知服务：WebSocket 实时任务进度推送、站内通知列表、微信订阅消息推送"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/notification-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/notification-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/notification-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/notification-service/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/notification-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/notification-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "docker:build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "docker build -f apps/notification-service/Dockerfile -t reelclone/notification-service:latest .",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "benchmark-service": {
+        "name": "benchmark-service",
+        "type": "app",
+        "data": {
+          "root": "apps/benchmark-service",
+          "sourceRoot": "apps/benchmark-service/src",
+          "name": "benchmark-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:benchmark", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start", "start:prod"]
+            },
+            "description": "ReelClone 对标解析微服务：竞品视频解析任务提交、历史查询、详情查看（Temporal 工作流编排）"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch src/main.ts",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/benchmark-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/benchmark-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/benchmark-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/benchmark-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/benchmark-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/benchmark-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "workbench-service": {
+        "name": "workbench-service",
+        "type": "app",
+        "data": {
+          "root": "apps/workbench-service",
+          "sourceRoot": "apps/workbench-service/src",
+          "name": "workbench-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:workbench", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start", "start:prod"]
+            },
+            "description": "ReelClone 工作台微服务：生成任务提交/查询/取消/重试，作品列表与详情，集成 billing-service 与 Temporal 工作流"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch src/main.ts",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/workbench-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/workbench-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/workbench-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/workbench-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/workbench-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/workbench-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "template-service": {
+        "name": "template-service",
+        "type": "app",
+        "data": {
+          "root": "apps/template-service",
+          "sourceRoot": "apps/template-service/src",
+          "name": "template-service",
+          "projectType": "application",
+          "tags": ["npm:private", "type:app", "scope:template-service"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 模板服务 - 灵感广场模板浏览、收藏、行业偏好管理"
+          },
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/template-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/template-service/tsconfig.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/template-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/template-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/template-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/template-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/template-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "billing-service": {
+        "name": "billing-service",
+        "type": "app",
+        "data": {
+          "root": "apps/billing-service",
+          "sourceRoot": "apps/billing-service/src",
+          "name": "billing-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:billing", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start", "start:prod"]
+            },
+            "description": "ReelClone 计费微服务：积分余额、流水、冻结/结算/释放/赠送（幂等键 + 复式记账）"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch src/main.ts",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/billing-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/billing-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/billing-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/billing-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/billing-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/billing-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "admin-service": {
+        "name": "admin-service",
+        "type": "app",
+        "data": {
+          "root": "apps/admin-service",
+          "sourceRoot": "apps/admin-service/src",
+          "name": "admin-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:admin", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start", "start:prod"]
+            },
+            "description": "ReelClone 运营后台微服务：用户管理、内容审核、套餐/订单管理、数据统计、系统配置（HTTP 服务，端口 3011）"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch src/main.ts",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/admin-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/admin-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/admin-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/admin-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/admin-service/tsconfig.app.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/admin-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "asset-service": {
+        "name": "asset-service",
+        "type": "app",
+        "data": {
+          "root": "apps/asset-service",
+          "sourceRoot": "apps/asset-service/src",
+          "name": "asset-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:asset", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start"]
+            },
+            "description": "ReelClone 资产服务微服务：素材上传 STS Token 签发、资产 CRUD、真人形象组管理"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/asset-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/asset-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/asset-service/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/asset-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/asset-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/asset-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "observability": {
+        "name": "observability",
+        "type": "lib",
+        "data": {
+          "root": "libs/observability",
+          "sourceRoot": "libs/observability/src",
+          "name": "observability",
+          "projectType": "library",
+          "tags": ["npm:private", "scope:shared", "type:util"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 可观测性库：Pino 结构化日志、健康检查端点、Prometheus 指标暴露"
+          },
+          "targets": {
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p tsconfig.json",
+                "cwd": "libs/observability"
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint src --ext .ts",
+                "cwd": "libs/observability"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p tsconfig.json",
+                "cwd": "libs/observability"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config jest.config.js --passWithNoTests",
+                "cwd": "libs/observability"
+              },
+              "outputs": ["{workspaceRoot}/coverage/libs/observability"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "order-service": {
+        "name": "order-service",
+        "type": "app",
+        "data": {
+          "root": "apps/order-service",
+          "sourceRoot": "apps/order-service/src",
+          "name": "order-service",
+          "projectType": "application",
+          "tags": ["npm:private", "type:app", "scope:order"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 订单服务：套餐浏览、订单创建、微信支付调起、支付回调处理、订单查询"
+          },
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/order-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/order-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/order-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/order-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx watch apps/order-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/order-service/jest.config.js",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/order-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "auth-service": {
+        "name": "auth-service",
+        "type": "app",
+        "data": {
+          "root": "apps/auth-service",
+          "sourceRoot": "apps/auth-service/src",
+          "name": "auth-service",
+          "projectType": "application",
+          "tags": ["npm:private", "type:app", "scope:auth"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start"]
+            },
+            "description": "ReelClone 认证服务：微信小程序登录、JWT Token 刷新、登出（黑名单）"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "node dist/apps/auth-service/src/main.js",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/auth-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/auth-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/auth-service/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/auth-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/auth-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/auth-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "media-worker": {
+        "name": "media-worker",
+        "type": "app",
+        "data": {
+          "root": "apps/media-worker",
+          "sourceRoot": "apps/media-worker/src",
+          "name": "media-worker",
+          "projectType": "application",
+          "tags": ["npm:private", "type:app", "scope:worker", "scope:media"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start"]
+            },
+            "description": "ReelClone 媒体处理 Worker：Temporal Worker 节点，注册 FFmpeg / 内容审核 / Seedance / 视频分析 Activity"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "node dist/apps/media-worker/src/main.js",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/media-worker/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/media-worker/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/media-worker/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/media-worker"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/media-worker/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/media-worker/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "user-service": {
+        "name": "user-service",
+        "type": "app",
+        "data": {
+          "root": "apps/user-service",
+          "sourceRoot": "apps/user-service/src",
+          "name": "user-service",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:user", "type:app"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["start"]
+            },
+            "description": "ReelClone 用户服务微服务：用户信息管理、绑定手机号、短信验证码、修改密码"
+          },
+          "targets": {
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "npm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/user-service/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/user-service/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config apps/user-service/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/apps/user-service"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p apps/user-service/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsx apps/user-service/src/main.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "miniprogram": {
+        "name": "miniprogram",
+        "type": "app",
+        "data": {
+          "root": "apps/miniprogram",
+          "sourceRoot": "apps/miniprogram/src",
+          "name": "miniprogram",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:miniprogram", "type:app", "platform:wechat"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["test", "test:coverage"]
+            },
+            "description": "ReelClone 微信小程序：Taro 3.x + React 18 + TypeScript 复刻 WouwouAI 前端"
+          },
+          "targets": {
+            "test": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.js",
+                "runCommand": "npm run test"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+              "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+            },
+            "test:coverage": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:coverage"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.js --coverage",
+                "runCommand": "npm run test:coverage"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev:weapp": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "taro build --type weapp --watch",
+                "cwd": "apps/miniprogram"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build:weapp": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "taro build --type weapp",
+                "cwd": "apps/miniprogram"
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint apps/miniprogram/src --ext .ts,.tsx",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p apps/miniprogram/tsconfig.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "admin-web": {
+        "name": "admin-web",
+        "type": "app",
+        "data": {
+          "root": "apps/admin-web",
+          "sourceRoot": "apps/admin-web/src",
+          "name": "admin-web",
+          "projectType": "application",
+          "tags": ["npm:private", "scope:admin", "type:web"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["dev", "preview"]
+            },
+            "description": "ReelClone 运营后台前端（React + Ant Design + Vite）"
+          },
+          "targets": {
+            "dev": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "dev"
+              },
+              "metadata": {
+                "scriptContent": "vite",
+                "runCommand": "npm run dev"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "preview": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "preview"
+              },
+              "metadata": {
+                "scriptContent": "vite preview",
+                "runCommand": "npm run preview"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "vite",
+                "cwd": "apps/admin-web"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "vite build",
+                "cwd": "apps/admin-web"
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint src --ext .ts,.tsx",
+                "cwd": "apps/admin-web"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p tsconfig.app.json",
+                "cwd": "apps/admin-web"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "database": {
+        "name": "database",
+        "type": "lib",
+        "data": {
+          "root": "libs/database",
+          "sourceRoot": "libs/database/src",
+          "name": "database",
+          "projectType": "library",
+          "tags": ["npm:private", "scope:database", "type:lib"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 数据访问库：ORM、实体定义、迁移脚本、仓储层"
+          },
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run lint",
+                "cwd": "libs/database"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run typecheck",
+                "cwd": "libs/database"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run build",
+                "cwd": "libs/database"
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run test",
+                "cwd": "libs/database"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+              "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+            },
+            "migration:run": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run migration:run",
+                "cwd": "libs/database"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": false
+            },
+            "migration:generate": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "npm run migration:generate",
+                "cwd": "libs/database"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": false
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "implicitDependencies": []
+        }
+      },
+      "temporal": {
+        "name": "temporal",
+        "type": "lib",
+        "data": {
+          "root": "libs/temporal",
+          "sourceRoot": "libs/temporal/src",
+          "name": "temporal",
+          "projectType": "library",
+          "tags": ["npm:private", "type:shared", "scope:temporal"],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": ["test:watch"]
+            },
+            "description": "ReelClone Temporal 工作流库：工作流定义、Activity、Worker"
+          },
+          "targets": {
+            "test:watch": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:watch"
+              },
+              "metadata": {
+                "scriptContent": "jest --watch",
+                "runCommand": "npm run test:watch"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint libs/temporal/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p libs/temporal/tsconfig.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config libs/temporal/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/libs/temporal"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p libs/temporal/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "worker:start": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "ts-node -P libs/temporal/tsconfig.json libs/temporal/src/worker/temporal.worker.ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "swagger": {
+        "name": "swagger",
+        "type": "lib",
+        "data": {
+          "root": "libs/swagger",
+          "sourceRoot": "libs/swagger/src",
+          "name": "swagger",
+          "projectType": "library",
+          "tags": ["npm:private", "type:shared", "scope:docs"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone Swagger/OpenAPI 共享配置库：DocumentBuilder 工厂、JWT Bearer 鉴权、分页/内部 API 装饰器"
+          },
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint libs/swagger/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p libs/swagger/tsconfig.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config libs/swagger/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/libs/swagger"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p libs/swagger/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "common": {
+        "name": "common",
+        "type": "lib",
+        "data": {
+          "root": "libs/common",
+          "sourceRoot": "libs/common/src",
+          "name": "common",
+          "projectType": "library",
+          "tags": ["npm:private", "type:shared", "scope:common"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 共享通用库：统一响应、错误码、异常过滤器、JWT 守卫、限流守卫、工具函数"
+          },
+          "targets": {
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint libs/common/src --ext .ts",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p libs/common/tsconfig.spec.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config libs/common/jest.config.js --passWithNoTests",
+                "cwd": ""
+              },
+              "outputs": ["{workspaceRoot}/coverage/libs/common"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p libs/common/tsconfig.json",
+                "cwd": ""
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "oss": {
+        "name": "oss",
+        "type": "lib",
+        "data": {
+          "root": "libs/oss",
+          "sourceRoot": "libs/oss/src",
+          "name": "oss",
+          "projectType": "library",
+          "tags": ["npm:private", "scope:shared", "type:util"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone 对象存储库：阿里云 OSS 上传、下载、签名 URL、STS Token 签发与小程序直传凭证"
+          },
+          "targets": {
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc -p tsconfig.json",
+                "cwd": "libs/oss"
+              },
+              "outputs": ["{projectRoot}/dist"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"]
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "eslint src --ext .ts",
+                "cwd": "libs/oss"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p tsconfig.json",
+                "cwd": "libs/oss"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "jest --config jest.config.js --passWithNoTests",
+                "cwd": "libs/oss"
+              },
+              "outputs": ["{workspaceRoot}/coverage/libs/oss"],
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "prefix": "reelclone",
+          "implicitDependencies": []
+        }
+      },
+      "ai": {
+        "name": "ai",
+        "type": "lib",
+        "data": {
+          "root": "libs/ai",
+          "sourceRoot": "libs/ai/src",
+          "name": "ai",
+          "projectType": "library",
+          "tags": ["npm:private", "scope:shared", "type:lib"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "ReelClone AI 能力库：Seedance 视频 AI、LLM 适配、Key 轮询、提示词管理"
+          },
+          "targets": {
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "options": {
+                "lintFilePatterns": ["libs/ai/**/*.ts"]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^lint"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.js",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "outputs": ["{options.outputFile}"]
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "tsc --noEmit -p libs/ai/tsconfig.json",
+                "cwd": ""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build", "^typecheck"],
+              "cache": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json",
+                "{projectRoot}/tsconfig.json",
+                "{projectRoot}/tsconfig.spec.json"
+              ]
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "options": {
+                "outputPath": "libs/ai/dist",
+                "main": "libs/ai/src/index.ts",
+                "tsConfig": "libs/ai/tsconfig.json"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["production", "^production"],
+              "outputs": ["{projectRoot}/dist", "{projectRoot}/build"]
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "options": {
+                "jestConfig": "libs/ai/jest.config.js",
+                "passWithNoTests": true
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": ["^build"],
+              "cache": true,
+              "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+              "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "implicitDependencies": []
+        }
+      }
+    },
+    "dependencies": {
+      "notification-service": [
+        {
+          "source": "notification-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "notification-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "notification-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "notification-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "benchmark-service": [
+        {
+          "source": "benchmark-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "benchmark-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "benchmark-service",
+          "target": "temporal",
+          "type": "static"
+        },
+        {
+          "source": "benchmark-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "benchmark-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "workbench-service": [
+        {
+          "source": "workbench-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "workbench-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "workbench-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "workbench-service",
+          "target": "temporal",
+          "type": "static"
+        },
+        {
+          "source": "workbench-service",
+          "target": "ai",
+          "type": "static"
+        },
+        {
+          "source": "workbench-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "template-service": [
+        {
+          "source": "template-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "template-service",
+          "target": "temporal",
+          "type": "static"
+        },
+        {
+          "source": "template-service",
+          "target": "swagger",
+          "type": "static"
+        },
+        {
+          "source": "template-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "template-service",
+          "target": "database",
+          "type": "static"
+        }
+      ],
+      "billing-service": [
+        {
+          "source": "billing-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "billing-service",
+          "target": "swagger",
+          "type": "static"
+        },
+        {
+          "source": "billing-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "billing-service",
+          "target": "database",
+          "type": "static"
+        }
+      ],
+      "admin-service": [
+        {
+          "source": "admin-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "admin-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "admin-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "admin-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "asset-service": [
+        {
+          "source": "asset-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "asset-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "asset-service",
+          "target": "oss",
+          "type": "static"
+        },
+        {
+          "source": "asset-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "asset-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "observability": [],
+      "order-service": [
+        {
+          "source": "order-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "order-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "order-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "order-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "auth-service": [
+        {
+          "source": "auth-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "auth-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "auth-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "auth-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "media-worker": [
+        {
+          "source": "media-worker",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "media-worker",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "media-worker",
+          "target": "ai",
+          "type": "static"
+        },
+        {
+          "source": "media-worker",
+          "target": "temporal",
+          "type": "static"
+        },
+        {
+          "source": "media-worker",
+          "target": "oss",
+          "type": "static"
+        }
+      ],
+      "user-service": [
+        {
+          "source": "user-service",
+          "target": "common",
+          "type": "static"
+        },
+        {
+          "source": "user-service",
+          "target": "database",
+          "type": "static"
+        },
+        {
+          "source": "user-service",
+          "target": "observability",
+          "type": "static"
+        },
+        {
+          "source": "user-service",
+          "target": "swagger",
+          "type": "static"
+        }
+      ],
+      "miniprogram": [],
+      "admin-web": [],
+      "database": [],
+      "temporal": [
+        {
+          "source": "temporal",
+          "target": "ai",
+          "type": "static"
+        },
+        {
+          "source": "temporal",
+          "target": "oss",
+          "type": "static"
+        }
+      ],
+      "swagger": [
+        {
+          "source": "swagger",
+          "target": "common",
+          "type": "static"
+        }
+      ],
+      "common": [
+        {
+          "source": "common",
+          "target": "database",
+          "type": "static"
+        }
+      ],
+      "oss": [],
+      "ai": [
+        {
+          "source": "ai",
+          "target": "common",
+          "type": "static"
+        }
+      ]
+    }
+  }
+}
