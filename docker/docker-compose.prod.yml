@@ -23,8 +23,8 @@
 x-logging: &default-logging
   driver: json-file
   options:
-    max-size: "10m"
-    max-file: "3"
+    max-size: '10m'
+    max-file: '3'
 
 x-service-defaults: &service-defaults
   restart: unless-stopped
@@ -62,7 +62,7 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
       - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -74,7 +74,7 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: "1.5"
+          cpus: '1.5'
         reservations:
           memory: 512M
 
@@ -95,7 +95,7 @@ services:
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -107,7 +107,7 @@ services:
       resources:
         limits:
           memory: 384M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -138,7 +138,7 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "1.0"
+          cpus: '1.0'
         reservations:
           memory: 256M
 
@@ -162,7 +162,7 @@ services:
       resources:
         limits:
           memory: 128M
-          cpus: "0.25"
+          cpus: '0.25'
 
   # ============================================================
   # 微服务：auth-service（端口 3001）
@@ -180,7 +180,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/auth/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/api/v1/auth/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -189,7 +189,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -209,7 +209,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/api/v1/users/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3002/api/v1/users/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -218,7 +218,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -238,7 +238,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/api/v1/assets/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3003/api/v1/assets/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -247,7 +247,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -271,7 +271,7 @@ services:
       temporal:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3004/api/v1/benchmarks/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3004/api/v1/benchmarks/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -280,7 +280,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -300,7 +300,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3005/api/v1/templates/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3005/api/v1/templates/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -309,7 +309,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -327,9 +327,10 @@ services:
     environment:
       PORT: 3006
       NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in the deployment environment}
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3006/api/v1/points/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3006/api/v1/points/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -338,7 +339,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -357,12 +358,14 @@ services:
       PORT: 3007
       NODE_ENV: production
       TEMPORAL_ADDRESS: temporal:7233
+      BILLING_SERVICE_URL: http://billing-service:3006
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in the deployment environment}
     depends_on:
       <<: *deps-infra
       temporal:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3007/api/v1/generations/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3007/api/v1/generations/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -371,7 +374,7 @@ services:
       resources:
         limits:
           memory: 384M
-          cpus: "0.75"
+          cpus: '0.75'
         reservations:
           memory: 192M
 
@@ -391,7 +394,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3008/api/v1/notifications/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3008/api/v1/notifications/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -400,7 +403,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -420,7 +423,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3009/api/v1/orders/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3009/api/v1/orders/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -429,7 +432,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
@@ -448,12 +451,15 @@ services:
       NODE_ENV: production
       TEMPORAL_ADDRESS: temporal:7233
       MEDIA_WORKER_PORT: 3010
+      TEMPORAL_MOCK_MODE: 'false'
+      BILLING_SERVICE_URL: http://billing-service:3006
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in the deployment environment}
     depends_on:
       <<: *deps-infra
       temporal:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3010/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3010/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -462,7 +468,7 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: "1.5"
+          cpus: '1.5'
         reservations:
           memory: 512M
 
@@ -475,8 +481,8 @@ services:
     container_name: reelclone-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
@@ -506,7 +512,7 @@ services:
       - backend
       - frontend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -515,7 +521,7 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 

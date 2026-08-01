@@ -6,8 +6,12 @@ import { AddUserRole1700000000004 } from './migrations/main/0003_add_user_role'
 import { AddSystemConfig1700000000005 } from './migrations/main/0004_add_system_config'
 import { AddAuditLog1700000000006 } from './migrations/main/0005_add_audit_log'
 import { AddWorksDeletedStatus1700000000007 } from './migrations/main/0006_add_works_deleted_status'
+import { AddWorksIdempotencyKey1700000000009 } from './migrations/main/0007_add_works_idempotency_key'
+import { AddCreditReservationsAndBillingOutbox1700000000011 } from './migrations/main/0008_add_credit_reservations_and_billing_outbox'
 import { InitBilling1700000000001 } from './migrations/billing/0001_init_billing'
 import { AddRewardType1700000000008 } from './migrations/billing/0002_add_reward_type'
+import { AddFreezeReference1700000000010 } from './migrations/billing/0003_add_freeze_reference'
+import { AddReservationId1700000000012 } from './migrations/billing/0004_add_reservation_id'
 import { InitTemplate1700000000002 } from './migrations/template/0001_init_template'
 import { AddUgcFields1700000000003 } from './migrations/template/0002_add_ugc_fields'
 import { AddTemplateUploadFields1700000000007 } from './migrations/template/0003_add_template_upload_fields'
@@ -47,13 +51,20 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
         AddSystemConfig1700000000005,
         AddAuditLog1700000000006,
         AddWorksDeletedStatus1700000000007,
+        AddWorksIdempotencyKey1700000000009,
+        AddCreditReservationsAndBillingOutbox1700000000011,
       ]),
     ),
   },
   {
     name: 'billing',
     ds: new DataSource(
-      buildOptions('reelclone_billing', [InitBilling1700000000001, AddRewardType1700000000008]),
+      buildOptions('reelclone_billing', [
+        InitBilling1700000000001,
+        AddRewardType1700000000008,
+        AddFreezeReference1700000000010,
+        AddReservationId1700000000012,
+      ]),
     ),
   },
   {

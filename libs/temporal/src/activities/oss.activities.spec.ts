@@ -24,11 +24,16 @@ jest.mock('@temporalio/activity', () => ({
   },
 }))
 
+jest.mock('./activity-context', () => ({
+  getActivityDependencies: jest.fn(),
+}))
+
 // 强制 Mock 模式
 beforeAll(() => {
   process.env.TEMPORAL_MOCK_MODE = 'true'
 })
 
+import { getActivityDependencies } from './activity-context'
 import { uploadToOSS, generateSignedUrl, ossActivities } from './oss.activities'
 
 describe('oss.activities (Mock 模式)', () => {
@@ -113,16 +118,31 @@ describe('oss.activities (Mock 模式)', () => {
       process.env.TEMPORAL_MOCK_MODE = originalFlag
     })
 
-    it('uploadToOSS 抛错：真实模式尚未接入', async () => {
-      await expect(uploadToOSS('/tmp/video.mp4', 'works/123/output.mp4')).rejects.toThrow(
-        '[OSS] 真实模式尚未接入 libs/oss',
+    it('uploadToOSS 调用注入的 OSSService', async () => {
+      const ossService = {
+        upload: jest.fn().mockResolvedValue({
+          key: 'works/123/output.mp4',
+          url: 'https://oss.example/works/123/output.mp4',
+        }),
+      }
+      ;(getActivityDependencies as jest.Mock).mockReturnValue({ ossService })
+
+      await expect(uploadToOSS('/tmp/video.mp4', 'works/123/output.mp4')).resolves.toBe(
+        'https://oss.example/works/123/output.mp4',
       )
+      expect(ossService.upload).toHaveBeenCalledWith('/tmp/video.mp4', 'works/123/output.mp4')
     })
 
-    it('generateSignedUrl 抛错：真实模式尚未接入', async () => {
-      await expect(generateSignedUrl('works/123/output.mp4')).rejects.toThrow(
-        '[OSS] 真实模式尚未接入 libs/oss',
+    it('generateSignedUrl 使用默认 15 分钟 TTL', async () => {
+      const ossService = {
+        getSignedUrl: jest.fn().mockResolvedValue('https://oss.example/signed-output.mp4'),
+      }
+      ;(getActivityDependencies as jest.Mock).mockReturnValue({ ossService })
+
+      await expect(generateSignedUrl('works/123/output.mp4')).resolves.toBe(
+        'https://oss.example/signed-output.mp4',
       )
+      expect(ossService.getSignedUrl).toHaveBeenCalledWith('works/123/output.mp4', 900)
     })
   })
 })

@@ -164,14 +164,15 @@ export class CreateGenerationDto {
 
   /** 幂等键（重复请求返回已有 work） */
   @ApiProperty({
-    description: '幂等键（重复请求返回已有 work，最多 128 字符）',
+    description: '幂等键（重复请求返回已有 work，最多 120 字符）',
     example: 'a3f5b8c9-1d2e-3f4a-5b6c-7d8e9f0a1b2c',
     required: false,
-    maxLength: 128,
+    maxLength: 120,
   })
   @IsOptional()
   @IsString()
-  @MaxLength(128)
+  // billing 的阶段键会追加 :freeze / :settle / :release，最终仍须不超过 128 字符。
+  @MaxLength(120)
   idempotencyKey?: string
 
   /** 来源模板 ID（基于模板创作时传入，用于模板使用次数 +1） */

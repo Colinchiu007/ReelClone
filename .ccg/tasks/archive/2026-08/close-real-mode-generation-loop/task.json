@@ -1,0 +1,12 @@
+{
+  "id": "close-real-mode-generation-loop",
+  "title": "接通 Temporal 真实模式生成主链路",
+  "status": "completed",
+  "complexity": "L+",
+  "risk": "high",
+  "domain": "backend",
+  "currentPhase": "completed",
+  "nextAction": "已完成实现、审查和门禁，归档任务",
+  "createdAt": "2026-07-31T00:00:00+08:00",
+  "branch": "codex/close-real-mode-generation-loop"
+}

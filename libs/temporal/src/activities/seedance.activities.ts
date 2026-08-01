@@ -168,9 +168,18 @@ export async function cancelSeedanceTask(taskId: string): Promise<boolean> {
 
   // ---- 真实模式：调用 Provider 取消任务 ----
   const { seedanceProvider } = getActivityDependencies()
-  const ok = await seedanceProvider.cancelTask(taskId)
-  ctx.log.info('[Seedance] 取消任务完成', { taskId, success: ok })
-  return ok
+  const accepted = await seedanceProvider.cancelTask(taskId)
+  if (!accepted) {
+    ctx.log.info('[Seedance] 取消任务未被 Provider 接受', { taskId })
+    return false
+  }
+
+  // Provider 的取消接口可能仅表示“已受理”。只有后续查询明确为 CANCELED 时，
+  // 工作流才可以释放预留积分。
+  const task = await seedanceProvider.queryTask(taskId)
+  const confirmed = task.status === 'CANCELED'
+  ctx.log.info('[Seedance] 取消任务状态确认', { taskId, accepted, status: task.status, confirmed })
+  return confirmed
 }
 
 /** Seedance Activity 实现集合（供 Worker 注册使用） */

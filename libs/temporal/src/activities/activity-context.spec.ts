@@ -29,6 +29,12 @@ function buildMockDeps(): ActivityDependencies {
       upload: jest.fn(),
       download: jest.fn(),
     } as unknown as ActivityDependencies['ossService'],
+    workflowStateStore: {
+      updateWorkStatus: jest.fn(),
+    },
+    eventPublisher: {
+      publish: jest.fn(),
+    },
   }
 }
 
@@ -71,7 +77,7 @@ describe('activity-context', () => {
     expect(retrieved).not.toBe(deps1)
   })
 
-  it('依赖对象包含全部 6 个 Provider 字段', () => {
+  it('依赖对象包含全部 Worker Provider 与基础设施字段', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { setActivityDependencies, getActivityDependencies } = require('./activity-context')
     const deps = buildMockDeps()
@@ -85,6 +91,8 @@ describe('activity-context', () => {
         'seedanceProvider',
         'videoAnalyzer',
         'videoDownloader',
+        'workflowStateStore',
+        'eventPublisher',
       ].sort(),
     )
   })

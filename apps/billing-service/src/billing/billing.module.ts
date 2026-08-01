@@ -14,22 +14,40 @@
 import { Module } from '@nestjs/common'
 import { ScheduleModule } from '@nestjs/schedule'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { DATABASE_CONNECTIONS, PointTransaction, User } from '@reelclone/database'
+import {
+  BillingProjectionOutbox,
+  CreditReservation,
+  DATABASE_CONNECTIONS,
+  PointTransaction,
+  User,
+} from '@reelclone/database'
 import { BillingController } from './billing.controller'
 import { BillingService } from './billing.service'
 import { LedgerService } from './ledger.service'
 import { ReconciliationCron } from './reconciliation.cron'
 import { ReconciliationService } from './reconciliation.service'
+import { CreditReservationService } from './credit-reservation.service'
+import { BillingProjectionCron } from './billing-projection.cron'
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     // 导出 main / billing DataSource 供 LedgerService / BillingService / ReconciliationService 注入
-    TypeOrmModule.forFeature([User], DATABASE_CONNECTIONS.MAIN),
+    TypeOrmModule.forFeature(
+      [User, CreditReservation, BillingProjectionOutbox],
+      DATABASE_CONNECTIONS.MAIN,
+    ),
     TypeOrmModule.forFeature([PointTransaction], DATABASE_CONNECTIONS.BILLING),
   ],
   controllers: [BillingController],
-  providers: [LedgerService, BillingService, ReconciliationService, ReconciliationCron],
-  exports: [BillingService, LedgerService, ReconciliationService],
+  providers: [
+    LedgerService,
+    CreditReservationService,
+    BillingService,
+    ReconciliationService,
+    ReconciliationCron,
+    BillingProjectionCron,
+  ],
+  exports: [BillingService, LedgerService, CreditReservationService, ReconciliationService],
 })
 export class BillingModule {}

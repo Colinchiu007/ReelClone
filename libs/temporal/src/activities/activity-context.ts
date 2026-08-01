@@ -31,6 +31,22 @@ import type {
   VideoDownloaderService,
 } from '@reelclone/ai'
 import type { OSSService } from '@reelclone/oss'
+import type { WorkStatus } from '../types'
+
+/** Worker 侧 Work/Task 状态写入边界。 */
+export interface WorkflowStateStore {
+  updateWorkStatus(
+    workId: string,
+    status: WorkStatus,
+    data?: Record<string, unknown>,
+    generationTaskId?: string,
+  ): Promise<boolean>
+}
+
+/** Worker 侧 Redis 发布边界。 */
+export interface EventPublisher {
+  publish(channel: string, message: string): Promise<number>
+}
 
 /** Activity 依赖集合（由 Worker 启动时注入） */
 export interface ActivityDependencies {
@@ -46,6 +62,10 @@ export interface ActivityDependencies {
   llmProvider: LlmProvider
   /** OSS 对象存储（上传/下载/签名 URL） */
   ossService: OSSService
+  /** Work/GenerationTask 状态写入适配 */
+  workflowStateStore: WorkflowStateStore
+  /** Redis Pub/Sub 发布器 */
+  eventPublisher: EventPublisher
 }
 
 /** 当前注入的依赖（Worker 启动前为 null） */

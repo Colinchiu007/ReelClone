@@ -23,6 +23,12 @@ export { SmsCode, SmsCodePurpose } from './entities/sms-code.entity'
 export { Notification, NotificationType } from './entities/notification.entity'
 export { SystemConfig } from './entities/system-config.entity'
 export { AuditLog } from './entities/audit-log.entity'
+export { CreditReservation, CreditReservationStatus } from './entities/credit-reservation.entity'
+export {
+  BillingProjectionOutbox,
+  BillingProjectionType,
+  BillingProjectionDeliveryStatus,
+} from './entities/billing-projection-outbox.entity'
 
 // ---------------- 模块 ----------------
 export {
@@ -46,4 +52,6 @@ export {
   InitBenchmark1700000000003,
   AddUserRole1700000000004,
   AddSystemConfig1700000000005,
+  AddCreditReservationsAndBillingOutbox1700000000011,
+  AddReservationId1700000000012,
 } from './migrations'

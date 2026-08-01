@@ -15,6 +15,7 @@ import { PointTransaction, PointTransactionType, User } from '@reelclone/databas
 import { DataSource, ObjectLiteral, Repository } from 'typeorm'
 import { BillingService } from './billing.service'
 import { LedgerService } from './ledger.service'
+import { CreditReservationService } from './credit-reservation.service'
 import { ListTransactionsDto, TransactionDirection } from './dto/list-transactions.dto'
 
 // -------------------- Mock 工具 --------------------
@@ -60,6 +61,7 @@ describe('BillingService', () => {
   let mainDataSource: jest.Mocked<DataSource>
   let billingDataSource: jest.Mocked<DataSource>
   let ledger: jest.Mocked<LedgerService>
+  let creditReservations: jest.Mocked<CreditReservationService>
   let userRepo: jest.Mocked<Repository<User>>
   let txRepo: jest.Mocked<Repository<PointTransaction>>
 
@@ -91,7 +93,21 @@ describe('BillingService', () => {
       writeTransaction: jest.fn(),
     } as unknown as jest.Mocked<LedgerService>
 
-    service = new BillingService(redis as never, mainDataSource, billingDataSource, ledger)
+    creditReservations = {
+      freeze: jest.fn(),
+      settle: jest.fn(),
+      release: jest.fn(),
+      findReservation: jest.fn(),
+      projectPending: jest.fn(),
+    } as unknown as jest.Mocked<CreditReservationService>
+
+    service = new BillingService(
+      redis as never,
+      mainDataSource,
+      billingDataSource,
+      ledger,
+      creditReservations,
+    )
   })
 
   // -------------------- getBalance --------------------
@@ -198,6 +214,46 @@ describe('BillingService', () => {
   // -------------------- freeze --------------------
 
   describe('freeze', () => {
+    it('V2 生成预留走 main 权威预留，不以 billing 流水作为幂等事实', async () => {
+      creditReservations.freeze.mockResolvedValue({
+        transactionId: 'reservation-1',
+        balance: 90,
+      })
+
+      const result = await service.freeze({
+        userId: 'u1',
+        workId: 'w1',
+        amount: 10,
+        idempotencyKey: 'v2-freeze',
+        reservationMode: true,
+      })
+
+      expect(result.transactionId).toBe('reservation-1')
+      expect(creditReservations.freeze).toHaveBeenCalledWith(
+        expect.objectContaining({ workId: 'w1', idempotencyKey: 'v2-freeze' }),
+      )
+      expect(ledger.findByIdempotencyKey).not.toHaveBeenCalled()
+      expect(ledger.freeze).not.toHaveBeenCalled()
+    })
+
+    it('V2 主事务成功后缓存失效失败仍返回成功结果', async () => {
+      creditReservations.freeze.mockResolvedValue({
+        transactionId: 'reservation-1',
+        balance: 90,
+      })
+      redis.del.mockRejectedValueOnce(new Error('redis unavailable'))
+
+      await expect(
+        service.freeze({
+          userId: 'u1',
+          workId: 'w1',
+          amount: 10,
+          idempotencyKey: 'v2-freeze-cache-failure',
+          reservationMode: true,
+        }),
+      ).resolves.toMatchObject({ transactionId: 'reservation-1', balance: 90 })
+    })
+
     it('成功时调用 LedgerService.freeze 并失效缓存', async () => {
       ledger.freeze.mockResolvedValue({
         freezeId: 'f1',
@@ -291,6 +347,24 @@ describe('BillingService', () => {
   // -------------------- release --------------------
 
   describe('release', () => {
+    it('V2 release 缺少权威预留时由 reservation 服务 fail closed', async () => {
+      creditReservations.release.mockRejectedValue(
+        BusinessException.validationError('旧版积分预留缺少可验证关联，需对账后处理'),
+      )
+
+      await expect(
+        service.release({
+          userId: 'u1',
+          amount: 10,
+          idempotencyKey: 'v2-legacy-release',
+          freezeId: 'legacy-freeze',
+          reservationMode: true,
+        }),
+      ).rejects.toThrow('旧版积分预留缺少可验证关联')
+
+      expect(ledger.release).not.toHaveBeenCalled()
+    })
+
     it('成功时调用 LedgerService.release', async () => {
       ledger.release.mockResolvedValue({
         balance: 100,

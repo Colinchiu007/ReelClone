@@ -44,6 +44,8 @@ export {
   setActivityDependencies,
   getActivityDependencies,
   type ActivityDependencies,
+  type EventPublisher,
+  type WorkflowStateStore,
 } from './activities/activity-context'
 
 // ============================================================

@@ -21,6 +21,8 @@ export enum PointTransactionType {
  */
 @Entity('point_transactions')
 @Index(['userId', 'createdAt'])
+@Index(['freezeId', 'type'])
+@Index(['reservationId', 'type'])
 export class PointTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string
@@ -52,6 +54,14 @@ export class PointTransaction {
   /** 关联模板 ID（跨库 template，REWARD 类型时填充） */
   @Column({ type: 'varchar', length: 36, nullable: true })
   templateId: string | null
+
+  /** SETTLE / RELEASE 对应的原始 FREEZE 流水 ID */
+  @Column({ type: 'uuid', nullable: true })
+  freezeId: string | null
+
+  /** V2 生成预留 ID（main 库逻辑关联；历史流水保持 NULL）。 */
+  @Column({ type: 'uuid', nullable: true })
+  reservationId: string | null
 
   /** 幂等键（唯一） */
   @Index({ unique: true })

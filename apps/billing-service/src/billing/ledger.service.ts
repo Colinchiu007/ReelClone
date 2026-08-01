@@ -23,6 +23,8 @@ import { DataSource, EntityManager } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
 import {
   DATABASE_CONNECTIONS,
+  CreditReservation,
+  CreditReservationStatus,
   PointTransaction,
   PointTransactionType,
   User,
@@ -42,6 +44,10 @@ export interface WriteTransactionParams {
   orderId?: string | null
   /** 关联模板 ID（REWARD 类型时填充） */
   templateId?: string | null
+  /** SETTLE / RELEASE 关联的原始 FREEZE 流水 ID */
+  freezeId?: string | null
+  /** V2 生成预留 ID（main 库权威记录的逻辑关联） */
+  reservationId?: string | null
 }
 
 /** 流水写入结果 */
@@ -102,28 +108,34 @@ export class LedgerService {
   /**
    * 计算用户当前冻结余额
    *
-   * frozen = SUM(FREEZE.amount) - SUM(SETTLE.amount + RELEASE.amount)
-   * 注：amount 在实体中带符号，FREEZE 为负、SETTLE 为负、RELEASE 为正。
-   * 这里统一按"被冻结的总量"语义聚合：frozen = -SUM(FREEZE) - (-SUM(SETTLE)) - SUM(RELEASE)
-   *
-   * 简化：frozen = SUM(amount WHERE type IN (FREEZE)) * -1 + SUM(amount WHERE type IN (SETTLE)) + SUM(amount WHERE type IN (RELEASE)) * -1
-   * 实际 SQL：SUM(CASE WHEN type='FREEZE' THEN -amount WHEN type='SETTLE' THEN -amount WHEN type='RELEASE' THEN amount ELSE 0 END)
+   * amount 在实体中带符号：FREEZE / SETTLE 为负、RELEASE 为正。
+   * 因此冻结余额为 -SUM(FREEZE) + SUM(SETTLE) - SUM(RELEASE)。
    */
   async getFrozenBalance(userId: string): Promise<number> {
     const repo = this.billingDataSource.getRepository(PointTransaction)
-    const result = await repo
+    const legacyResult = await repo
       .createQueryBuilder('tx')
       .select(
-        'COALESCE(SUM(CASE WHEN tx.type = :freeze THEN -tx.amount WHEN tx.type = :settle THEN -tx.amount WHEN tx.type = :release THEN tx.amount ELSE 0 END), 0)',
+        'COALESCE(SUM(CASE WHEN tx.type = :freeze THEN -tx.amount WHEN tx.type = :settle THEN tx.amount WHEN tx.type = :release THEN -tx.amount ELSE 0 END), 0)',
         'frozen',
       )
       .setParameter('freeze', PointTransactionType.FREEZE)
       .setParameter('settle', PointTransactionType.SETTLE)
       .setParameter('release', PointTransactionType.RELEASE)
       .where('tx.userId = :userId', { userId })
+      // V2 预留由 main 库权威状态计算，避免 outbox 送达延迟或重放造成重复统计。
+      .andWhere('tx.reservationId IS NULL')
       .getRawOne<FrozenAggregate>()
 
-    return Number(result?.frozen ?? 0)
+    const reservationResult = await this.mainDataSource
+      .getRepository(CreditReservation)
+      .createQueryBuilder('reservation')
+      .select('COALESCE(SUM(reservation.amount), 0)', 'frozen')
+      .where('reservation.userId = :userId', { userId })
+      .andWhere('reservation.status = :status', { status: CreditReservationStatus.OPEN })
+      .getRawOne<FrozenAggregate>()
+
+    return Number(legacyResult?.frozen ?? 0) + Number(reservationResult?.frozen ?? 0)
   }
 
   // -------------------- 查询：通过幂等键查流水 --------------------
@@ -156,8 +168,13 @@ export class LedgerService {
    * 由各业务方法在 main 库事务提交后调用。
    * 若 idempotencyKey 已存在（唯一约束冲突），抛出 QueryFailedError，由调用方处理。
    */
-  async writeTransaction(params: WriteTransactionParams): Promise<PointTransaction> {
-    const repo = this.billingDataSource.getRepository(PointTransaction)
+  async writeTransaction(
+    params: WriteTransactionParams,
+    manager?: EntityManager,
+  ): Promise<PointTransaction> {
+    const repo = manager
+      ? manager.getRepository(PointTransaction)
+      : this.billingDataSource.getRepository(PointTransaction)
     const entity = repo.create({
       userId: params.userId,
       type: params.type,
@@ -166,10 +183,64 @@ export class LedgerService {
       workId: params.workId ?? null,
       orderId: params.orderId ?? null,
       templateId: params.templateId ?? null,
+      freezeId: params.freezeId ?? null,
+      reservationId: params.reservationId ?? null,
       idempotencyKey: params.idempotencyKey,
       description: params.description || '',
     })
     return repo.save(entity)
+  }
+
+  /** 锁定并验证一笔全额冻结预留尚未结束。 */
+  private async lockOpenFreeze(
+    manager: EntityManager,
+    freezeId: string,
+    userId: string,
+    amount: number,
+  ): Promise<PointTransaction> {
+    const repo = manager.getRepository(PointTransaction)
+    const freezeTx = await repo
+      .createQueryBuilder('tx')
+      .setLock('pessimistic_write')
+      .where('tx.id = :freezeId', { freezeId })
+      .andWhere('tx.userId = :userId', { userId })
+      .andWhere('tx.type = :freezeType', { freezeType: PointTransactionType.FREEZE })
+      .getOne()
+    if (!freezeTx) {
+      throw BusinessException.notFound('冻结流水', { freezeId, userId })
+    }
+    if (freezeTx.reservationId != null) {
+      throw BusinessException.validationError('V2 积分预留不能通过旧版账务接口结算或释放', {
+        code: 'V2_RESERVATION_LEGACY_OPERATION_FORBIDDEN',
+        freezeId,
+        reservationId: freezeTx.reservationId,
+      })
+    }
+
+    const frozenAmount = -freezeTx.amount
+    if (amount !== frozenAmount) {
+      throw BusinessException.validationError('冻结预留必须按原金额全额结算或释放', {
+        freezeId,
+        frozenAmount,
+        requestedAmount: amount,
+      })
+    }
+
+    const terminal = await repo
+      .createQueryBuilder('tx')
+      .where('tx.freezeId = :freezeId', { freezeId })
+      .andWhere('tx.type IN (:...terminalTypes)', {
+        terminalTypes: [PointTransactionType.SETTLE, PointTransactionType.RELEASE],
+      })
+      .getOne()
+    if (terminal) {
+      throw BusinessException.validationError('冻结预留已经结算或释放', {
+        freezeId,
+        terminalTransactionId: terminal.id,
+      })
+    }
+
+    return freezeTx
   }
 
   // -------------------- 业务操作：FREEZE --------------------
@@ -257,46 +328,33 @@ export class LedgerService {
   }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
     const { userId, amount, idempotencyKey, freezeId, workId, description } = params
 
-    // 1. 校验 FREEZE 流水
-    const freezeTx = await this.findById(freezeId, userId)
-    if (!freezeTx || freezeTx.type !== PointTransactionType.FREEZE) {
-      throw BusinessException.notFound('冻结流水', {
-        freezeId,
-        userId,
-      })
-    }
+    const { balance, tx } = await this.billingDataSource.transaction(async (manager) => {
+      const freezeTx = await this.lockOpenFreeze(manager, freezeId, userId, amount)
+      const user = await this.mainDataSource.getRepository(User).findOne({ where: { id: userId } })
+      if (!user) {
+        throw BusinessException.notFound('用户', { userId })
+      }
 
-    // 2. 校验冻结余额
-    const currentFrozen = await this.getFrozenBalance(userId)
-    if (currentFrozen < amount) {
-      throw BusinessException.insufficientCredits(
-        `冻结积分不足：当前冻结 ${currentFrozen}，需要 ${amount}`,
-        { frozen: currentFrozen, required: amount },
+      const transaction = await this.writeTransaction(
+        {
+          userId,
+          type: PointTransactionType.SETTLE,
+          amount: -amount,
+          balanceAfter: user.currentPoints,
+          idempotencyKey,
+          description: description || `结算 ${amount} 积分（freeze: ${freezeId}）`,
+          workId: workId ?? freezeTx.workId,
+          freezeId,
+        },
+        manager,
       )
-    }
-
-    // 3. 读取当前可用余额（用于流水 balance 字段）
-    const userRepo = this.mainDataSource.getRepository(User)
-    const user = await userRepo.findOne({ where: { id: userId } })
-    if (!user) {
-      throw BusinessException.notFound('用户', { userId })
-    }
-
-    // 4. 写入 SETTLE 流水（可用余额不变）
-    const tx = await this.writeTransaction({
-      userId,
-      type: PointTransactionType.SETTLE,
-      amount: -amount, // 负数：表示从冻结中扣减（语义上的 DEBIT）
-      balanceAfter: user.currentPoints, // 可用余额不变
-      idempotencyKey,
-      description: description || `结算 ${amount} 积分（freeze: ${freezeId}）`,
-      workId: workId ?? freezeTx.workId,
+      return { balance: user.currentPoints, tx: transaction }
     })
 
     const frozen = await this.getFrozenBalance(userId)
 
     return {
-      balance: user.currentPoints,
+      balance,
       frozen,
       tx,
     }
@@ -323,50 +381,36 @@ export class LedgerService {
   }): Promise<{ balance: number; frozen: number; tx: PointTransaction }> {
     const { userId, amount, idempotencyKey, freezeId, description } = params
 
-    // 1. 校验 FREEZE 流水
-    const freezeTx = await this.findById(freezeId, userId)
-    if (!freezeTx || freezeTx.type !== PointTransactionType.FREEZE) {
-      throw BusinessException.notFound('冻结流水', {
-        freezeId,
-        userId,
+    const { balance, tx } = await this.billingDataSource.transaction(async (manager) => {
+      const freezeTx = await this.lockOpenFreeze(manager, freezeId, userId, amount)
+      const result = await this.mainDataSource.transaction(async (mainManager) => {
+        const user = await this.lockUser(mainManager, userId)
+        const newBalance = user.currentPoints + amount
+        user.currentPoints = newBalance
+        await mainManager.getRepository(User).save(user)
+        return newBalance
       })
-    }
 
-    // 2. 校验冻结余额
-    const currentFrozen = await this.getFrozenBalance(userId)
-    if (currentFrozen < amount) {
-      throw BusinessException.insufficientCredits(
-        `冻结积分不足：当前冻结 ${currentFrozen}，需要 ${amount}`,
-        { frozen: currentFrozen, required: amount },
+      const transaction = await this.writeTransaction(
+        {
+          userId,
+          type: PointTransactionType.RELEASE,
+          amount,
+          balanceAfter: result,
+          idempotencyKey,
+          description: description || `释放 ${amount} 积分（freeze: ${freezeId}）`,
+          workId: freezeTx.workId,
+          freezeId,
+        },
+        manager,
       )
-    }
-
-    // 3. 事务内更新 User 余额
-    const result = await this.mainDataSource.transaction(async (manager) => {
-      const user = await this.lockUser(manager, userId)
-
-      const newBalance = user.currentPoints + amount
-      user.currentPoints = newBalance
-      await manager.getRepository(User).save(user)
-
-      return { user, newBalance }
-    })
-
-    // 4. 写入 RELEASE 流水
-    const tx = await this.writeTransaction({
-      userId,
-      type: PointTransactionType.RELEASE,
-      amount: +amount, // 正数：增加可用余额
-      balanceAfter: result.newBalance,
-      idempotencyKey,
-      description: description || `释放 ${amount} 积分（freeze: ${freezeId}）`,
-      workId: freezeTx.workId,
+      return { balance: result, tx: transaction }
     })
 
     const frozen = await this.getFrozenBalance(userId)
 
     return {
-      balance: result.newBalance,
+      balance,
       frozen,
       tx,
     }
