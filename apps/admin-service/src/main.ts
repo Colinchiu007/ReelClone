@@ -14,11 +14,13 @@
  */
 import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
-import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor } from '@reelclone/common'
+import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor, failClosedStartupCheck } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   // 关闭启动日志噪声：仅保留 error / warn / log，过滤 debug / verbose
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],

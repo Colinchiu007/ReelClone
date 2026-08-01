@@ -16,11 +16,14 @@ import {
   AppValidationPipe,
   JwtAuthGuard,
   ResponseInterceptor,
+  failClosedStartupCheck,
 } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   const logger = new Logger('NotificationService')
 
   const app = await NestFactory.create(AppModule, {

@@ -13,10 +13,13 @@ import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { TASK_QUEUE } from '@reelclone/temporal'
+import { failClosedStartupCheck } from '@reelclone/common'
 import { AppModule } from './app.module'
 import { bootstrapWorker, shutdownWorker } from './worker/worker.bootstrap'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   const logger = new Logger('MediaWorker')
 
   const app = await NestFactory.create(AppModule, {

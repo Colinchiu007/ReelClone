@@ -8,11 +8,13 @@
 import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
-import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor } from '@reelclone/common'
+import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor, failClosedStartupCheck } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   // rawBody: true 保留原始请求体，供微信支付回调验签使用
   const app = await NestFactory.create(AppModule, { rawBody: true })
 

@@ -14,10 +14,13 @@ import {
   JwtAuthGuard,
   RateLimitGuard,
   ResponseInterceptor,
+  failClosedStartupCheck,
 } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   const logger = new Logger('UserService')
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,

@@ -34,9 +34,21 @@ function isTruthyFlag(value: string | undefined): boolean {
 }
 
 /**
- * 从 process.env 读取 OSS 配置
- * 当 OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET / OSS_BUCKET 任一缺失，或显式 OSS_MOCK=true 时，
- * 自动进入 Mock 模式，返回占位配置。Mock 模式下 STS Service 会返回模拟 Token，便于本地开发与小程序调试。
+ * 判断是否为生产环境（production 或 staging）。
+ * 与 SMS/WeChat profile resolver 保持一致的判定逻辑。
+ */
+function isProductionLike(env: NodeJS.ProcessEnv): boolean {
+  const nodeEnv = (env.NODE_ENV ?? 'development').toLowerCase();
+  return nodeEnv === 'production' || nodeEnv === 'staging';
+}
+
+/**
+ * 从 process.env 读取 OSS 配置。
+ *
+ * Mock 模式判定：
+ * - development / test：缺凭证或显式 OSS_MOCK=true → 回退 Mock（便于本地开发）
+ * - production / staging：缺凭证或显式 OSS_MOCK=true → fail closed 抛错
+ *   （与 SMS / WeChat adapter 保持一致的生产安全策略）
  */
 export function loadOSSConfig(env: NodeJS.ProcessEnv = process.env): OSSConfig {
   const region = env.OSS_REGION ?? MOCK_REGION;
@@ -51,12 +63,20 @@ export function loadOSSConfig(env: NodeJS.ProcessEnv = process.env): OSSConfig {
     ? Number(env.OSS_MAX_CONTENT_LENGTH)
     : DEFAULT_MAX_CONTENT_LENGTH;
 
-  // 关键凭证缺失，或显式开启 Mock，进入 Mock 模式
-  const mock =
-    isTruthyFlag(env.OSS_MOCK) ||
-    !accessKeyId ||
-    !accessKeySecret ||
-    !bucket;
+  const wantsMock = isTruthyFlag(env.OSS_MOCK);
+  const missingCredentials = !accessKeyId || !accessKeySecret || !bucket;
+  const mock = wantsMock || missingCredentials;
+
+  // Fail closed：production/staging 不允许使用 Mock OSS
+  if (isProductionLike(env) && mock) {
+    const reason = wantsMock
+      ? 'OSS_MOCK 显式启用'
+      : `缺少必要凭证（accessKeyId=${accessKeyId ? '✓' : '✗'} accessKeySecret=${accessKeySecret ? '✓' : '✗'} bucket=${bucket ? '✓' : '✗'}）`;
+    throw new Error(
+      `[OSS Config] production/staging 环境禁止使用 Mock OSS: ${reason}。` +
+        `请配置 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET 和 OSS_BUCKET。`,
+    );
+  }
 
   return {
     region,

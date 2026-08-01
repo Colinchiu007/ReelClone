@@ -8,10 +8,12 @@
 import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { ResponseInterceptor, AllExceptionsFilter, createValidationPipe } from '@reelclone/common'
+import { ResponseInterceptor, AllExceptionsFilter, createValidationPipe, failClosedStartupCheck } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   const app = await NestFactory.create(AppModule)
 
   // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）

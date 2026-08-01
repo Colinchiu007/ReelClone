@@ -12,10 +12,12 @@ import { NestFactory } from '@nestjs/core'
 import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AppModule } from './app.module'
-import { AllExceptionsFilter, ResponseInterceptor, createValidationPipe } from '@reelclone/common'
+import { AllExceptionsFilter, ResponseInterceptor, createValidationPipe, failClosedStartupCheck } from '@reelclone/common'
 import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
 
 async function bootstrap(): Promise<void> {
+  failClosedStartupCheck()
+
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   })
