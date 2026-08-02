@@ -7,23 +7,36 @@
  *  2. 支持单用户 / 全量 / 按日期 / 按时间窗口对账
  *  3. 不一致时记录 WARN 日志（MVP 阶段不做外部告警，后续可接飞书/钉钉 webhook）
  *
- * 对账公式（与 LedgerService 字段语义一致）：
+ * 对账公式（P0-3 修正版）：
  *  - userBalance     = User.currentPoints（main 库可用余额）
  *  - txBalance       = SUM(PointTransaction.amount)（billing 库流水合计，含正负号）
- *  - frozen          = FREEZE/SETTLE/RELEASE 聚合（复用 LedgerService.getFrozenBalance）
- *  - expectedBalance = User.totalPoints - frozen
+ *  - frozen          = FREEZE/SETTLE/RELEASE 聚合 + V2 OPEN reservation（复用 LedgerService.getFrozenBalance）
+ *  - totalSettled    = -SUM(PointTransaction.amount WHERE type=SETTLE)（已结算冻结量）
+ *  - totalConsumed   = -SUM(PointTransaction.amount WHERE type=CONSUME)（直接消费量）
+ *  - expectedBalance = User.totalPoints - frozen - totalSettled - totalConsumed
  *  - difference      = userBalance - expectedBalance
  *  - isConsistent    = difference === 0
  *
- * 说明：
- *  - totalPoints 仅在 GRANT 时累加，代表"历史累计获得"
+ * 推导（P0-3 修正）：
+ *  - currentPoints = initial + GRANT + REWARD - FREEZE + RELEASE - CONSUME
+ *  -              = totalPoints - FREEZE + RELEASE - CONSUME
+ *  -              = totalPoints - (frozen + SETTLE + RELEASE) + RELEASE - CONSUME
+ *  -              = totalPoints - frozen - SETTLE - CONSUME
+ *
+ *  - totalPoints 仅在 GRANT/REWARD 时累加，代表"历史累计获得"
  *  - frozen 代表"当前被冻结的总量"，FREEZE 增、SETTLE/RELEASE 减
- *  - 故 expectedBalance = totalPoints - frozen 即"理论上应可用的余额"
+ *  - SETTLE 表示冻结积分被成功消费（不再可用但 currentPoints 已在 FREEZE 时扣减）
+ *  - CONSUME 表示直接消费积分（currentPoints 在 CONSUME 时扣减，不影响 frozen）
  */
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
-import { DATABASE_CONNECTIONS, PointTransaction, User } from '@reelclone/database'
+import {
+  DATABASE_CONNECTIONS,
+  PointTransaction,
+  PointTransactionType,
+  User,
+} from '@reelclone/database'
 import { LedgerService } from './ledger.service'
 
 /** 单用户对账结果 */
@@ -32,7 +45,9 @@ export interface ReconciliationResult {
   userBalance: number // main 库 User.currentPoints
   txBalance: number // billing 库 SUM(amount)
   frozen: number // 冻结余额
-  expectedBalance: number // totalPoints - frozen
+  totalSettled: number // 已结算冻结量（-SUM(SETTLE.amount)）
+  totalConsumed: number // 直接消费量（-SUM(CONSUME.amount)）
+  expectedBalance: number // totalPoints - frozen - totalSettled - totalConsumed
   difference: number // userBalance - expectedBalance
   isConsistent: boolean // difference === 0
 }
@@ -247,8 +262,13 @@ export class ReconciliationService {
     // 2. 冻结余额（复用 LedgerService 聚合逻辑，保证与业务侧口径一致）
     const frozen = await this.ledger.getFrozenBalance(userId)
 
-    // 3. 计算期望余额与差异
-    const expectedBalance = user.totalPoints - frozen
+    // 3. P0-3: 查询 SETTLE 和 CONSUME 聚合
+    const totalSettled = await this.sumByType(userId, PointTransactionType.SETTLE)
+    const totalConsumed = await this.sumByType(userId, PointTransactionType.CONSUME)
+
+    // 4. 计算期望余额与差异
+    //    expectedBalance = totalPoints - frozen - totalSettled - totalConsumed
+    const expectedBalance = user.totalPoints - frozen - totalSettled - totalConsumed
     const difference = user.currentPoints - expectedBalance
     const isConsistent = difference === 0
 
@@ -257,6 +277,8 @@ export class ReconciliationService {
       userBalance: user.currentPoints,
       txBalance,
       frozen,
+      totalSettled,
+      totalConsumed,
       expectedBalance,
       difference,
       isConsistent,
@@ -264,7 +286,7 @@ export class ReconciliationService {
 
     if (!isConsistent) {
       this.logger.warn(
-        `对账不一致 userId=${userId} userBalance=${user.currentPoints} txBalance=${txBalance} frozen=${frozen} expectedBalance=${expectedBalance} difference=${difference}`,
+        `对账不一致 userId=${userId} userBalance=${user.currentPoints} txBalance=${txBalance} frozen=${frozen} totalSettled=${totalSettled} totalConsumed=${totalConsumed} expectedBalance=${expectedBalance} difference=${difference}`,
       )
     }
 
@@ -289,6 +311,22 @@ export class ReconciliationService {
       .createQueryBuilder('tx')
       .select('COALESCE(SUM(tx.amount), 0)', 'total')
       .where('tx.userId = :userId', { userId })
+      .getRawOne<SumAggregate>()
+    return Number(result?.total ?? 0)
+  }
+
+  /**
+   * P0-3: 按类型聚合用户流水金额（SETTLE/CONSUME）
+   *
+   * amount 在实体中带符号（SETTLE/CONSUME 为负），返回 -SUM 即为正的已消费量。
+   */
+  private async sumByType(userId: string, type: PointTransactionType): Promise<number> {
+    const repo = this.billingDataSource.getRepository(PointTransaction)
+    const result = await repo
+      .createQueryBuilder('tx')
+      .select('COALESCE(SUM(-tx.amount), 0)', 'total')
+      .where('tx.userId = :userId', { userId })
+      .andWhere('tx.type = :type', { type })
       .getRawOne<SumAggregate>()
     return Number(result?.total ?? 0)
   }
