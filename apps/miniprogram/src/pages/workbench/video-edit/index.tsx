@@ -14,10 +14,12 @@ import { CreditBadge, MediaUploader, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
 import { usePointsStore } from '@/stores/points.store';
+import { GenerationType, getFixedPoints } from '@/utils/capabilities';
 import './index.scss';
 
+const TYPE = GenerationType.EDIT_VIDEO;
 /** 单次编辑视频消耗积分 */
-const POINTS_PER_CALL = 1500;
+const POINTS_PER_CALL = getFixedPoints(TYPE) ?? 1500;
 
 export default function VideoEditWorkbench() {
   const [videoKeys, setVideoKeys] = useState<string[]>([]);

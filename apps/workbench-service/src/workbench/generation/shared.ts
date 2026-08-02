@@ -8,12 +8,12 @@ import { Logger } from '@nestjs/common'
 import Redis from 'ioredis'
 import { DataSource } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
-import { GenerationProvider, GenerationTask, Work, WorkStatus, WorkType } from '@reelclone/database'
-import { type BillingReservation, WorkType as TemporalWorkType } from '@reelclone/temporal'
+import { GenerationProvider, GenerationTask, Work, WorkStatus } from '@reelclone/database'
+import { CapabilityRegistry, DEFAULT_CAPABILITIES, GenerationType } from '@reelclone/capability'
+import { WorkType as TemporalWorkType } from '@reelclone/temporal'
 import { BillingClient } from '../billing.client'
 import { TemplateClient } from '../template.client'
-import { isVideoType } from '../points-calculator.util'
-import { type CreateGenerationDto, GenerationType } from '../dto/create-generation.dto'
+import { type CreateGenerationDto } from '../dto/create-generation.dto'
 
 const logger = new Logger('GenerationShared')
 
@@ -68,17 +68,13 @@ export interface PaginatedTasks {
   total: number
 }
 
-/** DTO 生成类型 → Temporal WorkType 映射 */
-export const TEMPORAL_WORK_TYPE_MAP: Record<GenerationType, TemporalWorkType> = {
-  [GenerationType.TEXT_TO_VIDEO]: TemporalWorkType.TEXT_TO_VIDEO,
-  [GenerationType.IMAGE_TO_VIDEO_FIRST]: TemporalWorkType.IMAGE_TO_VIDEO,
-  [GenerationType.IMAGE_TO_VIDEO_FIRST_LAST]: TemporalWorkType.IMAGE_TO_VIDEO_WITH_TAIL,
-  [GenerationType.THREE_D_MODELING]: TemporalWorkType.REFERENCE_TO_VIDEO,
-  [GenerationType.EDIT_VIDEO]: TemporalWorkType.EDIT_VIDEO,
-  [GenerationType.EXTEND_VIDEO]: TemporalWorkType.EXTEND_VIDEO,
-  [GenerationType.TEXT_GENERATE]: TemporalWorkType.TEXT_TO_VIDEO,
-  [GenerationType.IMAGE_GENERATE]: TemporalWorkType.IMAGE_TO_VIDEO,
-}
+/** 单例注册表（P1-4 统一来源） */
+const registry = new CapabilityRegistry(DEFAULT_CAPABILITIES)
+
+/** DTO 生成类型 → Temporal WorkType 映射（从 registry 派生） */
+export const TEMPORAL_WORK_TYPE_MAP: Record<GenerationType, TemporalWorkType> = Object.fromEntries(
+  Object.values(GenerationType).map((type) => [type, registry.getTemporalWorkType(type) as TemporalWorkType]),
+) as Record<GenerationType, TemporalWorkType>
 
 // ============================================================
 // 依赖容器（所有 handler 共享的外部依赖引用）
@@ -191,19 +187,14 @@ export async function releaseBillingReservation(
 // 类型映射
 // ============================================================
 
-export function mapToWorkType(type: GenerationType): WorkType {
-  switch (type) {
-    case GenerationType.TEXT_GENERATE:
-      return WorkType.TEXT
-    case GenerationType.IMAGE_GENERATE:
-      return WorkType.IMAGE
-    default:
-      return WorkType.VIDEO
-  }
+export function mapToWorkType(type: GenerationType): string {
+  return registry.getWorkType(type)
 }
 
 export function mapToProvider(type: GenerationType): GenerationProvider {
-  if (isVideoType(type)) return GenerationProvider.SEEDANCE
+  const provider = registry.getProvider(type)
+  // GenerationProvider 枚举只定义了 SEEDANCE 和 MOCK
+  if (provider === 'SEEDANCE') return GenerationProvider.SEEDANCE
   return GenerationProvider.MOCK
 }
 

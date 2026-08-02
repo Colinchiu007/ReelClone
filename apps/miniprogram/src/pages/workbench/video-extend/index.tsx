@@ -14,10 +14,12 @@ import { CreditBadge, MediaUploader } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
 import { usePointsStore } from '@/stores/points.store';
+import { GenerationType, getFixedPoints } from '@/utils/capabilities';
 import './index.scss';
 
+const TYPE = GenerationType.EXTEND_VIDEO;
 /** 单次延长视频消耗积分 */
-const POINTS_PER_CALL = 1200;
+const POINTS_PER_CALL = getFixedPoints(TYPE) ?? 1200;
 
 /** 延长时长选项 */
 const EXTEND_DURATIONS = [5, 10];

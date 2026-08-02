@@ -1,27 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { GenerationType } from '@reelclone/capability'
 
 /**
- * 生成类型枚举
- * - TEXT_TO_VIDEO: 文生视频
- * - IMAGE_TO_VIDEO_FIRST: 图生视频（首帧）
- * - IMAGE_TO_VIDEO_FIRST_LAST: 图生视频（首尾帧）
- * - THREE_D_MODELING: 3D 建模
- * - EDIT_VIDEO: 编辑视频
- * - EXTEND_VIDEO: 延长视频
- * - TEXT_GENERATE: 文本生成
- * - IMAGE_GENERATE: 图片生成
+ * 生成类型枚举（从 @reelclone/capability 重新导出，保持向后兼容）
  */
-export enum GenerationType {
-  TEXT_TO_VIDEO = 'TEXT_TO_VIDEO',
-  IMAGE_TO_VIDEO_FIRST = 'IMAGE_TO_VIDEO_FIRST',
-  IMAGE_TO_VIDEO_FIRST_LAST = 'IMAGE_TO_VIDEO_FIRST_LAST',
-  THREE_D_MODELING = '3D_MODELING',
-  EDIT_VIDEO = 'EDIT_VIDEO',
-  EXTEND_VIDEO = 'EXTEND_VIDEO',
-  TEXT_GENERATE = 'TEXT_GENERATE',
-  IMAGE_GENERATE = 'IMAGE_GENERATE',
-}
+export { GenerationType }
 
 /** 视频分辨率 */
 export enum Resolution {

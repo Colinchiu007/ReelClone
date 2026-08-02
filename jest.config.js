@@ -40,7 +40,7 @@ module.exports = {
     '/apps/miniprogram/',
   ],
   moduleNameMapper: {
-    '^@reelclone/(common|database|platform-data|ai|temporal|oss|observability|swagger|adapters-wechat|adapters-sms|http-client)(|/.*)$':
+    '^@reelclone/(common|database|platform-data|ai|temporal|oss|observability|swagger|adapters-wechat|adapters-sms|http-client|capability)(|/.*)$':
       '<rootDir>/libs/$1/src/$2',
   },
 }

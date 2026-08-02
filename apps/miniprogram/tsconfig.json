@@ -18,7 +18,9 @@
     "types": ["@tarojs/taro", "webpack-env"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@reelclone/capability": ["../../libs/capability/src/index.ts"],
+      "@reelclone/capability/*": ["../../libs/capability/src/*"]
     }
   },
   "include": [

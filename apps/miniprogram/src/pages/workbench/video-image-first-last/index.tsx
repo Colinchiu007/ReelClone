@@ -13,28 +13,19 @@ import { CreditBadge, MediaUploader, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
 import { usePointsStore } from '@/stores/points.store';
+import { GenerationType, getPointsTable, getResolutions, getAspectRatios, getDurations, getModels, getMaxPromptLength } from '@/utils/capabilities';
 import './index.scss';
 
-const MODELS = [
-  { value: 'seedance2-pro', label: 'seedance2 Pro' },
-  { value: 'seedance2-lite', label: 'seedance2 Lite' },
-];
-
-const RESOLUTIONS = ['480p', '720p', '1080p'];
-const ASPECT_RATIOS = ['9:16', '16:9', '1:1'];
-const DURATIONS = [5, 10];
-
-/** 积分表 */
-const POINTS_TABLE: Record<string, number> = {
-  '480p_5': 450,
-  '480p_10': 900,
-  '720p_5': 900,
-  '720p_10': 1800,
-  '1080p_5': 1800,
-  '1080p_10': 3600,
-};
+/** 生成类型 */
+const TYPE = GenerationType.IMAGE_TO_VIDEO_FIRST_LAST;
 
 export default function VideoImageFirstLastWorkbench() {
+  const MODELS = useMemo(() => getModels(TYPE), []);
+  const RESOLUTIONS = useMemo(() => getResolutions(TYPE), []);
+  const ASPECT_RATIOS = useMemo(() => getAspectRatios(TYPE), []);
+  const DURATIONS = useMemo(() => getDurations(TYPE), []);
+  const POINTS_TABLE = useMemo(() => getPointsTable(TYPE), []);
+
   const [firstFrame, setFirstFrame] = useState<string[]>([]);
   const [lastFrame, setLastFrame] = useState<string[]>([]);
   const [model, setModel] = useState(MODELS[0].value);
@@ -206,7 +197,7 @@ export default function VideoImageFirstLastWorkbench() {
           <PromptInput
             value={prompt}
             onChange={setPrompt}
-            maxLength={2000}
+            maxLength={getMaxPromptLength(TYPE)}
             placeholder='描述视频从首帧到尾帧的运动变化（可选）'
           />
         </View>

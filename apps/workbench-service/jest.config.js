@@ -29,6 +29,7 @@ module.exports = {
     '^@reelclone/ai(|/.*)$': '<rootDir>/../../libs/ai/src/$1',
     '^@reelclone/platform-data(|/.*)$': '<rootDir>/../../libs/platform-data/src/$1',
     '^@reelclone/http-client(|/.*)$': '<rootDir>/../../libs/http-client/src/$1',
+    '^@reelclone/capability(|/.*)$': '<rootDir>/../../libs/capability/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
 }

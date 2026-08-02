@@ -53,7 +53,9 @@
       "@reelclone/adapters-wechat": ["libs/adapters-wechat/src/index.ts"],
       "@reelclone/adapters-wechat/*": ["libs/adapters-wechat/src/*"],
       "@reelclone/http-client": ["libs/http-client/src/index.ts"],
-      "@reelclone/http-client/*": ["libs/http-client/src/*"]
+      "@reelclone/http-client/*": ["libs/http-client/src/*"],
+      "@reelclone/capability": ["libs/capability/src/index.ts"],
+      "@reelclone/capability/*": ["libs/capability/src/*"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "coverage", "apps/miniprogram"]

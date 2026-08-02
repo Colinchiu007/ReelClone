@@ -35,6 +35,12 @@ out/
 .tmp/
 tmp/
 
+# libs 下 TypeScript composite 编译产物（src/ 内的 .js/.d.ts/.map）
+libs/*/src/**/*.js
+libs/*/src/**/*.d.ts
+libs/*/src/**/*.js.map
+libs/*/src/**/*.d.ts.map
+
 # ==================== 测试与覆盖率 ====================
 coverage/
 *.lcov

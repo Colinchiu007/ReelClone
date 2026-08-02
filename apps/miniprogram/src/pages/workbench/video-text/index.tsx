@@ -15,34 +15,19 @@ import { CreditBadge, PromptInput } from '@/components'
 import { useCredits } from '@/hooks/useCredits'
 import { createGeneration } from '@/services/api/workbench.api'
 import { usePointsStore } from '@/stores/points.store'
+import { GenerationType, getPointsTable, getResolutions, getAspectRatios, getDurations, getModels, getMaxPromptLength } from '@/utils/capabilities'
 import './index.scss'
 
-/** 模型选项 */
-const MODELS = [
-  { value: 'seedance2-pro', label: 'seedance2 Pro' },
-  { value: 'seedance2-lite', label: 'seedance2 Lite' },
-]
-
-/** 分辨率选项 */
-const RESOLUTIONS = ['480p', '720p', '1080p']
-
-/** 宽高比选项 */
-const ASPECT_RATIOS = ['9:16', '16:9', '1:1']
-
-/** 时长选项 */
-const DURATIONS = [5, 10]
-
-/** 积分表：resolution_duration => points */
-const POINTS_TABLE: Record<string, number> = {
-  '480p_5': 450,
-  '480p_10': 900,
-  '720p_5': 900,
-  '720p_10': 1800,
-  '1080p_5': 1800,
-  '1080p_10': 3600,
-}
+/** 生成类型 */
+const TYPE = GenerationType.TEXT_TO_VIDEO
 
 export default function VideoTextWorkbench() {
+  const MODELS = useMemo(() => getModels(TYPE), [])
+  const RESOLUTIONS = useMemo(() => getResolutions(TYPE), [])
+  const ASPECT_RATIOS = useMemo(() => getAspectRatios(TYPE), [])
+  const DURATIONS = useMemo(() => getDurations(TYPE), [])
+  const POINTS_TABLE = useMemo(() => getPointsTable(TYPE), [])
+
   // 读取 URL 预填参数（来自对标解析"一键复刻"跳转）
   const instance = Taro.getCurrentInstance()
   const urlParams = instance.router?.params || {}
@@ -215,7 +200,7 @@ export default function VideoTextWorkbench() {
           <PromptInput
             value={prompt}
             onChange={setPrompt}
-            maxLength={2000}
+            maxLength={getMaxPromptLength(TYPE)}
             placeholder="描述你想要生成的视频画面、动作、镜头语言..."
           />
         </View>

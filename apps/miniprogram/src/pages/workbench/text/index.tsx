@@ -14,10 +14,12 @@ import { CreditBadge, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
 import { usePointsStore } from '@/stores/points.store';
+import { GenerationType, getFixedPoints } from '@/utils/capabilities';
 import './index.scss';
 
+const TYPE = GenerationType.TEXT_GENERATE;
 /** 单次文本生成消耗积分 */
-const POINTS_PER_CALL = 5;
+const POINTS_PER_CALL = getFixedPoints(TYPE) ?? 5;
 
 /** 对话模式行业快捷标签 */
 const INDUSTRY_TAGS = ['好物种草', '本地生活', '教育培训', 'IP 口播'];
