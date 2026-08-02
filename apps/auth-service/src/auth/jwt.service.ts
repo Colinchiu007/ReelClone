@@ -28,6 +28,10 @@ export interface JwtPayload {
   type?: 'access' | 'refresh'
   /** 用户角色（USER/ADMIN/SUPER_ADMIN），供 RolesGuard 校验 */
   role?: string
+  /** Token 版本号（密码修改/冻结/注销时递增） */
+  tokenVersion?: number
+  /** Session Family ID（登录时生成，刷新时轮换） */
+  familyId?: string
   /** 签发时间（秒） */
   iat?: number
   /** 过期时间（秒） */
@@ -51,13 +55,21 @@ export class JwtCustomService {
    * 签发 Access Token
    * 默认 1h 过期（由 JWT_EXPIRES_IN 控制）
    */
-  signAccessToken(userId: string, openId: string, role: string): string {
+  signAccessToken(
+    userId: string,
+    openId: string,
+    role: string,
+    tokenVersion: number,
+    familyId: string,
+  ): string {
     const payload: JwtPayload = {
       sub: userId,
       openId,
       jti: uuidv4(),
       type: 'access',
       role,
+      tokenVersion,
+      familyId,
     }
     return this.jwtService.sign(payload)
   }
@@ -66,7 +78,13 @@ export class JwtCustomService {
    * 签发 Refresh Token
    * 默认 7d 过期（由 JWT_REFRESH_EXPIRES_IN 控制）
    */
-  signRefreshToken(userId: string, openId: string, role: string): string {
+  signRefreshToken(
+    userId: string,
+    openId: string,
+    role: string,
+    tokenVersion: number,
+    familyId: string,
+  ): string {
     const cfg = this.configService.get<JwtConfig>(jwtConfig.KEY)
     const refreshExpiresIn = cfg?.refreshExpiresIn ?? '7d'
     const payload: JwtPayload = {
@@ -75,6 +93,8 @@ export class JwtCustomService {
       jti: uuidv4(),
       type: 'refresh',
       role,
+      tokenVersion,
+      familyId,
     }
     return this.jwtService.sign(payload, {
       expiresIn: refreshExpiresIn as StringValue,
@@ -82,10 +102,16 @@ export class JwtCustomService {
   }
 
   /** 同时签发 Access + Refresh Token */
-  signTokenPair(userId: string, openId: string, role: string): TokenPair {
+  signTokenPair(
+    userId: string,
+    openId: string,
+    role: string,
+    tokenVersion: number,
+    familyId: string,
+  ): TokenPair {
     return {
-      accessToken: this.signAccessToken(userId, openId, role),
-      refreshToken: this.signRefreshToken(userId, openId, role),
+      accessToken: this.signAccessToken(userId, openId, role, tokenVersion, familyId),
+      refreshToken: this.signRefreshToken(userId, openId, role, tokenVersion, familyId),
     }
   }
 

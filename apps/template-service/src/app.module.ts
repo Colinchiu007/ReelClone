@@ -15,11 +15,11 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
 import {
   JwtAuthGuard,
   InternalApiKeyGuard,
+  AuthStrategyModule,
   resolveJwtSecret,
   jwtConfig,
   configuration,
@@ -39,7 +39,6 @@ import {
 } from '@reelclone/observability'
 import { TemporalModule } from '@reelclone/temporal'
 import { TemplateModule } from './template/template.module'
-import { JwtStrategy } from './auth/jwt.strategy'
 
 @Module({
   imports: [
@@ -67,8 +66,8 @@ import { JwtStrategy } from './auth/jwt.strategy'
         mockMode: config.get<string>('TEMPORAL_MOCK_MODE') === 'true',
       }),
     }),
-    // Passport + JWT
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -89,7 +88,6 @@ import { JwtStrategy } from './auth/jwt.strategy'
     TemplateModule,
   ],
   providers: [
-    JwtStrategy,
     // 全局守卫：JWT（默认）+ InternalApiKey（@InternalApi 标记的路由校验 x-api-key）
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: InternalApiKeyGuard },

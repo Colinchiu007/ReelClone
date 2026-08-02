@@ -26,10 +26,10 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import {
   JwtAuthGuard,
   RolesGuard,
+  AuthStrategyModule,
   configuration,
   jwtConfig,
   resolveJwtSecret,
@@ -48,7 +48,6 @@ import {
   OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { AppController } from './app.controller'
-import { JwtStrategy } from './auth/jwt.strategy'
 import { AdminUserModule } from './admin-user/admin-user.module'
 import { AdminReviewModule } from './admin-review/admin-review.module'
 import { AdminContentModule } from './admin-content/admin-content.module'
@@ -80,8 +79,8 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
     }),
     // Redis
     RedisModule.forRoot(),
-    // Passport + JWT（与 auth-service 共享 JWT_SECRET）
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -111,7 +110,6 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
   ],
   controllers: [AppController],
   providers: [
-    JwtStrategy,
     // 全局守卫：JWT（默认）+ Roles（RBAC 角色校验）
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

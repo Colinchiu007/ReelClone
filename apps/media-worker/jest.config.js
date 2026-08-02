@@ -11,15 +11,12 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.spec.ts',
-    '!src/main.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/main.ts'],
   coverageDirectory: '../../coverage/apps/media-worker',
   moduleNameMapper: {
     '^@reelclone/common(|/.*)$': '<rootDir>/../../libs/common/src/$1',
     '^@reelclone/database(|/.*)$': '<rootDir>/../../libs/database/src/$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../../libs/platform-data/src/$1',
     '^@reelclone/ai(|/.*)$': '<rootDir>/../../libs/ai/src/$1',
     '^@reelclone/temporal(|/.*)$': '<rootDir>/../../libs/temporal/src/$1',
     '^@reelclone/oss(|/.*)$': '<rootDir>/../../libs/oss/src/$1',

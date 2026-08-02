@@ -13,14 +13,10 @@ module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.spec.ts',
-    '!src/**/*.test.ts',
-    '!src/index.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/**/*.test.ts', '!src/index.ts'],
   coverageDirectory: '../../coverage/libs/oss',
   moduleNameMapper: {
     '^@reelclone/oss(|/.*)$': '<rootDir>/src$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../platform-data/src/$1',
   },
-};
+}

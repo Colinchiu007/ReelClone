@@ -63,6 +63,7 @@ function mockUser(overrides: Partial<User> = {}): User {
   user.status = overrides.status ?? UserStatus.ACTIVE
   user.role = overrides.role ?? UserRole.USER
   user.lastLoginAt = overrides.lastLoginAt ?? null
+  user.tokenVersion = overrides.tokenVersion ?? 0
   user.createdAt = overrides.createdAt ?? new Date('2024-01-01T00:00:00Z')
   user.updatedAt = overrides.updatedAt ?? new Date('2024-01-01T00:00:00Z')
   return user
@@ -79,9 +80,25 @@ function mockRepo(): jest.Mocked<Repository<User>> {
 
 /** 模拟 Redis 客户端 */
 function mockRedis(): jest.Mocked<Redis> {
+  const pipelineOps = {
+    set: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    exec: jest.fn(async () => []),
+  }
+  const pipeline = {
+    set: jest.fn(() => pipelineOps),
+    sadd: jest.fn(() => pipelineOps),
+    expire: jest.fn(() => pipelineOps),
+    exec: jest.fn(async () => []),
+  }
   return {
     exists: jest.fn(async () => 0),
     set: jest.fn(async () => 'OK'),
+    get: jest.fn(async () => null),
+    del: jest.fn(async () => 0),
+    smembers: jest.fn(async () => []),
+    pipeline: jest.fn(() => pipeline),
   } as unknown as jest.Mocked<Redis>
 }
 
@@ -190,6 +207,8 @@ describe('AuthService', () => {
         'new-user-id',
         'openid_abc',
         UserRole.USER,
+        0,
+        expect.any(String),
       )
       expect(result.isNewUser).toBe(true)
       expect(result.accessToken).toBe('access-token-mock')
@@ -310,6 +329,8 @@ describe('AuthService', () => {
         'admin-id',
         'openid_admin',
         UserRole.ADMIN,
+        0,
+        expect.any(String),
       )
       expect(result.accessToken).toBe('access-token-mock')
       expect(result.refreshToken).toBe('refresh-token-mock')
@@ -404,6 +425,8 @@ describe('AuthService', () => {
         'super-id',
         'openid_super',
         UserRole.SUPER_ADMIN,
+        0,
+        expect.any(String),
       )
       expect(result.user.role).toBe(UserRole.SUPER_ADMIN)
     })
@@ -419,6 +442,8 @@ describe('AuthService', () => {
         jti: 'jti-1',
         type: 'refresh',
         role: UserRole.ADMIN,
+        tokenVersion: 0,
+        familyId: 'family-old',
       }
       jwtService.verify.mockReturnValueOnce(payload)
       redis.exists.mockResolvedValueOnce(0)
@@ -426,7 +451,13 @@ describe('AuthService', () => {
       const result = await service.refreshToken('valid-refresh')
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid-refresh')
-      expect(jwtService.signTokenPair).toHaveBeenCalledWith('user-1', 'openid_x', UserRole.ADMIN)
+      expect(jwtService.signTokenPair).toHaveBeenCalledWith(
+        'user-1',
+        'openid_x',
+        UserRole.ADMIN,
+        0,
+        expect.any(String),
+      )
       expect(result.accessToken).toBe('access-token-mock')
       expect(result.refreshToken).toBe('refresh-token-mock')
     })

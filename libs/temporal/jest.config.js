@@ -12,6 +12,7 @@ module.exports = {
     '^@reelclone/ai(|/.*)$': '<rootDir>/../ai/src$1',
     '^@reelclone/common(|/.*)$': '<rootDir>/../common/src$1',
     '^@reelclone/database(|/.*)$': '<rootDir>/../database/src$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../platform-data/src/$1',
     '^@reelclone/oss(|/.*)$': '<rootDir>/../oss/src$1',
   },
   transform: {

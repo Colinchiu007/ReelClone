@@ -1,20 +1,18 @@
 /**
  * 鉴权模块
  *
- * 注册 PassportModule + JwtModule + JwtStrategy，
+ * 注册 JwtModule + AuthStrategyModule（共享 AccessTokenStrategy），
  * 供 AppModule 全局 JwtAuthGuard 使用。
  */
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
-import { resolveJwtSecret } from '@reelclone/common'
-import { JwtStrategy } from './jwt.strategy'
+import { resolveJwtSecret, AuthStrategyModule } from '@reelclone/common'
 
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -31,7 +29,6 @@ import { JwtStrategy } from './jwt.strategy'
       }),
     }),
   ],
-  providers: [JwtStrategy],
-  exports: [PassportModule, JwtModule],
+  exports: [AuthStrategyModule, JwtModule],
 })
 export class AuthModule {}

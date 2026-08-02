@@ -16,6 +16,7 @@ module.exports = {
   moduleNameMapper: {
     '^@reelclone/common(|/.*)$': '<rootDir>/../../libs/common/src/$1',
     '^@reelclone/database(|/.*)$': '<rootDir>/../../libs/database/src/$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../../libs/platform-data/src/$1',
     '^@reelclone/temporal(|/.*)$': '<rootDir>/../../libs/temporal/src/$1',
     '^@reelclone/ai(|/.*)$': '<rootDir>/../../libs/ai/src/$1',
     '^@reelclone/http-client(|/.*)$': '<rootDir>/../../libs/http-client/src/$1',

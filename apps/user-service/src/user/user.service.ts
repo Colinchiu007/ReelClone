@@ -21,7 +21,7 @@ import {
   DATABASE_CONNECTIONS,
   REDIS_CLIENT,
 } from '@reelclone/database'
-import { BusinessException, ErrorCode } from '@reelclone/common'
+import { BusinessException, ErrorCode, buildTokenVersionKey } from '@reelclone/common'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { BindMobileDto } from './dto/bind-mobile.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
@@ -32,6 +32,9 @@ const BCRYPT_ROUNDS = 10
 
 /** 修改密码后吊销 Token 的 Redis Key 前缀 */
 const PASSWORD_CHANGED_KEY_PREFIX = 'user:password-changed'
+
+/** Token Version 缓存 TTL：30 天（覆盖 token 最长生命周期 + 缓冲） */
+const TOKEN_VERSION_CACHE_TTL = 30 * 24 * 60 * 60
 
 /**
  * 公开用户主页信息
@@ -241,11 +244,38 @@ export class UserService {
     user.password = hashedPassword
     await this.userRepository.save(user)
 
+    // 递增 tokenVersion（使所有已签发的 JWT 失效）
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1
+    await this.userRepository.save(user)
+
+    // 缓存新版本号到 Redis（供其他服务快速校验）
+    const tvKey = buildTokenVersionKey(userId)
+    await this.redis.set(tvKey, String(user.tokenVersion), 'EX', TOKEN_VERSION_CACHE_TTL)
+
     // 吊销所有现有 Token：将 userId 写入 Redis
     await this.revokeAllTokens(userId)
 
     this.logger.log(`User ${userId} changed password`)
     return { success: true }
+  }
+
+  /**
+   * 递增用户 tokenVersion（凭证变更撤权）
+   *
+   * 在以下场景调用：
+   * - 管理员冻结/注销账号
+   * - 安全事件强制下线
+   */
+  async incrementTokenVersion(userId: string): Promise<number> {
+    const user = await this.findUserById(userId)
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1
+    await this.userRepository.save(user)
+
+    const tvKey = buildTokenVersionKey(userId)
+    await this.redis.set(tvKey, String(user.tokenVersion), 'EX', TOKEN_VERSION_CACHE_TTL)
+
+    this.logger.log(`User ${userId} tokenVersion incremented to ${user.tokenVersion}`)
+    return user.tokenVersion
   }
 
   /**

@@ -92,6 +92,10 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole
 
+  /** Token 版本号（密码修改/冻结/注销时递增，用于 JWT 撤权） */
+  @Column({ type: 'int', default: 0 })
+  tokenVersion: number
+
   /** 最后登录时间 */
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null

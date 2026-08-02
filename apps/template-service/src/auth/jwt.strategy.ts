@@ -1,45 +1,5 @@
 /**
- * JWT 策略
- *
- * 配合 @reelclone/common 的 JwtAuthGuard 使用。
- * 从 Authorization: Bearer <token> 中解析 JWT，将 payload 注入 request.user。
+ * @deprecated 请直接使用 AuthStrategyModule.forRoot() 代替本文件。
+ * 保留此文件仅为向后兼容，实际策略由 libs/common 的 AccessTokenStrategy 提供。
  */
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { CurrentUserPayload, resolveJwtSecret } from '@reelclone/common';
-
-/** JWT payload 结构 */
-interface JwtPayload {
-  sub: string;
-  openid?: string;
-  phone?: string;
-  role?: string;
-}
-
-/**
- * JWT 策略实现
- * 从 Bearer Token 中提取用户信息，注入 request.user 供 @CurrentUser() 装饰器使用
- */
-@Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor() {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: resolveJwtSecret(),
-    });
-  }
-
-  /**
-   * 校验通过后将 payload 映射为 CurrentUserPayload 注入 request.user
-   */
-  async validate(payload: JwtPayload): Promise<CurrentUserPayload> {
-    return {
-      userId: payload.sub,
-      openid: payload.openid,
-      phone: payload.phone,
-      role: payload.role,
-    };
-  }
-}
+export { AccessTokenStrategy as JwtStrategy } from '@reelclone/common'

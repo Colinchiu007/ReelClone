@@ -19,7 +19,7 @@ import { UpdateUserDto } from './dto/update-user.dto'
 import { BindMobileDto } from './dto/bind-mobile.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { User, UserStatus, SmsCodePurpose, Template, REDIS_CLIENT } from '@reelclone/database'
-import { BusinessException, ErrorCode } from '@reelclone/common'
+import { BusinessException, ErrorCode, buildTokenVersionKey } from '@reelclone/common'
 
 // -------------------- Mock 工厂 --------------------
 
@@ -37,6 +37,7 @@ function createUser(overrides: Partial<User> = {}): User {
     totalPoints: 0,
     industryPreferences: [],
     status: UserStatus.ACTIVE,
+    tokenVersion: 0,
     lastLoginAt: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
@@ -260,6 +261,14 @@ describe('UserService', () => {
       // 验证新密码已被哈希
       expect(user.password).not.toBe('NewPassword456')
       expect(await bcrypt.compare('NewPassword456', user.password!)).toBe(true)
+      // 应递增 tokenVersion 并缓存到 Redis
+      expect(user.tokenVersion).toBe(1)
+      expect(redis.set).toHaveBeenCalledWith(
+        buildTokenVersionKey('user-1'),
+        '1',
+        'EX',
+        30 * 24 * 60 * 60,
+      )
       // 应写入 Redis 吊销标记
       expect(redis.set).toHaveBeenCalledWith(
         'user:password-changed:user-1',
@@ -314,6 +323,14 @@ describe('UserService', () => {
         '123456',
       )
       expect(result.success).toBe(true)
+      // 应递增 tokenVersion 并缓存到 Redis
+      expect(user.tokenVersion).toBe(1)
+      expect(redis.set).toHaveBeenCalledWith(
+        buildTokenVersionKey('user-1'),
+        '1',
+        'EX',
+        30 * 24 * 60 * 60,
+      )
     })
 
     it('验证码模式：未提供 mobile 和 code 时应抛出异常', async () => {

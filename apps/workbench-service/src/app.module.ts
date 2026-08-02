@@ -18,9 +18,9 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import {
   JwtAuthGuard,
+  AuthStrategyModule,
   jwtConfig,
   configuration,
   resolveJwtSecret,
@@ -42,7 +42,6 @@ import {
 import { TemporalModule } from '@reelclone/temporal'
 import { AiModule } from '@reelclone/ai'
 import { WorkbenchModule } from './workbench/workbench.module'
-import { JwtStrategy } from './auth/jwt.strategy'
 
 @Module({
   imports: [
@@ -72,8 +71,8 @@ import { JwtStrategy } from './auth/jwt.strategy'
     AiModule,
     // 运行时配置存储（API Key 热刷新）
     ConfigStoreModule,
-    // Passport + JWT
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -91,7 +90,6 @@ import { JwtStrategy } from './auth/jwt.strategy'
     WorkbenchModule,
   ],
   providers: [
-    JwtStrategy,
     // 全局守卫：JWT（默认）
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // HTTP 指标拦截器（记录请求耗时/状态码到 Prometheus）

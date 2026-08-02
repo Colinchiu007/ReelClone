@@ -17,8 +17,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
-import { JwtAuthGuard, resolveJwtSecret } from '@reelclone/common'
+import { JwtAuthGuard, AuthStrategyModule, resolveJwtSecret } from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
@@ -32,7 +31,6 @@ import {
   HttpMetricsInterceptor,
   OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
-import { JwtStrategy } from './auth/jwt.strategy'
 import { PackageModule } from './package/package.module'
 import { OrderModule } from './order/order.module'
 
@@ -48,8 +46,8 @@ import { OrderModule } from './order/order.module'
     DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     // Redis
     RedisModule.forRoot(),
-    // Passport + JWT
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
+    AuthStrategyModule.forRoot(),
     JwtModule.register({
       secret: resolveJwtSecret(),
       signOptions: {
@@ -62,7 +60,6 @@ import { OrderModule } from './order/order.module'
     OrderModule,
   ],
   providers: [
-    JwtStrategy,
     // 全局守卫：JWT（默认），@Public() 跳过
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // HTTP 指标拦截器（记录请求耗时/状态码到 Prometheus）

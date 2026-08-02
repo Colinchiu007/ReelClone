@@ -3,28 +3,26 @@
  *
  * 装配：
  *  - DatabaseModule.forFeature([User], 'main')  注入 main 库的 User 仓储
- *  - PassportModule                              启用 Passport 默认策略
+ *  - AuthStrategyModule                         共享 JWT 策略（checkSessionFamily: false，因为 auth-service 是签发方）
  *  - JwtModule.registerAsync                     注册 JWT（异步读取 jwtConfig）
  *  - WechatAdapterModule                         运行时绑定 Mock/Real WechatAdapter（fail closed）
- *  - 自定义 providers：AuthService / WechatService / JwtCustomService / JwtStrategy
+ *  - 自定义 providers：AuthService / WechatService / JwtCustomService
  */
 import { Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
-import { DatabaseModule, User, DATABASE_CONNECTIONS } from '@reelclone/database'
-import { jwtConfig, type JwtConfig } from '@reelclone/common'
+import { DatabaseModule, User, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
+import { jwtConfig, type JwtConfig, AuthStrategyModule } from '@reelclone/common'
 import { WechatAdapterModule } from '@reelclone/adapters-wechat'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
 import { WechatService } from './wechat.service'
 import { JwtCustomService } from './jwt.service'
-import { JwtStrategy } from './jwt.strategy'
 
 @Module({
   imports: [
     DatabaseModule.forFeature([User], DATABASE_CONNECTIONS.MAIN),
-    PassportModule,
+    AuthStrategyModule.forRoot({ redisToken: REDIS_CLIENT, checkSessionFamily: false }),
     JwtModule.registerAsync({
       inject: [jwtConfig.KEY],
       useFactory: (cfg: JwtConfig) => ({
@@ -39,7 +37,7 @@ import { JwtStrategy } from './jwt.strategy'
     WechatAdapterModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, WechatService, JwtCustomService, JwtStrategy],
+  providers: [AuthService, WechatService, JwtCustomService],
   exports: [AuthService, JwtCustomService],
 })
 export class AuthModule {}

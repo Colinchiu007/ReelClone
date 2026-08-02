@@ -18,11 +18,19 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import * as bcrypt from 'bcrypt'
 import type { Redis } from 'ioredis'
+import { v4 as uuidv4 } from 'uuid'
 import { User, UserStatus, UserRole, REDIS_CLIENT, DATABASE_CONNECTIONS } from '@reelclone/database'
-import { BusinessException, ErrorCode, type CurrentUserPayload } from '@reelclone/common'
+import {
+  BusinessException,
+  ErrorCode,
+  type CurrentUserPayload,
+  buildBlacklistKey,
+  buildSessionFamilyKey,
+  buildUserFamiliesKey,
+  buildTokenVersionKey,
+} from '@reelclone/common'
 import { WechatService } from './wechat.service'
 import { JwtCustomService, type JwtPayload } from './jwt.service'
-import { buildBlacklistKey } from './jwt.strategy'
 import type { WechatLoginDto } from './dto/wechat-login.dto'
 import type { AdminLoginDto } from './dto/admin-login.dto'
 
@@ -67,6 +75,12 @@ export interface AdminLoginResult {
 /** 单位：秒 */
 const SECONDS_PER_MS = 1000
 
+/** Session Family TTL：7 天（与 refresh token 对齐） */
+const SESSION_FAMILY_TTL = 7 * 24 * 60 * 60
+
+/** Token Version 缓存 TTL：30 天（覆盖 token 最长生命周期 + 缓冲） */
+const TOKEN_VERSION_CACHE_TTL = 30 * 24 * 60 * 60
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name)
@@ -87,6 +101,54 @@ export class AuthService {
     const raw = this.configService.get<string>('NEW_USER_BONUS_POINTS')
     const n = raw ? parseInt(raw, 10) : 0
     return Number.isFinite(n) && n > 0 ? n : 0
+  }
+
+  /**
+   * 创建 Session Family（登录时调用）
+   *
+   * 1. 生成 familyId
+   * 2. 在 Redis 中创建 family key（TTL = 7d）
+   * 3. 将 familyId 加入用户的 family set
+   * 4. 缓存 tokenVersion
+   */
+  private async createSessionFamily(userId: string, tokenVersion: number): Promise<string> {
+    const familyId = uuidv4()
+    const familyKey = buildSessionFamilyKey(familyId)
+    const userFamiliesKey = buildUserFamiliesKey(userId)
+    const tvKey = buildTokenVersionKey(userId)
+
+    const pipeline = this.redis.pipeline()
+    pipeline.set(familyKey, userId, 'EX', SESSION_FAMILY_TTL)
+    pipeline.sadd(userFamiliesKey, familyId)
+    pipeline.expire(userFamiliesKey, SESSION_FAMILY_TTL)
+    pipeline.set(tvKey, String(tokenVersion), 'EX', TOKEN_VERSION_CACHE_TTL)
+    await pipeline.exec()
+
+    return familyId
+  }
+
+  /**
+   * 吊销 Session Family（登出或凭证变更时调用）
+   */
+  private async revokeSessionFamily(familyId: string): Promise<void> {
+    if (!familyId) return
+    await this.redis.del(buildSessionFamilyKey(familyId))
+  }
+
+  /**
+   * 吊销用户所有 Session Family（凭证变更时调用）
+   */
+  private async revokeAllSessionFamilies(userId: string): Promise<void> {
+    const userFamiliesKey = buildUserFamiliesKey(userId)
+    const familyIds = await this.redis.smembers(userFamiliesKey)
+    if (familyIds.length > 0) {
+      const pipeline = this.redis.pipeline()
+      for (const fid of familyIds) {
+        pipeline.del(buildSessionFamilyKey(fid))
+      }
+      pipeline.del(userFamiliesKey)
+      await pipeline.exec()
+    }
   }
 
   /**
@@ -152,8 +214,17 @@ export class AuthService {
       })
     }
 
-    // 4. 签发 JWT（payload 携带 role，供 RolesGuard 校验权限）
-    const tokens = this.jwtService.signTokenPair(user.id, user.openId, user.role)
+    // 4. 创建 Session Family + 读取 tokenVersion
+    const familyId = await this.createSessionFamily(user.id, user.tokenVersion)
+
+    // 5. 签发 JWT
+    const tokens = this.jwtService.signTokenPair(
+      user.id,
+      user.openId,
+      user.role,
+      user.tokenVersion,
+      familyId,
+    )
 
     return {
       ...tokens,
@@ -203,8 +274,17 @@ export class AuthService {
     user.lastLoginAt = new Date()
     await this.userRepo.save(user)
 
-    // 7. 签发 JWT
-    const tokens = this.jwtService.signTokenPair(user.id, user.openId, user.role)
+    // 7. 创建 Session Family + 读取 tokenVersion
+    const familyId = await this.createSessionFamily(user.id, user.tokenVersion)
+
+    // 8. 签发 JWT
+    const tokens = this.jwtService.signTokenPair(
+      user.id,
+      user.openId,
+      user.role,
+      user.tokenVersion,
+      familyId,
+    )
 
     this.logger.log(`Admin login: userId=${user.id} mobile=${dto.mobile}`)
 
@@ -223,8 +303,12 @@ export class AuthService {
    *
    * 流程：
    *  1. 验证 Refresh Token 签名 & 过期
-   *  2. 检查 jti 是否已加入黑名单
-   *  3. 签发新的 Token 对（旧 Refresh Token 不主动失效，由客户端丢弃）
+   *  2. Token 类型校验：只接受 refresh token
+   *  3. 检查 jti 黑名单（logout 后吊销）
+   *  4. Session Family 复用检测（旧 token 被重放 → 整族吊销）
+   *  5. 标记当前 jti 已使用
+   *  6. 创建新的 Session Family（刷新时轮换）
+   *  7. 签发新 Token 对
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResult> {
     let payload: JwtPayload
@@ -238,7 +322,16 @@ export class AuthService {
       )
     }
 
-    // 检查黑名单
+    // 1. Token 类型校验：只接受 refresh token
+    if (payload.type !== 'refresh') {
+      throw new BusinessException(
+        ErrorCode.UNAUTHORIZED,
+        'Token 类型无效，请使用 Refresh Token',
+        undefined,
+      )
+    }
+
+    // 2. 检查 jti 黑名单（logout 后吊销）
     if (payload.jti) {
       const isBlacklisted = await this.redis.exists(buildBlacklistKey(payload.jti))
       if (isBlacklisted) {
@@ -246,9 +339,40 @@ export class AuthService {
       }
     }
 
-    // 签发新 Token 对（沿用原 payload 中的 role；兼容旧 Token 缺失 role 时回落 USER）
+    // 3. Session Family 复用检测
+    //    family key 存在且 previousJti 已标记 → token 被重放 → 整族吊销
+    const familyId = payload.familyId
+    if (!familyId) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED, '会话无效，请重新登录', undefined)
+    }
+    const familyKey = buildSessionFamilyKey(familyId)
+    const previousJti = await this.redis.get(`${familyKey}:jti`)
+    if (previousJti && previousJti !== payload.jti) {
+      // 复用检测：旧 token 被重放，吊销整个 family
+      await this.revokeSessionFamily(familyId)
+      // 吊销用户所有 session（安全升级）
+      await this.revokeAllSessionFamilies(payload.sub)
+      throw new BusinessException(ErrorCode.UNAUTHORIZED, '检测到异常登录，请重新登录', undefined)
+    }
+
+    // 4. 标记当前 jti 已使用（为复用检测准备）
+    const ttl = payload.exp ? payload.exp - Math.floor(Date.now() / 1000) : SESSION_FAMILY_TTL
+    if (ttl > 0) {
+      await this.redis.set(`${familyKey}:jti`, payload.jti, 'EX', ttl)
+    }
+
+    // 5. 创建新的 Session Family（刷新时轮换）
+    const newFamilyId = await this.createSessionFamily(payload.sub, payload.tokenVersion ?? 0)
+
+    // 6. 签发新 Token 对
     const role = payload.role ?? UserRole.USER
-    return this.jwtService.signTokenPair(payload.sub, payload.openId, role)
+    return this.jwtService.signTokenPair(
+      payload.sub,
+      payload.openId,
+      role,
+      payload.tokenVersion ?? 0,
+      newFamilyId,
+    )
   }
 
   /**
@@ -258,8 +382,9 @@ export class AuthService {
    * 此后该 Token 再次被使用时，JwtStrategy.validate 会检测到黑名单拒绝访问
    *
    * @param user 当前登录用户（由 @CurrentUser 注入，包含 jti/exp）
+   * @param familyId 可选的 Session Family ID（用于吊销整个 session family）
    */
-  async logout(user: CurrentUserPayload): Promise<void> {
+  async logout(user: CurrentUserPayload, familyId?: string): Promise<void> {
     const jti = user.jti as string | undefined
     const exp = user.exp as number | undefined
 
@@ -280,6 +405,11 @@ export class AuthService {
     } else {
       // 已过期的 Token 无需加入黑名单
       this.logger.log(`Logout called with already-expired token: userId=${user.userId}`)
+    }
+
+    // 吊销 Session Family（如果提供了 familyId）
+    if (familyId) {
+      await this.revokeSessionFamily(familyId)
     }
   }
 

@@ -12,13 +12,12 @@
  */
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
-import { PassportModule } from '@nestjs/passport'
 import { JwtModule } from '@nestjs/jwt'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import type { StringValue } from 'ms'
-import { DatabaseModule, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { OSSModule } from '@reelclone/oss'
-import { JwtAuthGuard, jwtConfig, resolveJwtSecret } from '@reelclone/common'
+import { JwtAuthGuard, AuthStrategyModule, jwtConfig, resolveJwtSecret } from '@reelclone/common'
 import {
   LoggerModule,
   HealthModule,
@@ -26,7 +25,6 @@ import {
   HttpMetricsInterceptor,
 } from '@reelclone/observability'
 import { AssetModule } from './asset/asset.module'
-import { JwtStrategy } from './auth/jwt.strategy'
 
 @Module({
   imports: [
@@ -40,10 +38,11 @@ import { JwtStrategy } from './auth/jwt.strategy'
 
     // -------------------- 基础设施 --------------------
     DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
+    RedisModule.forRoot(),
     OSSModule.forRoot(),
 
     // -------------------- 鉴权 --------------------
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -63,7 +62,6 @@ import { JwtStrategy } from './auth/jwt.strategy'
     AssetModule,
   ],
   providers: [
-    JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },

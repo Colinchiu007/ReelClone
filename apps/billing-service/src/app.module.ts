@@ -17,9 +17,14 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
-import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
-import { JwtAuthGuard, jwtConfig, configuration } from '@reelclone/common'
+import {
+  JwtAuthGuard,
+  AuthStrategyModule,
+  InternalApiKeyGuard,
+  jwtConfig,
+  configuration,
+} from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
@@ -34,8 +39,6 @@ import {
   OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { BillingModule } from './billing/billing.module'
-import { InternalApiKeyGuard } from '@reelclone/common'
-import { JwtStrategy } from './billing/guards/jwt.strategy'
 
 @Module({
   imports: [
@@ -54,8 +57,8 @@ import { JwtStrategy } from './billing/guards/jwt.strategy'
     }),
     // Redis
     RedisModule.forRoot(),
-    // Passport + JWT
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
+    AuthStrategyModule.forRoot(),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -71,7 +74,6 @@ import { JwtStrategy } from './billing/guards/jwt.strategy'
     BillingModule,
   ],
   providers: [
-    JwtStrategy,
     // 全局守卫：JWT（默认）+ InternalApiKey（按需）
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: InternalApiKeyGuard },

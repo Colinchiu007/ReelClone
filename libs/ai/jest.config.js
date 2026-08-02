@@ -13,5 +13,6 @@ module.exports = {
   coverageDirectory: '<rootDir>/../../coverage/libs/ai',
   moduleNameMapper: {
     '^@reelclone/temporal(|/.*)$': '<rootDir>/../temporal/src/$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../platform-data/src/$1',
   },
 }

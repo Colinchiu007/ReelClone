@@ -86,6 +86,7 @@ export class AuthController {
   @ApiOperation({ summary: '登出（将当前 Token 加入黑名单）' })
   @ApiOkResponseWithWrapper(LogoutResultDto)
   async logout(@CurrentUser() user: CurrentUserPayload): Promise<{ success: true }> {
+    // familyId 从 JWT payload 中获取（如果前端传入）
     await this.authService.logout(user)
     return { success: true }
   }

@@ -20,11 +20,17 @@ export * from './interceptors/response.interceptor'
 // -------------------- 过滤器 --------------------
 export * from './filters/all-exceptions.filter'
 
+// -------------------- 认证（JWT 共享策略 + 模块） --------------------
+export * from './auth'
+
 // -------------------- 守卫 --------------------
 export * from './guards/jwt-auth.guard'
 export * from './guards/rate-limit.guard'
 export * from './guards/roles.guard'
 export * from './guards/internal-api-key.guard'
+
+// -------------------- 认证策略 --------------------
+export * from './auth'
 
 // -------------------- 装饰器 --------------------
 export * from './decorators/current-user.decorator'
