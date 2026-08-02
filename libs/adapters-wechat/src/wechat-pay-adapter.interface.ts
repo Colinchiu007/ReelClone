@@ -84,6 +84,20 @@ export interface IWechatPayAdapter {
    * @returns 解密后的明文字符串（JSON）
    */
   decryptResource(ciphertext: string, associatedData: string, nonce: string): string
+
+  /**
+   * 构建微信支付 API v3 请求签名 Authorization 头
+   *
+   * 签名串格式：{METHOD}\n{URL}\n{TIMESTAMP}\n{NONCE_STR}\n{BODY}\n
+   * 签名算法：RSA-SHA256（商户私钥）
+   * 返回格式：WECHATPAY2-SHA256-RSA2048 mchid="...",nonce_str="...",timestamp="...",serial_no="...",signature="..."
+   *
+   * @param method HTTP 方法（大写，如 GET、POST）
+   * @param url 请求路径（不含域名，如 /v3/pay/transactions/jsapi）
+   * @param body 请求体字符串（GET 请求传空字符串）
+   * @returns 完整的 Authorization 头值
+   */
+  buildAuthorization(method: string, url: string, body: string): string
 }
 
 /** WECHAT_PAY_ADAPTER DI token */

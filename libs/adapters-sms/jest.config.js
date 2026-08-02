@@ -16,6 +16,7 @@ module.exports = {
   moduleNameMapper: {
     '^@reelclone/common(|/.*)$': '<rootDir>/../common/src/$1',
     '^@reelclone/database(|/.*)$': '<rootDir>/../database/src/$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../platform-data/src/$1',
     '^@reelclone/adapters-sms(|/.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],

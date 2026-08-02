@@ -191,8 +191,9 @@ export class WechatPayService {
    * 真实模式：调用微信支付 JSAPI 下单，生成小程序支付参数
    *
    * 1. 构造下单请求体，POST 到 /v3/pay/transactions/jsapi 获取 prepay_id
-   * 2. 用商户私钥对 appId\ntimestamp\nnonceStr\npackage\n 做 RSA-SHA256 签名
-   * 3. 返回小程序 wx.requestPayment 所需参数
+   * 2. 使用 adapter.buildAuthorization() 生成 API v3 请求签名
+   * 3. 用商户私钥对 appId\ntimestamp\nnonceStr\npackage\n 做 RSA-SHA256 签名
+   * 4. 返回小程序 wx.requestPayment 所需参数
    */
   private async realCreatePaymentParams(params: {
     orderNo: string
@@ -224,21 +225,23 @@ export class WechatPayService {
       payer: { openid: params.openid },
     }
 
+    const bodyStr = JSON.stringify(requestBody)
+    const requestUrl = '/v3/pay/transactions/jsapi'
+
+    // 使用 adapter 生成 API v3 请求签名 Authorization 头
+    const authorization = this.adapter.buildAuthorization('POST', requestUrl, bodyStr)
+
     // 调用微信支付下单接口
-    // TODO: 生产环境需补充 Authorization 请求签名头（商户私钥签名 + 商户证书序列号）
-    const resp = await axios.post(
-      'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi',
-      requestBody,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          'Wechatpay-Serial': serialNo,
-        },
-        timeout: 15_000,
+    const resp = await axios.post(`https://api.mch.weixin.qq.com${requestUrl}`, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        'Wechatpay-Serial': serialNo,
+        Authorization: authorization,
       },
-    )
+      timeout: 15_000,
+    })
 
     const prepayId = resp.data?.prepay_id
     if (!prepayId) {

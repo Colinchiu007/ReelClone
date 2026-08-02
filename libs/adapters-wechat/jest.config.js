@@ -14,4 +14,9 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/index.ts'],
   coverageDirectory: '../../coverage/libs/adapters-wechat',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
+  moduleNameMapper: {
+    '^@reelclone/common(|/.*)$': '<rootDir>/../common/src/$1',
+    '^@reelclone/database(|/.*)$': '<rootDir>/../database/src/$1',
+    '^@reelclone/platform-data(|/.*)$': '<rootDir>/../platform-data/src/$1',
+  },
 }

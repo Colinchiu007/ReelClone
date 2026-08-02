@@ -43,6 +43,11 @@ export class MockWechatPayAdapter implements IWechatPayAdapter {
     return ciphertext
   }
 
+  buildAuthorization(_method: string, _url: string, _body: string): string {
+    // Mock 模式返回固定签名头（不需要真实签名）
+    return 'WECHATPAY2-SHA256-RSA2048 mchid="mock_mchid",nonce_str="mock_nonce",timestamp="0",serial_no="mock_serial",signature="mock_signature"'
+  }
+
   /** 大小写不敏感地提取 header 值 */
   private extractHeader(
     headers: Record<string, string | string[] | undefined>,
