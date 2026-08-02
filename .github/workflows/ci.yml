@@ -91,12 +91,12 @@ jobs:
   build-docker:
     name: Build Docker (${{ matrix.service }})
     needs: lint-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, asset, workbench, benchmark, template, billing, order, notification]
+        service: [auth-service, user-service, asset-service, workbench-service, benchmark-service, template-service, billing-service, order-service, notification-service, admin-service, media-worker]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,12 +108,12 @@ jobs:
             echo "::group::Building ${{ matrix.service }}"
             docker build -t reelclone/${{ matrix.service }}:${{ github.sha }} -f "$DOCKERFILE" .
             echo "::endgroup::"
-            echo "[MVP Placeholder] Image reelclone/${{ matrix.service }}:${{ github.sha }} built locally, not pushed."
+            echo "Image reelclone/${{ matrix.service }}:${{ github.sha }} built locally, not pushed."
           else
-            echo "[MVP Placeholder] No Dockerfile at $DOCKERFILE yet — skipping build for ${{ matrix.service }}."
+            echo "No Dockerfile at $DOCKERFILE — skipping build for ${{ matrix.service }}."
           fi
 
-  # 仅在合并到 master/main 时构建小程序；MVP 阶段占位，脚本缺失时跳过
+  # 仅在合并到 master/main 时构建小程序
   build-miniprogram:
     name: Build Mini Program (weapp)
     needs: lint-test
@@ -132,11 +132,5 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Taro weapp (MVP placeholder)
-        continue-on-error: true
-        run: |
-          if npm run 2>/dev/null | grep -q "build:weapp"; then
-            npm run build:weapp
-          else
-            echo "[MVP Placeholder] npm script 'build:weapp' not defined yet — skipping miniprogram build."
-          fi
+      - name: Build Taro weapp
+        run: npm run build:miniprogram
