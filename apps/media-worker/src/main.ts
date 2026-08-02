@@ -32,12 +32,12 @@ async function bootstrap(): Promise<void> {
   await bootstrapWorker(app)
 
   // -------------------- 健康检查端口 --------------------
-  // Worker 不监听业务端口，仅暴露 /health 供 K8s 探针
+  // Worker 不监听业务端口，仅暴露 /livez /readyz /health 供探针使用
   const config = app.get(ConfigService)
   const port = parseInt(config.get<string>('MEDIA_WORKER_PORT') || '3010', 10)
   await app.listen(port)
 
-  logger.log(`media-worker health endpoint on http://localhost:${port}/health`)
+  logger.log(`media-worker health endpoints on http://localhost:${port}/livez|readyz|health`)
   logger.log(`Temporal Worker 监听任务队列: ${TASK_QUEUE.DEFAULT}`)
 
   // -------------------- 优雅退出 --------------------

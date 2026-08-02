@@ -180,7 +180,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -209,7 +209,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3002/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3002/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -238,7 +238,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3003/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3003/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -271,7 +271,7 @@ services:
       temporal:
         condition: service_started
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3004/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3004/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -300,7 +300,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3005/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3005/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -330,7 +330,7 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in the deployment environment}
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3006/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3006/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -365,7 +365,7 @@ services:
       temporal:
         condition: service_started
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3007/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3007/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -394,7 +394,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3008/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3008/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -423,7 +423,7 @@ services:
       NODE_ENV: production
     depends_on: *deps-infra
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3009/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3009/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5
@@ -437,7 +437,7 @@ services:
           memory: 128M
 
   # ============================================================
-  # media-worker - Temporal Worker（无业务端口，仅 /health）
+  # media-worker - Temporal Worker（无业务端口，仅 /livez /readyz /health）
   # 执行视频生成、对标解析、媒体处理 Activities
   # ============================================================
   media-worker:
@@ -459,7 +459,7 @@ services:
       temporal:
         condition: service_started
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3010/livez || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3010/readyz || exit 1']
       interval: 30s
       timeout: 5s
       retries: 5

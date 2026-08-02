@@ -11,8 +11,9 @@
  *  - WorkerModule（Worker 子模块）
  *
  * 健康检查：
- *  - GET /health 返回 { status: 'ok', worker: { running, taskQueue } }
- *  - Worker 不暴露业务 API，仅此端点供 K8s 探针使用
+ *  - GET /livez → liveness 探针，始终 200
+ *  - GET /readyz → readiness 探针，Worker 未启动返回 503
+ *  - GET /health → legacy 兼容，返回完整状态
  *
  * 注：项目未引入 @nestjs/terminus，此处使用轻量 HealthController 即可满足探针需求。
  */
@@ -29,12 +30,38 @@ import { getWorkerStatus } from './worker/worker.bootstrap'
 /**
  * 健康检查控制器
  *
- * 返回 Worker 运行状态，供 K8s liveness / readiness 探针使用。
+ * 提供三个端点供不同场景使用：
+ * - GET /livez — liveness 探针，始终 200，仅确认进程存活
+ * - GET /readyz — readiness 探针，检查 Worker 运行状态；down 返回 503
+ * - GET /health — legacy 兼容，返回完整状态（保留给旧客户端）
  */
-@Controller('health')
+@Controller()
 export class HealthController {
-  @Get()
-  check(): { status: string; worker: { running: boolean; taskQueue: string } } {
+  /** liveness：进程存活即可 */
+  @Get('livez')
+  livez(): { status: string } {
+    return { status: 'ok' }
+  }
+
+  /** readiness：Worker 已启动才就绪 */
+  @Get('readyz')
+  readyz(): { status: string; worker: { running: boolean; taskQueue: string } } {
+    const worker = getWorkerStatus()
+    if (!worker.running) {
+      return {
+        status: 'down',
+        worker: { running: false, taskQueue: worker.taskQueue },
+      }
+    }
+    return {
+      status: 'ok',
+      worker: { running: true, taskQueue: worker.taskQueue },
+    }
+  }
+
+  /** legacy 兼容端点，返回完整状态 */
+  @Get('health')
+  health(): { status: string; worker: { running: boolean; taskQueue: string } } {
     const worker = getWorkerStatus()
     return {
       status: 'ok',
