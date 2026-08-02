@@ -51,7 +51,9 @@
       "@reelclone/adapters-sms": ["libs/adapters-sms/src/index.ts"],
       "@reelclone/adapters-sms/*": ["libs/adapters-sms/src/*"],
       "@reelclone/adapters-wechat": ["libs/adapters-wechat/src/index.ts"],
-      "@reelclone/adapters-wechat/*": ["libs/adapters-wechat/src/*"]
+      "@reelclone/adapters-wechat/*": ["libs/adapters-wechat/src/*"],
+      "@reelclone/http-client": ["libs/http-client/src/index.ts"],
+      "@reelclone/http-client/*": ["libs/http-client/src/*"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "coverage", "apps/miniprogram"]

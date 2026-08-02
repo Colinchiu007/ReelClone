@@ -18,6 +18,7 @@ module.exports = {
     '^@reelclone/database(|/.*)$': '<rootDir>/../../libs/database/src/$1',
     '^@reelclone/temporal(|/.*)$': '<rootDir>/../../libs/temporal/src/$1',
     '^@reelclone/ai(|/.*)$': '<rootDir>/../../libs/ai/src/$1',
+    '^@reelclone/http-client(|/.*)$': '<rootDir>/../../libs/http-client/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
 }
