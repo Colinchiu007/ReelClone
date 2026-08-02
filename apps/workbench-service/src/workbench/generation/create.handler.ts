@@ -11,7 +11,7 @@
  *  7. 启动 Temporal 工作流（Mock 模式跳过）
  *  8. 缓存幂等结果
  */
-import { Logger } from '@nestjs/common'
+import { Inject, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
@@ -28,21 +28,17 @@ import {
   Work,
   WorkStatus,
 } from '@reelclone/database'
-import { TemporalService } from '@reelclone/temporal'
+import { TemporalService, WorkType } from '@reelclone/temporal'
 import {
   type BillingReservation,
   type VideoGenParams,
   type VideoModelConfig,
 } from '@reelclone/temporal'
+import { CapabilityRegistry, CAPABILITY_REGISTRY, GenerationType } from '@reelclone/capability'
 import { BillingClient } from '../billing.client'
 import { TemplateClient } from '../template.client'
-import {
-  calculatePoints,
-  isVideoType,
-  type VideoDuration,
-  type VideoResolution,
-} from '../points-calculator.util'
-import { type CreateGenerationDto, GenerationType } from '../dto/create-generation.dto'
+import { calculatePoints, isVideoType } from '../points-calculator.util'
+import { type CreateGenerationDto } from '../dto/create-generation.dto'
 import {
   billingOperationKey,
   cacheIdempotencyRecord,
@@ -53,7 +49,6 @@ import {
   releaseOwnedLock,
   mapToProvider,
   mapToWorkType,
-  TEMPORAL_WORK_TYPE_MAP,
   idemLockKey,
   IDEMPOTENCY_LOCK_TTL,
   type CreateGenerationResult,
@@ -70,6 +65,7 @@ export class GenerationCreateHandler {
     private readonly templateClient: TemplateClient,
     private readonly temporalService: TemporalService,
     private readonly configService: ConfigService,
+    @Inject(CAPABILITY_REGISTRY) private readonly registry: CapabilityRegistry,
   ) {}
 
   private isMockMode(): boolean {
@@ -77,7 +73,7 @@ export class GenerationCreateHandler {
   }
 
   private assertGenerationTypeSupported(type: GenerationType): void {
-    if (!this.isMockMode() && !isVideoType(type)) {
+    if (!this.isMockMode() && !isVideoType(this.registry, type)) {
       throw BusinessException.validationError(
         '当前仅支持视频生成，文本和图片生成需在接入真实 Provider 后启用',
         { field: 'generationType', value: type },
@@ -136,9 +132,9 @@ export class GenerationCreateHandler {
       this.assertGenerationTypeSupported(dto.generationType)
 
       // 计算积分
-      const points = calculatePoints(dto.generationType, {
-        resolution: dto.resolution as VideoResolution | undefined,
-        duration: dto.duration as VideoDuration | undefined,
+      const points = calculatePoints(this.registry, dto.generationType, {
+        resolution: dto.resolution,
+        duration: dto.duration,
       })
       if (points <= 0) {
         throw BusinessException.validationError('无法计算积分，请检查生成参数')
@@ -146,7 +142,7 @@ export class GenerationCreateHandler {
 
       // 创建 Work
       const workRepo = this.dataSource.getRepository(Work)
-      const workType = mapToWorkType(dto.generationType)
+      const workType = mapToWorkType(this.registry, dto.generationType)
 
       const modelConfig: Record<string, unknown> = {
         generationType: dto.generationType,
@@ -232,7 +228,7 @@ export class GenerationCreateHandler {
 
       // 创建 GenerationTask
       const taskRepo = this.dataSource.getRepository(GenerationTask)
-      const provider = mapToProvider(dto.generationType)
+      const provider = mapToProvider(this.registry, dto.generationType)
       let task: GenerationTask | undefined
       try {
         task = taskRepo.create({
@@ -388,7 +384,7 @@ export class GenerationCreateHandler {
       workId: work.id,
       generationTaskId: task.id,
       userId: work.userId,
-      workType: TEMPORAL_WORK_TYPE_MAP[dto.generationType],
+      workType: this.registry.getTemporalWorkType(dto.generationType) as WorkType,
       prompt: dto.prompt,
       modelConfig,
       estimatedCredits: points,

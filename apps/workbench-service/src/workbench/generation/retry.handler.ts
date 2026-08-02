@@ -7,6 +7,7 @@
  *  3. 重新冻结积分并重启独立的 Temporal 工作流
  *  4. 更新 Work 状态为 PENDING
  */
+import { Inject, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
@@ -21,6 +22,7 @@ import {
   WorkStatus,
 } from '@reelclone/database'
 import { type BillingReservation } from '@reelclone/temporal'
+import { CapabilityRegistry, CAPABILITY_REGISTRY } from '@reelclone/capability'
 import { BillingClient } from '../billing.client'
 import { isVideoType } from '../points-calculator.util'
 import { type CreateGenerationDto } from '../dto/create-generation.dto'
@@ -39,16 +41,22 @@ import {
 import { GenerationCreateHandler } from './create.handler'
 
 export class GenerationRetryHandler {
+  private readonly logger = new Logger(GenerationRetryHandler.name)
+
   constructor(
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly dataSource: DataSource,
     private readonly billingClient: BillingClient,
     private readonly configService: ConfigService,
     private readonly createHandler: GenerationCreateHandler,
+    @Inject(CAPABILITY_REGISTRY) private readonly registry: CapabilityRegistry,
   ) {}
 
   private assertGenerationTypeSupported(type: CreateGenerationDto['generationType']): void {
-    if (this.configService.get<string>('TEMPORAL_MOCK_MODE') !== 'true' && !isVideoType(type)) {
+    if (
+      this.configService.get<string>('TEMPORAL_MOCK_MODE') !== 'true' &&
+      !isVideoType(this.registry, type)
+    ) {
       throw BusinessException.validationError(
         '当前仅支持视频生成，文本和图片生成需在接入真实 Provider 后启用',
         { field: 'generationType', value: type },

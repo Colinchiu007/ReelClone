@@ -4,8 +4,8 @@
  * 从 points-calculator.util.ts、shared.ts、create-generation.dto.ts
  * 和前端各页面的硬编码值统一迁移到此。
  */
-import { GenerationType } from './generation-type';
-import type { CapabilityConfig } from './capability.types';
+import { GenerationType } from './generation-type'
+import type { CapabilityConfig } from './capability.types'
 
 export const DEFAULT_CAPABILITIES: CapabilityConfig[] = [
   // ----------------------------------------------------------
@@ -233,6 +233,7 @@ export const DEFAULT_CAPABILITIES: CapabilityConfig[] = [
   {
     type: GenerationType.TEXT_GENERATE,
     provider: 'MOCK',
+    // MOCK Provider — temporalWorkType 仅为兼容映射，实际不启动 Temporal 工作流
     temporalWorkType: 'text_to_video',
     workType: 'TEXT',
     realReady: false,
@@ -258,6 +259,7 @@ export const DEFAULT_CAPABILITIES: CapabilityConfig[] = [
   {
     type: GenerationType.IMAGE_GENERATE,
     provider: 'MOCK',
+    // MOCK Provider — temporalWorkType 仅为兼容映射，实际不启动 Temporal 工作流
     temporalWorkType: 'image_to_video',
     workType: 'IMAGE',
     realReady: false,
@@ -279,4 +281,4 @@ export const DEFAULT_CAPABILITIES: CapabilityConfig[] = [
       },
     },
   },
-];
+]

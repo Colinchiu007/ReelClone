@@ -11,6 +11,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { DATABASE_CONNECTIONS, GenerationTask, Work } from '@reelclone/database'
+import { CapabilityModule } from '@reelclone/capability'
 import { GenerationController } from './generation.controller'
 import { WorkController } from './work.controller'
 import { GenerationService } from './generation.service'
@@ -22,6 +23,8 @@ import { TemplateClient } from './template.client'
   imports: [
     // 导出 main DataSource 供 GenerationService / WorkService 注入
     TypeOrmModule.forFeature([Work, GenerationTask], DATABASE_CONNECTIONS.MAIN),
+    // Provider 路由、积分定价、参数校验单一真相源
+    CapabilityModule,
   ],
   controllers: [GenerationController, WorkController],
   providers: [BillingClient, TemplateClient, GenerationService, WorkService],

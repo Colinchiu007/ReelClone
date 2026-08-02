@@ -17,6 +17,24 @@ const registry = new CapabilityRegistry(DEFAULT_CAPABILITIES)
 export { GenerationType }
 
 // ============================================================
+// 预计算查找表
+// ============================================================
+
+/**
+ * 所有视频类型的积分表（预计算，避免每次调用 getPointsTable）。
+ *
+ * 前端为静态单例，不支持运行时价格热更新。
+ * 如需热更新，需后端提供 /capabilities API。
+ */
+export const VIDEO_POINTS_TABLES: Record<string, Record<string, number>> = {}
+for (const type of Object.values(GenerationType)) {
+  const table = registry.getPointsTable(type as GenerationType)
+  if (Object.keys(table).length > 0) {
+    VIDEO_POINTS_TABLES[type] = table
+  }
+}
+
+// ============================================================
 // 视频类型页面共用常量
 // ============================================================
 

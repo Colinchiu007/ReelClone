@@ -4,6 +4,11 @@ import { GenerationType } from '@reelclone/capability'
 
 /**
  * 生成类型枚举（从 @reelclone/capability 重新导出，保持向后兼容）
+ *
+ * 校验分层：
+ *  - 本 DTO 负责 HTTP 层校验（格式、长度、枚举范围）
+ *  - 业务层校验（必需参数、Provider 兼容性）由 CapabilityRegistry.validateParams() 处理
+ *  - 修改校验规则时需同步更新 @reelclone/capability 中的 paramRules
  */
 export { GenerationType }
 

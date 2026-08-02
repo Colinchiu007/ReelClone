@@ -9,8 +9,7 @@ import Redis from 'ioredis'
 import { DataSource } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
 import { GenerationProvider, GenerationTask, Work, WorkStatus } from '@reelclone/database'
-import { CapabilityRegistry, DEFAULT_CAPABILITIES, GenerationType } from '@reelclone/capability'
-import { WorkType as TemporalWorkType } from '@reelclone/temporal'
+import { CapabilityRegistry, GenerationType } from '@reelclone/capability'
 import { BillingClient } from '../billing.client'
 import { TemplateClient } from '../template.client'
 import { type CreateGenerationDto } from '../dto/create-generation.dto'
@@ -67,14 +66,6 @@ export interface PaginatedTasks {
   pageSize: number
   total: number
 }
-
-/** 单例注册表（P1-4 统一来源） */
-const registry = new CapabilityRegistry(DEFAULT_CAPABILITIES)
-
-/** DTO 生成类型 → Temporal WorkType 映射（从 registry 派生） */
-export const TEMPORAL_WORK_TYPE_MAP: Record<GenerationType, TemporalWorkType> = Object.fromEntries(
-  Object.values(GenerationType).map((type) => [type, registry.getTemporalWorkType(type) as TemporalWorkType]),
-) as Record<GenerationType, TemporalWorkType>
 
 // ============================================================
 // 依赖容器（所有 handler 共享的外部依赖引用）
@@ -187,11 +178,14 @@ export async function releaseBillingReservation(
 // 类型映射
 // ============================================================
 
-export function mapToWorkType(type: GenerationType): string {
+export function mapToWorkType(registry: CapabilityRegistry, type: GenerationType): string {
   return registry.getWorkType(type)
 }
 
-export function mapToProvider(type: GenerationType): GenerationProvider {
+export function mapToProvider(
+  registry: CapabilityRegistry,
+  type: GenerationType,
+): GenerationProvider {
   const provider = registry.getProvider(type)
   // GenerationProvider 枚举只定义了 SEEDANCE 和 MOCK
   if (provider === 'SEEDANCE') return GenerationProvider.SEEDANCE

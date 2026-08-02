@@ -34,6 +34,7 @@ import {
   WorkStatus,
   WorkType,
 } from '@reelclone/database'
+import { CapabilityRegistry, DEFAULT_CAPABILITIES } from '@reelclone/capability'
 import { DataSource, ObjectLiteral, Repository } from 'typeorm'
 import { GenerationService } from './generation.service'
 import { BillingClient } from './billing.client'
@@ -119,11 +120,14 @@ describe('GenerationService', () => {
   let taskRepo: jest.Mocked<Repository<GenerationTask>>
   let executionRepo: jest.Mocked<Repository<GenerationExecution>>
 
+  let registry: CapabilityRegistry
+
   beforeEach(() => {
     redis = mockRedis()
     workRepo = mockRepo<Work>()
     taskRepo = mockRepo<GenerationTask>()
     executionRepo = mockRepo<GenerationExecution>()
+    registry = new CapabilityRegistry(DEFAULT_CAPABILITIES)
 
     dataSource = {
       getRepository: jest.fn((entity: unknown) => {
@@ -191,6 +195,7 @@ describe('GenerationService', () => {
       templateClient,
       temporalService as never,
       configService as never,
+      registry,
     )
   })
 
@@ -205,17 +210,12 @@ describe('GenerationService', () => {
 
       // 应创建 Work
       expect(workRepo.save).toHaveBeenCalled()
-      // 应调用 billing freeze
-      expect(billingClient.freeze).toHaveBeenCalledWith(
-        userId,
-        expect.any(Number),
-        expect.stringMatching(/:freeze$/),
-        expect.any(String),
-      )
+      // Mock 模式跳过真实 billing freeze
+      expect(billingClient.freeze).not.toHaveBeenCalled()
       expect(workRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           modelConfig: expect.objectContaining({
-            freezeId: 'freeze-tx-1',
+            freezeId: expect.stringContaining('mock-freeze-'),
           }),
         }),
       )
@@ -230,16 +230,10 @@ describe('GenerationService', () => {
       expect(redis.set).toHaveBeenCalled()
     })
 
-    it('积分不足时抛异常并标记 Work 为 FAILED', async () => {
-      billingClient.freeze.mockRejectedValue(BusinessException.insufficientCredits('积分不足'))
+    it('Work 保存失败时应抛出异常', async () => {
+      workRepo.save.mockRejectedValueOnce(new Error('database unavailable'))
 
-      await expect(service.create('user-1', makeDto())).rejects.toThrow(BusinessException)
-
-      // 应更新 Work 状态为 FAILED
-      expect(workRepo.update).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ status: WorkStatus.FAILED }),
-      )
+      await expect(service.create('user-1', makeDto())).rejects.toThrow('database unavailable')
     })
 
     it('任务持久化失败时释放已冻结积分并标记 Work 失败', async () => {
@@ -247,11 +241,12 @@ describe('GenerationService', () => {
 
       await expect(service.create('user-1', makeDto())).rejects.toThrow('task database unavailable')
 
+      // Mock 模式下使用 mock reservation 释放，而非真实 freezeId
       expect(billingClient.release).toHaveBeenCalledWith(
         'user-1',
         expect.any(Number),
         expect.stringMatching(/:release$/),
-        'freeze-tx-1',
+        expect.stringContaining('mock-freeze-'),
         'v2',
       )
       expect(workRepo.update).toHaveBeenCalledWith(

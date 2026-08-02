@@ -4,7 +4,7 @@
  * 统一管理 Provider 路由、积分定价、参数校验和 UI 配置。
  * 后端和前端均可直接导入，无需 NestJS DI。
  */
-export { GenerationType } from './generation-type';
+export { GenerationType } from './generation-type'
 export type {
   CapabilityConfig,
   PointsConfig,
@@ -16,7 +16,7 @@ export type {
   ParamRule,
   TemporalWorkTypeName,
   WorkTypeName,
-} from './capability.types';
-export { CapabilityRegistry } from './capability.registry';
-export { DEFAULT_CAPABILITIES } from './capability.default';
-export { CapabilityModule, CAPABILITY_REGISTRY } from './capability.module';
+} from './capability.types'
+export { CapabilityRegistry, validateCapabilities } from './capability.registry'
+export { DEFAULT_CAPABILITIES } from './capability.default'
+export { CapabilityModule, CAPABILITY_REGISTRY } from './capability.module'

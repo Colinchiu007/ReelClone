@@ -15,6 +15,7 @@ import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import Redis from 'ioredis'
 import { DATABASE_CONNECTIONS, GenerationTask, REDIS_CLIENT } from '@reelclone/database'
+import { CapabilityRegistry, CAPABILITY_REGISTRY } from '@reelclone/capability'
 import { BillingClient } from './billing.client'
 import { TemplateClient } from './template.client'
 import { TemporalService } from '@reelclone/temporal'
@@ -45,6 +46,7 @@ export class GenerationService {
     templateClient: TemplateClient,
     temporalService: TemporalService,
     configService: ConfigService,
+    @Inject(CAPABILITY_REGISTRY) private readonly registry: CapabilityRegistry,
   ) {
     this.createHandler = new GenerationCreateHandler(
       dataSource,
@@ -52,6 +54,7 @@ export class GenerationService {
       templateClient,
       temporalService,
       configService,
+      registry,
     )
     this.cancelHandler = new GenerationCancelHandler(
       dataSource,
@@ -64,6 +67,7 @@ export class GenerationService {
       billingClient,
       configService,
       this.createHandler,
+      registry,
     )
   }
 
