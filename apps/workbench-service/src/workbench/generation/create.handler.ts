@@ -192,26 +192,42 @@ export class GenerationCreateHandler {
       }
 
       // 冻结积分
-      try {
-        const freezeResult = await this.billingClient.freeze(
-          userId,
-          points,
-          billingOperationKey(idempotencyKey, 'freeze'),
-          work.id,
-        )
-        const reservation = createBillingReservation(points, idempotencyKey, freezeResult.freezeId)
+      // P0-5: Mock 模式跳过真实 billing 冻结，使用 mock reservation（避免冻结真实积分）
+      if (this.isMockMode()) {
+        const mockFreezeId = `mock-freeze-${work.id}`
+        const reservation = createBillingReservation(points, idempotencyKey, mockFreezeId)
         work.modelConfig = {
           ...work.modelConfig,
           freezeId: reservation.freezeId,
           billingReservation: reservation,
         }
         await workRepo.save(work)
-      } catch (err) {
-        await workRepo.update(work.id, {
-          status: WorkStatus.FAILED,
-          errorLog: { step: 'freeze', message: (err as Error).message },
-        })
-        throw err
+      } else {
+        try {
+          const freezeResult = await this.billingClient.freeze(
+            userId,
+            points,
+            billingOperationKey(idempotencyKey, 'freeze'),
+            work.id,
+          )
+          const reservation = createBillingReservation(
+            points,
+            idempotencyKey,
+            freezeResult.freezeId,
+          )
+          work.modelConfig = {
+            ...work.modelConfig,
+            freezeId: reservation.freezeId,
+            billingReservation: reservation,
+          }
+          await workRepo.save(work)
+        } catch (err) {
+          await workRepo.update(work.id, {
+            status: WorkStatus.FAILED,
+            errorLog: { step: 'freeze', message: (err as Error).message },
+          })
+          throw err
+        }
       }
 
       // 创建 GenerationTask
