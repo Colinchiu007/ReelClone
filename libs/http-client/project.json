@@ -5,11 +5,19 @@
   "projectType": "library",
   "targets": {
     "lint": {
-      "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
+      "executor": "nx:run-commands",
       "options": {
-        "lintFilePatterns": ["libs/http-client/**/*.ts"]
+        "command": "eslint libs/http-client/src --ext .ts",
+        "cwd": "{workspaceRoot}"
       }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/http-client/jest.config.js --passWithNoTests",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/coverage/libs/http-client"]
     }
   },
   "tags": ["type:shared", "scope:http-client"]

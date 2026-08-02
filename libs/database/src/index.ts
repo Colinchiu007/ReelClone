@@ -50,6 +50,7 @@ export {
   BILLING_ENTITIES,
   TEMPLATE_ENTITIES,
   BENCHMARK_ENTITIES,
+  ForRootOptions,
 } from './modules/database.module'
 export { RedisModule, REDIS_CLIENT, RedisModuleOptions } from './modules/redis.module'
 export { SnakeNamingStrategy } from './modules/snake-naming.strategy'

@@ -12,7 +12,12 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import { jwtConfig } from '@reelclone/common'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,
@@ -41,7 +46,7 @@ import { NotificationModule } from './notification/notification.module'
     MetricsModule.forRoot(),
 
     // -------------------- 基础设施 --------------------
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     RedisModule.forRoot(),
 
     // -------------------- 鉴权 --------------------

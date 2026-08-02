@@ -26,7 +26,12 @@ import {
   resolveJwtSecret,
   ConfigStoreModule,
 } from '@reelclone/common'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,
@@ -51,7 +56,7 @@ import { JwtStrategy } from './auth/jwt.strategy'
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
     // 数据库（4 个连接）
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     // Redis
     RedisModule.forRoot(),
     // Temporal（从环境变量读取配置）

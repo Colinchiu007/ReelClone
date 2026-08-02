@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common'
-import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm'
+import { TypeOrmModule } from '@nestjs/typeorm'
 import { DataSourceOptions } from 'typeorm'
 import { SnakeNamingStrategy } from './snake-naming.strategy'
 
@@ -95,6 +95,26 @@ export function buildDataSourceOptions(
   }
 }
 
+/** 连接名 → 实体清单 映射 */
+const CONNECTION_ENTITY_MAP: Record<
+  DatabaseConnectionName,
+  { database: string; entities: EntityConstructor[] }
+> = {
+  [DATABASE_CONNECTIONS.MAIN]: { database: 'reelclone_main', entities: MAIN_ENTITIES },
+  [DATABASE_CONNECTIONS.BILLING]: { database: 'reelclone_billing', entities: BILLING_ENTITIES },
+  [DATABASE_CONNECTIONS.TEMPLATE]: { database: 'reelclone_template', entities: TEMPLATE_ENTITIES },
+  [DATABASE_CONNECTIONS.BENCHMARK]: {
+    database: 'reelclone_benchmark',
+    entities: BENCHMARK_ENTITIES,
+  },
+}
+
+/** forRoot 选项 */
+export interface ForRootOptions {
+  /** 需要初始化的连接名列表，不传则初始化全部 4 个连接 */
+  connections?: DatabaseConnectionName[]
+}
+
 /**
  * 数据库配置模块
  *
@@ -105,35 +125,32 @@ export function buildDataSourceOptions(
  * - benchmark: 对标解析
  *
  * 用法：
- *   DatabaseModule.forRoot()
+ *   DatabaseModule.forRoot()                        // 初始化全部连接（向后兼容）
+ *   DatabaseModule.forRoot({ connections: ['main'] }) // 只初始化 main
  *   DatabaseModule.forFeature([User], 'main')
  */
 @Module({})
 export class DatabaseModule {
-  /** 初始化全部 4 个数据库连接 */
-  static forRoot(): DynamicModule {
-    const connections: TypeOrmModuleOptions[] = [
-      {
-        name: DATABASE_CONNECTIONS.MAIN,
-        ...buildDataSourceOptions('reelclone_main', MAIN_ENTITIES),
-      },
-      {
-        name: DATABASE_CONNECTIONS.BILLING,
-        ...buildDataSourceOptions('reelclone_billing', BILLING_ENTITIES),
-      },
-      {
-        name: DATABASE_CONNECTIONS.TEMPLATE,
-        ...buildDataSourceOptions('reelclone_template', TEMPLATE_ENTITIES),
-      },
-      {
-        name: DATABASE_CONNECTIONS.BENCHMARK,
-        ...buildDataSourceOptions('reelclone_benchmark', BENCHMARK_ENTITIES),
-      },
+  /**
+   * 初始化数据库连接
+   * @param options.connections 需要初始化的连接名列表，不传则初始化全部 4 个
+   */
+  static forRoot(options?: ForRootOptions): DynamicModule {
+    const requested = options?.connections ?? [
+      DATABASE_CONNECTIONS.MAIN,
+      DATABASE_CONNECTIONS.BILLING,
+      DATABASE_CONNECTIONS.TEMPLATE,
+      DATABASE_CONNECTIONS.BENCHMARK,
     ]
+
+    const ormModules = requested.map((name) => {
+      const { database, entities } = CONNECTION_ENTITY_MAP[name]
+      return TypeOrmModule.forRoot({ name, ...buildDataSourceOptions(database, entities) })
+    })
 
     return {
       module: DatabaseModule,
-      imports: connections.map((opts) => TypeOrmModule.forRoot(opts)),
+      imports: ormModules,
       exports: [TypeOrmModule],
     }
   }

@@ -18,7 +18,7 @@
  */
 import { Controller, Get, Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { DatabaseModule, RedisModule } from '@reelclone/database'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { AiModule } from '@reelclone/ai'
 import { ConfigStoreModule } from '@reelclone/common'
 import { OSSModule } from '@reelclone/oss'
@@ -52,7 +52,7 @@ export class HealthController {
       isGlobal: true,
       cache: true,
     }),
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     RedisModule.forRoot(),
     AiModule,
     ConfigStoreModule,

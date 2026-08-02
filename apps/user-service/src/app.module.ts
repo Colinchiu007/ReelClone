@@ -11,7 +11,12 @@ import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import type { StringValue } from 'ms'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   JwtAuthGuard,
   RateLimitGuard,
@@ -44,7 +49,9 @@ import { UserModule } from './user/user.module'
     MetricsModule.forRoot(),
 
     // 数据库（4 连接）
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({
+      connections: [DATABASE_CONNECTIONS.MAIN, DATABASE_CONNECTIONS.TEMPLATE],
+    }),
 
     // Redis
     RedisModule.forRoot(),

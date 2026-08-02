@@ -20,7 +20,12 @@ import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import type { StringValue } from 'ms'
 import { JwtAuthGuard, jwtConfig, configuration } from '@reelclone/common'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,
@@ -44,7 +49,9 @@ import { JwtStrategy } from './billing/guards/jwt.strategy'
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
     // 数据库（4 个连接）
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({
+      connections: [DATABASE_CONNECTIONS.MAIN, DATABASE_CONNECTIONS.BILLING],
+    }),
     // Redis
     RedisModule.forRoot(),
     // Passport + JWT

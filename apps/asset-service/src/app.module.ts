@@ -16,7 +16,7 @@ import { PassportModule } from '@nestjs/passport'
 import { JwtModule } from '@nestjs/jwt'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import type { StringValue } from 'ms'
-import { DatabaseModule } from '@reelclone/database'
+import { DatabaseModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { OSSModule } from '@reelclone/oss'
 import { JwtAuthGuard, jwtConfig, resolveJwtSecret } from '@reelclone/common'
 import {
@@ -39,7 +39,7 @@ import { JwtStrategy } from './auth/jwt.strategy'
     MetricsModule.forRoot(),
 
     // -------------------- 基础设施 --------------------
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     OSSModule.forRoot(),
 
     // -------------------- 鉴权 --------------------

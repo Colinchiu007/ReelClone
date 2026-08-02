@@ -34,7 +34,12 @@ import {
   jwtConfig,
   resolveJwtSecret,
 } from '@reelclone/common'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,
@@ -66,7 +71,13 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
     // 数据库（4 个连接：main / billing / template / benchmark）
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({
+      connections: [
+        DATABASE_CONNECTIONS.MAIN,
+        DATABASE_CONNECTIONS.BILLING,
+        DATABASE_CONNECTIONS.TEMPLATE,
+      ],
+    }),
     // Redis
     RedisModule.forRoot(),
     // Passport + JWT（与 auth-service 共享 JWT_SECRET）

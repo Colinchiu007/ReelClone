@@ -17,7 +17,12 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
-import { DatabaseModule, RedisModule, REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  REDIS_CLIENT as DB_REDIS_CLIENT,
+  DATABASE_CONNECTIONS,
+} from '@reelclone/database'
 import {
   AllExceptionsFilter,
   ResponseInterceptor,
@@ -46,7 +51,7 @@ import { AuthModule } from './auth/auth.module'
     LoggerModule.forRoot({ serviceName: 'auth-service' }),
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
-    DatabaseModule.forRoot(),
+    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     RedisModule.forRoot(),
     AuthModule,
   ],
