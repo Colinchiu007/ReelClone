@@ -21,7 +21,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import type Redis from 'ioredis'
 import { SystemConfig, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
-import { CONFIG_STORE_SERVICE, type IConfigStore } from './config-store.interface'
+import { CONFIG_STORE_SERVICE, type IConfigStore } from '@reelclone/common'
 
 /** Redis 缓存 key 前缀 */
 const CACHE_KEY_PREFIX = 'config:'

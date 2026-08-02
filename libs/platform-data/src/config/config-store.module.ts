@@ -23,7 +23,7 @@ import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { SystemConfig, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { ConfigStoreService } from './config-store.service'
-import { CONFIG_STORE_SERVICE } from './config-store.interface'
+import { CONFIG_STORE_SERVICE } from '@reelclone/common'
 
 @Module({
   imports: [TypeOrmModule.forFeature([SystemConfig], DATABASE_CONNECTIONS.MAIN)],

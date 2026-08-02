@@ -49,12 +49,11 @@ export * from './config/redis.config'
 export * from './config/jwt.config'
 export * from './config/startup-profile.validator'
 export * from './config/config-store.interface'
-export { ConfigStoreService } from './config/config-store.service'
-export { ConfigStoreModule } from './config/config-store.module'
 
-// -------------------- 审计日志 --------------------
-export { AuditLogService, AuditLogModule } from './audit/audit-log.module'
-export type { AuditLogInput, PaginatedAuditLog } from './audit/audit-log.service'
+// -------------------- 数据库依赖层（re-export from platform-data） --------------------
+export { ConfigStoreService, ConfigStoreModule } from '@reelclone/platform-data'
+export { AuditLogService, AuditLogModule } from '@reelclone/platform-data'
+export type { AuditLogInput, PaginatedAuditLog } from '@reelclone/platform-data'
 
 // -------------------- 外部资源访问安全策略（SSRF 防护） --------------------
 export {

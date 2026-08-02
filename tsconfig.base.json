@@ -36,6 +36,8 @@
       "@reelclone/common/*": ["libs/common/src/*"],
       "@reelclone/database": ["libs/database/src/index.ts"],
       "@reelclone/database/*": ["libs/database/src/*"],
+      "@reelclone/platform-data": ["libs/platform-data/src/index.ts"],
+      "@reelclone/platform-data/*": ["libs/platform-data/src/*"],
       "@reelclone/ai": ["libs/ai/src/index.ts"],
       "@reelclone/ai/*": ["libs/ai/src/*"],
       "@reelclone/temporal": ["libs/temporal/src/index.ts"],

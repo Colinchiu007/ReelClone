@@ -15,6 +15,10 @@ module.exports = {
   coverageDirectory: '../../coverage/libs/common',
   moduleNameMapper: {
     '^@reelclone/common(|/.*)$': '<rootDir>/src/$1',
+    '^@reelclone/platform-data$': '<rootDir>/../platform-data/src/index.ts',
+    '^@reelclone/platform-data/(.*)$': '<rootDir>/../platform-data/src/$1',
+    '^@reelclone/database$': '<rootDir>/../database/src/index.ts',
+    '^@reelclone/database/(.*)$': '<rootDir>/../database/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/build/'],
 }
