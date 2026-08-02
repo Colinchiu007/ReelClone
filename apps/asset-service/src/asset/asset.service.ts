@@ -133,6 +133,19 @@ export class AssetService {
    * 若指定 avatarGroupId，校验形象组归属与状态后递增 assetCount
    */
   async create(userId: string, dto: CreateAssetDto): Promise<Asset> {
+    // P0-9: 校验 ossKey 前缀，防止跨用户 asset 注入
+    // ossKey 必须以 assets/{fileType}/{userId}/ 开头
+    const expectedPrefix = `assets/${dto.type.toLowerCase()}/${userId}/`
+    if (!dto.ossKey.startsWith(expectedPrefix)) {
+      this.logger.warn(
+        `ossKey prefix mismatch: expected ${expectedPrefix}, got ${dto.ossKey}`,
+      )
+      throw new BusinessException({
+        code: 'ASSET_INVALID_OSS_KEY',
+        message: 'ossKey 前缀不匹配，无权创建资产',
+      })
+    }
+
     let avatarGroup: AvatarGroup | null = null;
     if (dto.avatarGroupId) {
       avatarGroup = await this.findOwnedAvatarGroup(userId, dto.avatarGroupId);
