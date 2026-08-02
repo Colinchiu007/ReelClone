@@ -72,6 +72,25 @@ services:
     networks:
       - reelclone-net
 
+  # Temporal Admin Tools — 注册自定义 namespace
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.22
+    container_name: reelclone-temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_CLI_ADDRESS: temporal:7233
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        echo "等待 Temporal Server 就绪..."
+        until tctl cluster health 2>/dev/null; do sleep 2; done
+        echo "注册 reelclone namespace..."
+        tctl namespace register reelclone --rd 3 || echo "namespace reelclone 已存在，跳过"
+        echo "Temporal namespace 初始化完成"
+    networks:
+      - reelclone-net
+
 # ============================================================
 # 数据卷
 # ============================================================

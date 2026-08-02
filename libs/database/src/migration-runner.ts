@@ -21,6 +21,7 @@ import { InitTemplate1700000000002 } from './migrations/template/0001_init_templ
 import { AddUgcFields1700000000003 } from './migrations/template/0002_add_ugc_fields'
 import { AddTemplateUploadFields1700000000007 } from './migrations/template/0003_add_template_upload_fields'
 import { InitBenchmark1700000000003 } from './migrations/benchmark/0001_init_benchmark'
+import { AddBenchmarkFreezeId1722470400000 } from './migrations/benchmark/0002_add_freeze_id'
 
 /** 构造运行迁移用的数据源配置（不需要实体元数据） */
 function buildOptions(
@@ -89,7 +90,12 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
   },
   {
     name: 'benchmark',
-    ds: new DataSource(buildOptions('reelclone_benchmark', [InitBenchmark1700000000003])),
+    ds: new DataSource(
+      buildOptions('reelclone_benchmark', [
+        InitBenchmark1700000000003,
+        AddBenchmarkFreezeId1722470400000,
+      ]),
+    ),
   },
 ]
 

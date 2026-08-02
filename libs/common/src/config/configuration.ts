@@ -157,7 +157,7 @@ export function configuration(): AppConfig {
     },
     temporal: {
       address: process.env.TEMPORAL_ADDRESS ?? 'localhost:7233',
-      namespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
+      namespace: process.env.TEMPORAL_NAMESPACE ?? 'reelclone',
     },
     log: {
       level: process.env.LOG_LEVEL ?? 'info',

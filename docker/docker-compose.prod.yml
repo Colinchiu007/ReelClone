@@ -120,7 +120,8 @@ services:
     container_name: reelclone-temporal
     restart: unless-stopped
     environment:
-      DBPLUGIN: postgres
+      # auto-setup 镜像要求 DB=postgres，非 DBPLUGIN
+      DB: postgres
       DB_PORT: 5432
       POSTGRES_USER: ${TEMPORAL_DB_USER:-temporal}
       POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:-temporal}
@@ -141,6 +142,33 @@ services:
           cpus: '1.0'
         reservations:
           memory: 256M
+
+  # Temporal Admin Tools — 注册自定义 namespace
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.22
+    container_name: reelclone-temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_CLI_ADDRESS: temporal:7233
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        echo "等待 Temporal Server 就绪..."
+        until tctl cluster health 2>/dev/null; do sleep 2; done
+        echo "注册 reelclone namespace..."
+        tctl namespace register reelclone --rd 3 || echo "namespace reelclone 已存在，跳过"
+        echo "Temporal namespace 初始化完成"
+    logging: *default-logging
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
 
   # ============================================================
   # Temporal UI - 工作流可视化（可选，仅内网访问）
