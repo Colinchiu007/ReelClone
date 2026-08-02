@@ -35,6 +35,15 @@ export interface FreezeParams {
   description?: string
 }
 
+/** 结算积分请求参数 */
+export interface SettleParams {
+  userId: string
+  amount: number
+  idempotencyKey: string
+  freezeId: string
+  description?: string
+}
+
 /** 释放积分请求参数 */
 export interface ReleaseParams {
   userId: string
@@ -62,6 +71,9 @@ export class BillingClient {
   /**
    * 冻结积分
    * POST /api/v1/points/freeze
+   *
+   * B4 重构：切换到 V2 CreditReservation 路径（reservationMode=true），
+   * 使 benchmark 与生成链路使用相同的 durable reservation 机制。
    */
   async freeze(params: FreezeParams): Promise<FreezeResponse> {
     return this.client.post<FreezeResponse>('/api/v1/points/freeze', {
@@ -70,12 +82,32 @@ export class BillingClient {
       idempotencyKey: params.idempotencyKey,
       workId: params.benchmarkId,
       description: params.description ?? '对标解析',
+      reservationMode: true,
+    })
+  }
+
+  /**
+   * 结算冻结积分（任务成功后调用）
+   * POST /api/v1/points/settle
+   *
+   * B4 新增：任务成功完成时结算冻结的积分。
+   */
+  async settle(params: SettleParams): Promise<FreezeResponse> {
+    return this.client.post<FreezeResponse>('/api/v1/points/settle', {
+      userId: params.userId,
+      amount: params.amount,
+      idempotencyKey: params.idempotencyKey,
+      freezeId: params.freezeId,
+      description: params.description ?? '对标解析结算',
+      reservationMode: true,
     })
   }
 
   /**
    * 释放积分
    * POST /api/v1/points/release
+   *
+   * B4 重构：切换到 V2 CreditReservation 路径（reservationMode=true）。
    */
   async release(params: ReleaseParams): Promise<ReleaseResponse> {
     return this.client.post<ReleaseResponse>('/api/v1/points/release', {
@@ -84,6 +116,7 @@ export class BillingClient {
       idempotencyKey: params.idempotencyKey,
       freezeId: params.freezeId,
       description: params.description ?? '对标解析取消',
+      reservationMode: true,
     })
   }
 }

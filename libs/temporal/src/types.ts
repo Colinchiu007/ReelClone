@@ -175,6 +175,8 @@ export interface BenchmarkParams {
   idempotencyKey: string
   /** 是否启用深度分析 */
   deepAnalysis?: boolean
+  /** 账务预留（V2 CreditReservation 模式） */
+  billingReservation?: BillingReservation
 }
 
 /** 场景切分结果 */

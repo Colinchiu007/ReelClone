@@ -9,12 +9,25 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 
-/** 对标解析工作流参数 */
+/**
+ * 对标解析工作流参数
+ *
+ * B4 重构：新增 billingReservation，使 benchmark 走 V2 CreditReservation 路径。
+ * workflow 成功时 settle，失败/取消时 release。
+ */
 export interface BenchmarkWorkflowParams {
   benchmarkId: string;
   userId: string;
   sourceUrl: string;
   platform: string;
+  /** V2 账务预留信息（成功时 settle，失败时 release） */
+  billingReservation?: {
+    freezeId: string;
+    amount: number;
+    billingMode?: 'v2' | 'legacy';
+    settleIdempotencyKey: string;
+    releaseIdempotencyKey: string;
+  };
 }
 
 @Injectable()

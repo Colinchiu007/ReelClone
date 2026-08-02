@@ -13,12 +13,13 @@ import type {
   AnalyzerActivities,
   BenchmarkParams,
   BenchmarkResult,
+  BillingActivities,
   NotificationActivities,
 } from '../types'
 import { BenchmarkStatus as BS, NotificationType } from '../types'
 
 // 仅引入类型，实际实现由 Worker 注册
-type AllActivities = AnalyzerActivities & NotificationActivities
+type AllActivities = AnalyzerActivities & NotificationActivities & BillingActivities
 
 /**
  * 对标解析工作流入口
@@ -38,6 +39,17 @@ export async function benchmarkAnalysisWorkflow(
       maximumInterval: '1 minute',
       backoffCoefficient: 2,
       maximumAttempts: 2,
+    },
+  })
+
+  // 计费 activity 使用独立的 proxy 配置（短超时、不重试——billing-service 自带幂等）
+  const billing = proxyActivities<AllActivities>({
+    startToCloseTimeout: '15 seconds',
+    retry: {
+      initialInterval: '1 second',
+      maximumInterval: '5 seconds',
+      backoffCoefficient: 2,
+      maximumAttempts: 3,
     },
   })
 
@@ -88,6 +100,12 @@ export async function benchmarkAnalysisWorkflow(
       },
     })
 
+    // ---- 步骤 7：结算冻结积分（V2 CreditReservation） ----
+    const billingReservation = params.billingReservation
+    if (billingReservation) {
+      await billing.settleCredits(userId, benchmarkId, billingReservation)
+    }
+
     result = {
       benchmarkId,
       status: BS.COMPLETED,
@@ -99,7 +117,7 @@ export async function benchmarkAnalysisWorkflow(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err)
 
-    // 失败：更新状态 + 通知用户
+    // 失败：更新状态 + 通知用户 + 释放冻结积分
     await activities.updateBenchmarkStatus(benchmarkId, BS.FAILED, {
       stage: 'failed',
       error: errorMessage,
@@ -109,6 +127,12 @@ export async function benchmarkAnalysisWorkflow(
       benchmarkId,
       reason: errorMessage,
     })
+
+    // 释放冻结积分（V2 CreditReservation，失败/取消时释放）
+    const billingReservation = params.billingReservation
+    if (billingReservation) {
+      await billing.releaseCredits(userId, benchmarkId, billingReservation)
+    }
 
     result = {
       benchmarkId,

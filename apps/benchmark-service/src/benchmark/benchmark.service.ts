@@ -17,9 +17,16 @@
  *  - release 使用独立的 freezeIdempotencyKey，不再复用 create 的幂等键
  *  - 冻结走 BillingService reservationMode=false → LedgerService V2 CreditOperation 路径
  *
+ * B4 重构（V2 CreditReservation 架构）：
+ *  - 冻结/释放/结算全部切换到 CreditReservation 路径（reservationMode=true）
+ *  - 构建 BillingReservation（含 freezeId/settleIdempotencyKey/releaseIdempotencyKey）传递给 workflow
+ *  - workflow 成功时自动 settle，失败/取消时自动 release
+ *  - 删除 compensateRelease()，补偿逻辑由 workflow 内置计费 activity 处理
+ *
  * Mock 模式（TEMPORAL_MOCK_MODE=true）：
  *  - 跳过真实 Temporal 调用
  *  - 直接更新状态为 COMPLETED 模拟进度
+ *  - Mock 模式下立即 settle 冻结积分
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -118,10 +125,11 @@ export class BenchmarkService {
    *  1. 校验 URL（识别平台）
    *  2. 幂等检查（Redis）
    *  3. 创建 Benchmark 记录（状态=PENDING）
-   *  4. 调用 billing-service 冻结积分（reservationMode=false → LedgerService V2）
-   *  5. 持久化 freezeId 到 DB + Redis
-   *  6. 启动 Temporal 工作流（Mock 模式跳过）
-   *  7. 返回 benchmarkId
+   *  4. 调用 billing-service 冻结积分（reservationMode=true → CreditReservationService）
+   *  5. 构建 BillingReservation + 持久化 freezeId 到 DB + Redis
+   *  6. 启动 Temporal 工作流（传递 billingReservation，Mock 模式跳过）
+   *  7. Mock 模式：立即 settle 冻结积分
+   *  8. 返回 benchmarkId
    */
   async create(userId: string, dto: CreateBenchmarkDto): Promise<CreateBenchmarkResult> {
     // 1. 校验 URL & 识别平台
@@ -160,9 +168,11 @@ export class BenchmarkService {
     await repo.save(benchmark)
 
     // 4. 调用 billing-service 冻结积分
-    // B3: 使用独立的 freezeIdempotencyKey（不与 create 共用），
-    //     避免 compensateRelease 复用 FREEZE 幂等键导致 release 被短路。
+    // B4: 切换到 V2 CreditReservation 路径（reservationMode=true）
     const freezeIdempotencyKey = `benchmark-freeze:${benchmark.id}:${randomUUID()}`
+    const settleIdempotencyKey = `benchmark-settle:${benchmark.id}:${randomUUID()}`
+    const releaseIdempotencyKey = `benchmark-release:${benchmark.id}:${randomUUID()}`
+
     try {
       const freezeResult = await this.billingClient.freeze({
         userId,
@@ -192,7 +202,16 @@ export class BenchmarkService {
       throw err
     }
 
-    // 6. 启动 Temporal 工作流
+    // 6. 构建 BillingReservation（传递给 workflow，成功时 settle，失败时 release）
+    const billingReservation = {
+      freezeId: (await repo.findOne({ where: { id: benchmark.id } }))?.freezeId ?? '',
+      amount: this.estimatedPoints,
+      billingMode: 'v2' as const,
+      settleIdempotencyKey,
+      releaseIdempotencyKey,
+    }
+
+    // 7. 启动 Temporal 工作流
     const workflowId = `${WORKFLOW_ID_PREFIX}-${benchmark.id}`
     if (this.mockMode) {
       // Mock 模式：跳过 Temporal，直接更新状态为 COMPLETED 并写入 mock 解析结果
@@ -236,6 +255,15 @@ export class BenchmarkService {
         analysisResult: mockAnalysisResult,
         completedAt: new Date(),
       })
+
+      // Mock 模式立即结算冻结积分（非 Mock 由 workflow 完成后 settle）
+      await this.billingClient.settle({
+        userId,
+        amount: this.estimatedPoints,
+        idempotencyKey: settleIdempotencyKey,
+        freezeId: billingReservation.freezeId,
+        description: '对标解析结算（Mock 模式）',
+      })
     } else {
       try {
         await this.temporalAdapter.startBenchmarkAnalysis({
@@ -243,6 +271,7 @@ export class BenchmarkService {
           userId,
           sourceUrl: dto.sourceUrl,
           platform: platform.toLowerCase(),
+          billingReservation,
         })
         this.logger.log(
           `Temporal 工作流已启动 workflowId=${workflowId} benchmarkId=${benchmark.id}`,

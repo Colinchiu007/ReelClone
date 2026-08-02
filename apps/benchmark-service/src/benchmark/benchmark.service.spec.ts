@@ -5,7 +5,7 @@
  *  - create：成功 / 平台不支持 / 幂等 / Mock 模式 / 冻结失败 / Temporal 失败补偿
  *  - findAll：筛选 / 分页
  *  - findOne：成功 / 无权限 / 不存在
- *  - cancel：成功 / 状态不可取消 / Mock 模式
+ *  - cancel：成功（含 settle 后 release） / 状态不可取消 / Mock 模式
  *  - clone：正常复刻 / 未完成报错 / 无权限报错 / 解析结果为空
  */
 import { ConfigService } from '@nestjs/config'
@@ -112,6 +112,7 @@ describe('BenchmarkService', () => {
 
     billingClient = {
       freeze: jest.fn(),
+      settle: jest.fn(),
       release: jest.fn(),
     } as unknown as jest.Mocked<BillingClient>
 
@@ -148,6 +149,12 @@ describe('BenchmarkService', () => {
         transactionId: 'tx-freeze-001',
       })
 
+      // B4: findOne 需要在 freeze 后返回带 freezeId 的数据（模拟 DB 持久化）
+      repo.findOne.mockResolvedValue({
+        id: 'bench-001',
+        freezeId: 'tx-freeze-001',
+      } as Benchmark)
+
       const result = await service.create('user-001', dto)
 
       expect(result.benchmarkId).toBe('bench-001')
@@ -178,6 +185,14 @@ describe('BenchmarkService', () => {
             style: expect.any(String),
             shotList: expect.any(Array),
           }),
+        }),
+      )
+      // B4: Mock 模式下应立即结算冻结积分
+      expect(billingClient.settle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-001',
+          amount: 300,
+          freezeId: 'tx-freeze-001',
         }),
       )
       // 不应调用 Temporal
@@ -232,15 +247,30 @@ describe('BenchmarkService', () => {
         balance: 700,
         transactionId: 'tx-freeze-002',
       })
+      // B4: findOne 需要在 freeze 后返回带 freezeId 的数据
+      repo.findOne.mockResolvedValue({
+        id: 'bench-001',
+        freezeId: 'tx-freeze-002',
+      } as Benchmark)
 
       await nonMockService.create('user-001', dto)
 
-      expect(temporalAdapter.startBenchmarkAnalysis).toHaveBeenCalledWith({
-        benchmarkId: 'bench-001',
-        userId: 'user-001',
-        sourceUrl: 'https://www.douyin.com/video/123',
-        platform: 'douyin',
-      })
+      expect(temporalAdapter.startBenchmarkAnalysis).toHaveBeenCalledWith(
+        expect.objectContaining({
+          benchmarkId: 'bench-001',
+          userId: 'user-001',
+          sourceUrl: 'https://www.douyin.com/video/123',
+          platform: 'douyin',
+          // B4: 非 Mock 模式应传递 billingReservation 给 workflow
+          billingReservation: expect.objectContaining({
+            freezeId: 'tx-freeze-002',
+            amount: 300,
+            billingMode: 'v2',
+            settleIdempotencyKey: expect.stringContaining('benchmark-settle:bench-001:'),
+            releaseIdempotencyKey: expect.stringContaining('benchmark-release:bench-001:'),
+          }),
+        }),
+      )
     })
 
     it('冻结积分失败时应更新状态为 FAILED 并抛出', async () => {
