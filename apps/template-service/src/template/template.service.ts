@@ -20,6 +20,7 @@ import {
 } from '@reelclone/database'
 import { TemporalService } from '@reelclone/temporal'
 import { BusinessException, ErrorCode } from '@reelclone/common'
+import { CacheService } from '@reelclone/common/cache/cache.service'
 import { ListTemplatesDto } from './dto/list-templates.dto'
 import { PublishTemplateDto } from './dto/publish-template.dto'
 import { ReviewTemplateDto } from './dto/review-template.dto'
@@ -73,6 +74,7 @@ export class TemplateService {
     private readonly billingClient: BillingClient,
     private readonly temporalService: TemporalService,
     private readonly configService: ConfigService,
+    private readonly cache: CacheService,
   ) {
     this.rewardPoints = Number(
       this.configService.get<string>('TEMPLATE_REWARD_POINTS') ?? DEFAULT_REWARD_POINTS,
@@ -140,19 +142,25 @@ export class TemplateService {
   }
 
   /**
-   * 模板详情
+   * 模板详情（5 分钟缓存）
    *
    * @param id 模板 ID
    * @returns 模板实体
    * @throws BusinessException NOT_FOUND 模板不存在
    */
   async findOne(id: string): Promise<Template> {
+    const cacheKey = `templates:detail:${id}`
+    const cached = await this.cache.get<Template>(cacheKey)
+    if (cached) return cached
+
     const template = await this.templateRepo.findOne({
       where: { id, status: TemplateStatus.ACTIVE },
     })
     if (!template) {
       throw BusinessException.notFound('模板')
     }
+
+    await this.cache.set(cacheKey, template, 300)
     return template
   }
 
@@ -237,7 +245,9 @@ export class TemplateService {
     template.reviewNote = dto.reviewNote ?? null
     template.reviewedAt = new Date()
 
-    return this.templateRepo.save(template)
+    const saved = await this.templateRepo.save(template)
+    await this.cache.del(`templates:detail:${id}`)
+    return saved
   }
 
   /**
@@ -256,6 +266,9 @@ export class TemplateService {
    * @param id 模板 ID
    */
   async incrementUseCount(id: string): Promise<void> {
+    // 0. 失效模板详情缓存（useCount 变化）
+    await this.cache.del(`templates:detail:${id}`)
+
     // 1. 原子自增 useCount 并返回自增后的值 + userId（单条 SQL，消除竞态）
     const result = await this.templateRepo
       .createQueryBuilder()
@@ -487,6 +500,7 @@ export class TemplateService {
     template.failureReason = null
 
     const saved = await this.templateRepo.save(template)
+    await this.cache.del(`templates:detail:${dto.templateId}`)
     this.logger.log(`模板生成完成 templateId=${saved.id} status=ACTIVE`)
     return saved
   }

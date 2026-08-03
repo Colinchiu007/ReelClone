@@ -22,6 +22,7 @@ import {
 } from '@reelclone/database'
 import { TemporalService } from '@reelclone/temporal'
 import { BusinessException, ErrorCode } from '@reelclone/common'
+import { CacheService } from '@reelclone/common/cache/cache.service'
 import { TemplateService } from './template.service'
 import { ListTemplatesDto } from './dto/list-templates.dto'
 import { UploadTemplateDto } from './dto/upload-template.dto'
@@ -149,6 +150,16 @@ describe('TemplateService', () => {
         { provide: BillingClient, useValue: billingClient },
         { provide: TemporalService, useValue: temporalService },
         { provide: ConfigService, useValue: configService },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn().mockResolvedValue(null),
+            set: jest.fn().mockResolvedValue(undefined),
+            del: jest.fn().mockResolvedValue(undefined),
+            invalidate: jest.fn().mockResolvedValue(0),
+            exists: jest.fn().mockResolvedValue(false),
+          },
+        },
       ],
     }).compile()
 

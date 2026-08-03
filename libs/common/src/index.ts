@@ -57,6 +57,11 @@ export {
   resetEncryptionKeyCache,
 } from './crypto/secret-encryption'
 
+// -------------------- 缓存服务 --------------------
+export { CACHE_REDIS } from './cache/cache.constants'
+export { CacheModule } from './cache/cache.module'
+export { CacheService } from './cache/cache.service'
+
 // -------------------- 配置 --------------------
 export * from './config/configuration'
 export * from './config/database.config'

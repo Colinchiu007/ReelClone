@@ -20,9 +20,15 @@ import {
   AuthStrategyModule,
   ServiceConfigModule,
   ServiceJwtModule,
+  CacheModule,
 } from '@reelclone/common'
 import { RedisBridgeModule } from '@reelclone/platform-data'
-import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
+import {
+  DatabaseModule,
+  RedisModule,
+  DATABASE_CONNECTIONS,
+  REDIS_CLIENT,
+} from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,
@@ -46,6 +52,11 @@ import { TemplateModule } from './template/template.module'
     }),
     // Redis
     RedisModule.forRoot(),
+    // 缓存（复用 REDIS_CLIENT 实例）
+    CacheModule.forRootAsync({
+      inject: [REDIS_CLIENT],
+      useFactory: (redis: any) => redis,
+    }),
     // Temporal（用户上传视频转模板异步工作流）
     TemporalModule.forRootAsync({
       inject: [ConfigService],
