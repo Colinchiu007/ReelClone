@@ -7,6 +7,7 @@
 
 // -------------------- 类型定义 --------------------
 export * from './types/api-response'
+export type { VideoMetaInfo } from './types/video.types'
 
 // -------------------- 枚举 --------------------
 export * from './enums/error-code.enum'

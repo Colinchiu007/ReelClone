@@ -5,40 +5,21 @@
 /** 转码选项 */
 export interface TranscodeOptions {
   /** 目标视频编码，如 libx264 / libx265 */
-  videoCodec?: string;
+  videoCodec?: string
   /** 目标音频编码，如 aac */
-  audioCodec?: string;
+  audioCodec?: string
   /** 视频码率，如 2M */
-  videoBitrate?: string;
+  videoBitrate?: string
   /** 目标分辨率，如 1280x720 */
-  resolution?: string;
+  resolution?: string
   /** 帧率 */
-  fps?: number;
+  fps?: number
   /** 额外 ffmpeg 参数 */
-  extraArgs?: string[];
+  extraArgs?: string[]
 }
 
-/** 视频元信息 */
-export interface VideoMetaInfo {
-  /** 时长（秒） */
-  duration: number;
-  /** 宽度（像素） */
-  width: number;
-  /** 高度（像素） */
-  height: number;
-  /** 视频码率（bps） */
-  videoBitrate?: number;
-  /** 音频码率（bps） */
-  audioBitrate?: number;
-  /** 视频编码 */
-  videoCodec?: string;
-  /** 音频编码 */
-  audioCodec?: string;
-  /** 帧率 */
-  fps?: number;
-  /** 文件大小（字节） */
-  size?: number;
-}
+// VideoMetaInfo 已迁移至 @reelclone/common，此处 re-export 保持向后兼容
+export type { VideoMetaInfo } from '@reelclone/common'
 
 /** 压缩质量档位 */
-export type CompressionQuality = 'low' | 'medium' | 'high';
+export type CompressionQuality = 'low' | 'medium' | 'high'

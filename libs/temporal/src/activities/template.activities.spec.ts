@@ -47,7 +47,7 @@ import {
   templateActivities,
 } from './template.activities'
 import type { AnalysisReport, StructuredReport } from '../types'
-import type { VideoMetaInfo } from '@reelclone/ai'
+import type { VideoMetaInfo } from '@reelclone/common'
 
 describe('template.activities (Mock 模式)', () => {
   describe('downloadAssetVideo', () => {

@@ -454,7 +454,7 @@ export async function uploadThumbnail(params: {
  */
 export async function finalizeTemplate(params: {
   templateId: string
-  meta: import('@reelclone/ai').VideoMetaInfo
+  meta: import('@reelclone/common').VideoMetaInfo
   analysisReport: AnalysisReport
   templateSuggestion: StructuredReport
   coverKey: string

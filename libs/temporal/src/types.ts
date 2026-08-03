@@ -2,7 +2,7 @@
  * @reelclone/temporal 类型定义
  * 工作流参数、返回值、Activity 接口、状态枚举等
  */
-import type { VideoMetaInfo } from '@reelclone/ai'
+import type { VideoMetaInfo } from '@reelclone/common'
 
 // ============================================================
 // 通用枚举
