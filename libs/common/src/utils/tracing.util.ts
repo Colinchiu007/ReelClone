@@ -3,7 +3,11 @@
  *
  * 通过 HTTP header（x-trace-id）在请求链路中传递 traceId，
  * 若上游未携带则自动生成 uuid v4，保证全链路可关联。
+ *
+ * 基于 Node.js AsyncLocalStorage 实现请求级上下文隔离，
+ * 保证并发请求间 traceId 互不干扰。
  */
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { v4 as uuidv4 } from 'uuid'
 
 /** traceId 在 HTTP header 中的字段名 */
@@ -18,8 +22,11 @@ export const RESPONSE_TRACE_ID_HEADER = 'x-trace-id'
  */
 type HeaderBag = Record<string, string | string[] | undefined>
 
-/** AsyncLocalStorage 风格的上下文 traceId（单进程内同步传播） */
-let currentTraceId: string | undefined
+/**
+ * AsyncLocalStorage 实例 — 每个请求拥有独立的 traceId 上下文，
+ * 并发请求间互不干扰。
+ */
+export const traceStorage = new AsyncLocalStorage<string>()
 
 /**
  * 生成新的 traceId（uuid v4，去掉连字符以缩短长度）
@@ -42,22 +49,37 @@ export function extractTraceId(headers: HeaderBag): string {
 }
 
 /**
- * 设置当前进程上下文的 traceId（供非 HTTP 场景或异步任务使用）
+ * 设置当前请求上下文的 traceId（供非 HTTP 场景或异步任务使用）
+ *
+ * 在 AsyncLocalStorage 上下文内运行时，设置当前上下文的 traceId；
+ * 若无活跃上下文则静默忽略（避免非请求场景报错）。
  */
 export function setTraceId(traceId: string): void {
-  currentTraceId = traceId
+  const store = traceStorage.getStore()
+  if (store !== undefined) {
+    traceStorage.enterWith(traceId)
+  }
 }
 
 /**
- * 获取当前进程上下文的 traceId
+ * 获取当前请求上下文的 traceId
+ *
+ * 从 AsyncLocalStorage 获取当前请求的 traceId；
+ * 若不在任何请求上下文中（如启动阶段），返回 undefined。
  */
 export function getTraceId(): string | undefined {
-  return currentTraceId
+  return traceStorage.getStore()
 }
 
 /**
- * 清除当前进程上下文的 traceId
+ * 清除当前请求上下文的 traceId
+ *
+ * 通常不需要手动调用 — 请求结束后 AsyncLocalStorage 上下文自动回收。
+ * 仅在需要提前释放引用时使用。
  */
 export function clearTraceId(): void {
-  currentTraceId = undefined
+  const store = traceStorage.getStore()
+  if (store !== undefined) {
+    traceStorage.enterWith(undefined as unknown as string)
+  }
 }

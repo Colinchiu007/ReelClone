@@ -1,5 +1,8 @@
 /**
  * tracing.util 单元测试
+ *
+ * setTraceId / getTraceId / clearTraceId 基于 AsyncLocalStorage，
+ * 需要通过 traceStorage.run() 创建上下文后才能测试。
  */
 import {
   clearTraceId,
@@ -7,14 +10,11 @@ import {
   getTraceId,
   setTraceId,
   extractTraceId,
+  traceStorage,
   TRACE_ID_HEADER,
 } from './tracing.util'
 
 describe('tracing.util', () => {
-  afterEach(() => {
-    clearTraceId()
-  })
-
   describe('generateTraceId', () => {
     it('应生成 32 字符的 hex 字符串（去掉连字符的 uuid v4）', () => {
       const traceId = generateTraceId()
@@ -60,20 +60,46 @@ describe('tracing.util', () => {
     })
   })
 
-  describe('上下文 traceId', () => {
+  describe('上下文 traceId（AsyncLocalStorage）', () => {
     it('setTraceId / getTraceId 应正确存取', () => {
-      setTraceId('ctx-trace-id')
-      expect(getTraceId()).toBe('ctx-trace-id')
+      traceStorage.run('initial-id', () => {
+        setTraceId('ctx-trace-id')
+        expect(getTraceId()).toBe('ctx-trace-id')
+      })
     })
 
     it('clearTraceId 后 getTraceId 应返回 undefined', () => {
-      setTraceId('ctx-trace-id')
-      clearTraceId()
+      traceStorage.run('to-be-cleared', () => {
+        setTraceId('ctx-trace-id')
+        clearTraceId()
+        expect(getTraceId()).toBeUndefined()
+      })
+    })
+
+    it('不在上下文中时 getTraceId 应返回 undefined', () => {
+      // 不在 traceStorage.run 内调用
       expect(getTraceId()).toBeUndefined()
     })
 
-    it('初始状态下 getTraceId 应返回 undefined', () => {
-      expect(getTraceId()).toBeUndefined()
+    it('并发请求间 traceId 应互不干扰', async () => {
+      const results: string[] = []
+
+      const task1 = traceStorage.run('trace-A', async () => {
+        setTraceId('trace-A')
+        await new Promise((r) => setTimeout(r, 10))
+        results.push(`1:${getTraceId()}`)
+      })
+
+      const task2 = traceStorage.run('trace-B', async () => {
+        setTraceId('trace-B')
+        await new Promise((r) => setTimeout(r, 5))
+        results.push(`2:${getTraceId()}`)
+      })
+
+      await Promise.all([task1, task2])
+
+      expect(results).toContain('1:trace-A')
+      expect(results).toContain('2:trace-B')
     })
   })
 })

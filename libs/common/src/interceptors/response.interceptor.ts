@@ -23,7 +23,12 @@ import { map } from 'rxjs/operators'
 import { ErrorCode } from '../enums/error-code.enum'
 import { SKIP_RESPONSE_INTERCEPTOR_KEY } from '../decorators/skip-response-interceptor.decorator'
 import { type ApiResponse } from '../types/api-response'
-import { RESPONSE_TRACE_ID_HEADER, TRACE_ID_HEADER, extractTraceId } from '../utils/tracing.util'
+import {
+  RESPONSE_TRACE_ID_HEADER,
+  TRACE_ID_HEADER,
+  extractTraceId,
+  traceStorage,
+} from '../utils/tracing.util'
 
 /** 请求对象的最小结构 */
 interface MinimalRequest {
@@ -68,24 +73,28 @@ export class ResponseInterceptor<T = unknown> implements NestInterceptor<T, ApiR
         context.getClass(),
       ]) ?? false
 
-    return next.handle().pipe(
-      map((data) => {
-        // 跳过响应包装：直接返回原始数据（仍注入 traceId header）
-        if (skipWrap) {
-          return data as unknown as ApiResponse<T>
-        }
-        // 已是 ApiResponse 格式则补全 traceId
-        if (isApiResponse(data)) {
-          return { ...data, traceId } as ApiResponse<T>
-        }
-        // 包装为统一响应
-        return {
-          code: ErrorCode.SUCCESS,
-          message: 'success',
-          data,
-          traceId,
-        } as ApiResponse<T>
-      }),
+    // 将 traceId 注入 AsyncLocalStorage 上下文，
+    // 使得整个请求处理链（service / util / 异步回调）都能通过 getTraceId() 获取
+    return traceStorage.run(traceId, () =>
+      next.handle().pipe(
+        map((data) => {
+          // 跳过响应包装：直接返回原始数据（仍注入 traceId header）
+          if (skipWrap) {
+            return data as unknown as ApiResponse<T>
+          }
+          // 已是 ApiResponse 格式则补全 traceId
+          if (isApiResponse(data)) {
+            return { ...data, traceId } as ApiResponse<T>
+          }
+          // 包装为统一响应
+          return {
+            code: ErrorCode.SUCCESS,
+            message: 'success',
+            data,
+            traceId,
+          } as ApiResponse<T>
+        }),
+      ),
     )
   }
 }

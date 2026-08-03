@@ -6,8 +6,10 @@
  * 响应体为 Prometheus 文本格式指标数据，供 Prometheus / Grafana 抓取。
  */
 import { Controller, Get, Header } from '@nestjs/common'
+import { Public } from '@reelclone/common'
 import { register } from 'prom-client'
 
+@Public()
 @Controller('metrics')
 export class MetricsController {
   @Get()
