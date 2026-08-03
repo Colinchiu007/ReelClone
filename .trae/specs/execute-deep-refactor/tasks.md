@@ -7,7 +7,7 @@
 | Phase | 总计 | 已完成 | 进行中 |
 | ----- | ---- | ------ | ------ |
 | P0    | 6    | 6      | 0      |
-| P1    | 13   | 10     | 0      |
+| P1    | 13   | 11     | 0      |
 | P2    | 4    | 0      | 0      |
 
 ## P0 — 生产就绪（6/6 ✅）
@@ -28,7 +28,7 @@
 | P1-1  | 拆分 common 恢复依赖方向 | ✅      | `436c7e4` — RedisBridgeModule → platform-data，common 零 @reelclone/* 依赖          |
 | P1-2  | 邮件模板渲染             | ⬜ 待做 |                                                                                     |
 | P1-3  | V2 Billing 灰度          | ✅      | `68dfb27` + `882ec7a` + `5322be2`                                                   |
-| P1-4  | Temporal 错误处理        | ⬜ 待做 |                                                                                     |
+| P1-4  | Temporal 错误处理        | ✅      | 错误分类体系 TemporalError + 共享 mapper 提取，156 tests 通过              |
 | P1-5  | Redis 缓存分层           | ⬜ 待做 |                                                                                     |
 | P1-6  | 配置拓扑收敛             | ✅      | `01d85fa` — ServiceConfigModule + ServiceJwtModule + RedisBridgeModule，11 服务迁移 |
 | P1-7  | Outbox 状态机            | ✅      | 核心已在迁移 0009+0014 完成（attempts/退避/死信/replay），剩余为增强项              |

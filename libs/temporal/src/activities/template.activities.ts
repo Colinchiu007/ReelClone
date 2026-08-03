@@ -27,74 +27,7 @@ import {
 } from '../types'
 import { getActivityDependencies } from './activity-context'
 import { isMockMode, mockId, mockDelay } from './mock.util'
-
-// ============================================================
-// 类型映射：libs/ai AnalysisReport → libs/temporal AnalysisReport
-// ============================================================
-
-/**
- * 将 libs/ai 的 AnalysisReport（含 shots/transcript/ocr/visualDescription）
- * 映射为 libs/temporal 的 AnalysisReport（含 scenes/asr/ocr/vlm）。
- *
- * 与 analyzer.activities.ts 中的映射逻辑一致，此处独立维护避免跨模块耦合。
- */
-function mapAnalyzerReportToTemporal(
-  analyzerReport: import('@reelclone/ai').AnalysisReport,
-  analysisMs: number,
-): AnalysisReport {
-  const { shots, transcript, ocr, visualDescription } = analyzerReport
-
-  // 1. scenes
-  const scenes: SceneSegment[] = shots.map((s) => ({
-    index: s.index,
-    start: s.startTime,
-    end: s.endTime,
-    duration: s.duration,
-    keyframePath: s.keyframeUrl,
-    description: s.shotType,
-  }))
-
-  // 2. asr
-  const asr: AsrResult = {
-    transcript: transcript.map((t) => t.text).join(' '),
-    segments: transcript.map((t) => ({
-      start: t.startTime,
-      end: t.endTime,
-      text: t.text,
-    })),
-  }
-
-  // 3. ocr
-  const ocrResult: OcrResult = {
-    items: ocr.map((o) => ({
-      timestamp: o.time,
-      text: o.text,
-      confidence: o.confidence ?? 0,
-      box: o.bbox,
-    })),
-  }
-
-  // 4. vlm
-  const vlm: VlmResult = {
-    descriptions: visualDescription.map((v) => ({
-      timestamp: v.time,
-      description: v.description,
-      sellingPoints: v.tags,
-    })),
-  }
-
-  // 5. duration：取最后一个镜头的 endTime 作为视频总时长
-  const duration = shots.length > 0 ? shots[shots.length - 1].endTime : 0
-
-  return {
-    duration,
-    scenes,
-    asr,
-    ocr: ocrResult,
-    vlm,
-    analysisMs,
-  }
-}
+import { mapAnalyzerReportToTemporal } from '../mappers'
 
 // ============================================================
 // Activity 实现

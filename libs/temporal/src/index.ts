@@ -11,6 +11,23 @@
 export * from './types'
 
 // ============================================================
+// 错误分类体系
+// ============================================================
+export {
+  TemporalError,
+  ProviderCancellationPendingError,
+  ProviderStateUnknownError,
+  BillingError,
+  ModerationRejectedError,
+  ActivityTransientError,
+} from './errors'
+
+// ============================================================
+// 共享映射函数
+// ============================================================
+export { mapAnalyzerReportToTemporal } from './mappers'
+
+// ============================================================
 // NestJS 模块与服务
 // ============================================================
 export { TemporalModule } from './temporal.module'
