@@ -12,22 +12,19 @@
  * 全局注册 JwtAuthGuard（通过 APP_GUARD），公开接口使用 @Public() 装饰器跳过鉴权。
  */
 import { Module } from '@nestjs/common'
-import { ConfigModule, ConfigService } from '@nestjs/config'
+import { ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import { JwtModule } from '@nestjs/jwt'
-import type { StringValue } from 'ms'
 import {
   JwtAuthGuard,
   InternalApiKeyGuard,
   AuthStrategyModule,
-  resolveJwtSecret,
-  jwtConfig,
-  configuration,
+  ServiceConfigModule,
+  ServiceJwtModule,
+  RedisBridgeModule,
 } from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import {
@@ -35,7 +32,6 @@ import {
   HealthModule,
   MetricsModule,
   HttpMetricsInterceptor,
-  OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { TemporalModule } from '@reelclone/temporal'
 import { TemplateModule } from './template/template.module'
@@ -43,10 +39,7 @@ import { TemplateModule } from './template/template.module'
 @Module({
   imports: [
     // 环境变量
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration, jwtConfig],
-    }),
+    ServiceConfigModule.forRoot(),
     // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
     LoggerModule.forRoot({ serviceName: 'template-service' }),
     HealthModule.forRoot(),
@@ -68,22 +61,9 @@ import { TemplateModule } from './template/template.module'
     }),
     // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
     AuthStrategyModule.forRoot(),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: (config.get<string>('jwt.secret') ??
-          process.env.JWT_SECRET ??
-          resolveJwtSecret()) as string,
-        signOptions: {
-          expiresIn: (config.get<string>('jwt.expiresIn') ??
-            ((process.env.JWT_EXPIRES_IN || '1h') as StringValue)) as never,
-          issuer: config.get<string>('jwt.issuer') ?? process.env.JWT_ISSUER ?? 'reelclone',
-          audience:
-            config.get<string>('jwt.audience') ?? process.env.JWT_AUDIENCE ?? 'reelclone-client',
-        },
-      }),
-    }),
+    ServiceJwtModule.forRoot(),
+    // Redis 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    RedisBridgeModule.forRoot(),
     // 业务模块
     TemplateModule,
   ],
@@ -93,8 +73,6 @@ import { TemplateModule } from './template/template.module'
     { provide: APP_GUARD, useClass: InternalApiKeyGuard },
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
-    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

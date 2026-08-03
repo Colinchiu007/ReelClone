@@ -2,10 +2,10 @@
  * admin-service 根模块
  *
  * 装配：
- *  - ConfigModule：加载环境变量
- *  - DatabaseModule.forRoot()：4 个 PostgreSQL 连接（main / billing / template / benchmark）
+ *  - ServiceConfigModule：加载环境变量
+ *  - DatabaseModule.forRoot()：3 个 PostgreSQL 连接（main / billing / template）
  *  - RedisModule.forRoot()：ioredis 客户端
- *  - PassportModule + JwtModule：JWT 鉴权基础设施（与 auth-service 共享 JWT_SECRET）
+ *  - ServiceJwtModule：JWT 鉴权基础设施（与 auth-service 共享 JWT_SECRET）
  *  - AppController：健康检查端点
  *  - AdminUserModule：用户管理（列表/封禁/调账/角色变更）
  *  - AdminReviewModule：审核工作台（模板+形象组授权审核）
@@ -23,21 +23,18 @@
  *  - 公开端点（如健康检查）使用 @Public() 跳过 JWT 鉴权
  */
 import { Module } from '@nestjs/common'
-import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import { JwtModule } from '@nestjs/jwt'
 import {
   JwtAuthGuard,
   RolesGuard,
   AuthStrategyModule,
-  configuration,
-  jwtConfig,
-  resolveJwtSecret,
+  ServiceConfigModule,
+  ServiceJwtModule,
+  RedisBridgeModule,
 } from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import {
@@ -45,7 +42,6 @@ import {
   HealthModule,
   MetricsModule,
   HttpMetricsInterceptor,
-  OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { AppController } from './app.controller'
 import { AdminUserModule } from './admin-user/admin-user.module'
@@ -61,15 +57,12 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
 @Module({
   imports: [
     // 环境变量
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration, jwtConfig],
-    }),
+    ServiceConfigModule.forRoot(),
     // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
     LoggerModule.forRoot({ serviceName: 'admin-service' }),
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
-    // 数据库（4 个连接：main / billing / template / benchmark）
+    // 数据库（3 个连接：main / billing / template）
     DatabaseModule.forRoot({
       connections: [
         DATABASE_CONNECTIONS.MAIN,
@@ -79,24 +72,11 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
     }),
     // Redis
     RedisModule.forRoot(),
+    // Redis 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    RedisBridgeModule.forRoot(),
     // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
     AuthStrategyModule.forRoot(),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('jwt.secret') ?? process.env.JWT_SECRET ?? resolveJwtSecret(),
-        signOptions: {
-          // 环境变量为 string，ms.StringValue 是模板字面量类型，需断言
-          expiresIn: (config.get<string>('jwt.expiresIn') ??
-            process.env.JWT_EXPIRES_IN ??
-            '1h') as any,
-          issuer: config.get<string>('jwt.issuer') ?? process.env.JWT_ISSUER ?? 'reelclone',
-          audience:
-            config.get<string>('jwt.audience') ?? process.env.JWT_AUDIENCE ?? 'reelclone-client',
-        },
-      }),
-    }),
+    ServiceJwtModule.forRoot(),
     // 业务模块
     AdminUserModule,
     AdminReviewModule,
@@ -115,8 +95,6 @@ import { AdminConfigModule } from './admin-config/admin-config.module'
     { provide: APP_GUARD, useClass: RolesGuard },
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
-    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

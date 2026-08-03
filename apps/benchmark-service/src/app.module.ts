@@ -2,30 +2,27 @@
  * benchmark-service 根模块
  *
  * 装配：
- *  - ConfigModule：加载环境变量
- *  - DatabaseModule.forRoot()：4 个 PostgreSQL 连接（main / billing / template / benchmark）
+ *  - ServiceConfigModule：加载环境变量
+ *  - DatabaseModule.forRoot()：benchmark 连接
  *  - RedisModule.forRoot()：ioredis 客户端
- *  - PassportModule + JwtModule：JWT 鉴权基础设施
+ *  - ServiceJwtModule：JWT 鉴权基础设施
  *  - BenchmarkModule：对标解析业务模块
  *
  * 全局守卫：
  *  - JwtAuthGuard：默认所有路由需 JWT，@Public() 跳过
  */
 import { Module } from '@nestjs/common'
-import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import { JwtModule } from '@nestjs/jwt'
 import {
   JwtAuthGuard,
   AuthStrategyModule,
-  configuration,
-  jwtConfig,
-  resolveJwtSecret,
+  ServiceConfigModule,
+  ServiceJwtModule,
+  RedisBridgeModule,
 } from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import {
@@ -33,43 +30,26 @@ import {
   HealthModule,
   MetricsModule,
   HttpMetricsInterceptor,
-  OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { BenchmarkModule } from './benchmark/benchmark.module'
 
 @Module({
   imports: [
     // 环境变量
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [configuration, jwtConfig],
-    }),
+    ServiceConfigModule.forRoot(),
     // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
     LoggerModule.forRoot({ serviceName: 'benchmark-service' }),
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
-    // 数据库（4 个连接）
+    // 数据库（benchmark 连接）
     DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.BENCHMARK] }),
     // Redis
     RedisModule.forRoot(),
+    // Redis 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    RedisBridgeModule.forRoot(),
     // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
     AuthStrategyModule.forRoot(),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('jwt.secret') ?? process.env.JWT_SECRET ?? resolveJwtSecret(),
-        signOptions: {
-          // 环境变量为 string，ms.StringValue 是模板字面量类型，需断言
-          expiresIn: (config.get<string>('jwt.expiresIn') ??
-            process.env.JWT_EXPIRES_IN ??
-            '1h') as any,
-          issuer: config.get<string>('jwt.issuer') ?? process.env.JWT_ISSUER ?? 'reelclone',
-          audience:
-            config.get<string>('jwt.audience') ?? process.env.JWT_AUDIENCE ?? 'reelclone-client',
-        },
-      }),
-    }),
+    ServiceJwtModule.forRoot(),
     // 业务模块
     BenchmarkModule,
   ],
@@ -78,8 +58,6 @@ import { BenchmarkModule } from './benchmark/benchmark.module'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
-    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

@@ -2,10 +2,10 @@
  * order-service 根模块
  *
  * 装配：
- *  - ConfigModule：加载环境变量
+ *  - ServiceConfigModule：加载环境变量
  *  - DatabaseModule.forRoot()：4 个 PostgreSQL 连接（main / billing / template / benchmark）
  *  - RedisModule.forRoot()：ioredis 客户端
- *  - JwtModule：JWT 签名与校验
+ *  - ServiceJwtModule：JWT 签名与校验
  *  - PassportModule：JWT 策略注册
  *  - PackageModule：套餐浏览
  *  - OrderModule：订单与支付
@@ -14,14 +14,17 @@
  *  - JwtAuthGuard：默认所有路由需 JWT，@Public() 跳过
  */
 import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import { JwtModule } from '@nestjs/jwt'
-import { JwtAuthGuard, AuthStrategyModule, resolveJwtSecret } from '@reelclone/common'
+import {
+  ServiceConfigModule,
+  ServiceJwtModule,
+  RedisBridgeModule,
+  JwtAuthGuard,
+  AuthStrategyModule,
+} from '@reelclone/common'
 import {
   DatabaseModule,
   RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import {
@@ -29,7 +32,6 @@ import {
   HealthModule,
   MetricsModule,
   HttpMetricsInterceptor,
-  OBS_REDIS_CLIENT,
 } from '@reelclone/observability'
 import { PackageModule } from './package/package.module'
 import { OrderModule } from './order/order.module'
@@ -37,7 +39,7 @@ import { OrderModule } from './order/order.module'
 @Module({
   imports: [
     // 环境变量
-    ConfigModule.forRoot({ isGlobal: true }),
+    ServiceConfigModule.forRoot(),
     // 可观测性：Pino 结构化日志 + /health 端点 + /metrics Prometheus 指标
     LoggerModule.forRoot({ serviceName: 'order-service' }),
     HealthModule.forRoot(),
@@ -46,15 +48,11 @@ import { OrderModule } from './order/order.module'
     DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.MAIN] }),
     // Redis
     RedisModule.forRoot(),
+    // Redis 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
+    RedisBridgeModule.forRoot(),
     // JWT 鉴权（共享 AccessTokenStrategy：token 类型 / jti 黑名单 / 密码修改 / tokenVersion / session family）
     AuthStrategyModule.forRoot(),
-    JwtModule.register({
-      secret: resolveJwtSecret(),
-      signOptions: {
-        // expiresIn 期望 ms 包的 StringValue 类型，这里用断言绕过严格类型检查
-        expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as unknown as never,
-      },
-    }),
+    ServiceJwtModule.forRoot(),
     // 业务模块
     PackageModule,
     OrderModule,
@@ -64,8 +62,6 @@ import { OrderModule } from './order/order.module'
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // HTTP 指标拦截器（记录请求耗时/状态码到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
-    { provide: OBS_REDIS_CLIENT, useExisting: DB_REDIS_CLIENT },
   ],
 })
 export class AppModule {}

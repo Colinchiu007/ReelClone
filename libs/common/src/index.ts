@@ -56,6 +56,13 @@ export * from './config/jwt.config'
 export * from './config/startup-profile.validator'
 export * from './config/config-store.interface'
 
+// -------------------- 服务级共享模块 --------------------
+export { ServiceConfigModule } from './config/service-config.module'
+export type { ServiceConfigModuleOptions } from './config/service-config.module'
+export { ServiceJwtModule } from './config/service-jwt.module'
+export type { ServiceJwtModuleOptions } from './config/service-jwt.module'
+export { RedisBridgeModule } from './config/redis-bridge.module'
+
 // -------------------- 数据库依赖层（re-export from platform-data） --------------------
 export { ConfigStoreService, ConfigStoreModule } from '@reelclone/platform-data'
 export { AuditLogService, AuditLogModule } from '@reelclone/platform-data'
