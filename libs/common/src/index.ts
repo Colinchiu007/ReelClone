@@ -48,6 +48,14 @@ export * from './utils/idempotency.util'
 export * from './utils/tracing.util'
 export * from './utils/date.util'
 
+// -------------------- 加解密工具 --------------------
+export {
+  encryptSecret,
+  decryptSecret,
+  isEncrypted,
+  resetEncryptionKeyCache,
+} from './crypto/secret-encryption'
+
 // -------------------- 配置 --------------------
 export * from './config/configuration'
 export * from './config/database.config'

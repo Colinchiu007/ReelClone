@@ -21,7 +21,12 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import type Redis from 'ioredis'
 import { SystemConfig, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
-import { CONFIG_STORE_SERVICE, type IConfigStore } from '@reelclone/common'
+import {
+  CONFIG_STORE_SERVICE,
+  type IConfigStore,
+  encryptSecret,
+  decryptSecret,
+} from '@reelclone/common'
 
 /** Redis 缓存 key 前缀 */
 const CACHE_KEY_PREFIX = 'config:'
@@ -114,7 +119,7 @@ export class ConfigStoreService implements IConfigStore, OnModuleInit, OnModuleD
       // 1. 先查 Redis 缓存
       const cached = await this.redis.get(cacheKey)
       if (cached !== null) {
-        return cached
+        return decryptSecret(cached)
       }
     } catch (err) {
       this.logger.warn(`读取 Redis 缓存失败 key=${cacheKey}: ${(err as Error).message}`)
@@ -122,12 +127,13 @@ export class ConfigStoreService implements IConfigStore, OnModuleInit, OnModuleD
 
     // 2. 缓存未命中，查 DB
     const row = await this.repo.findOne({ where: { configKey: key } })
-    const value = row?.configValue ?? null
+    const raw = row?.configValue ?? null
+    const value = raw !== null ? decryptSecret(raw) : null
 
-    // 3. 回填缓存（仅在值存在时）
-    if (value !== null) {
+    // 3. 回填缓存（存储加密后的值）
+    if (raw !== null) {
       try {
-        await this.redis.set(cacheKey, value, 'EX', CACHE_TTL_SECONDS)
+        await this.redis.set(cacheKey, raw, 'EX', CACHE_TTL_SECONDS)
       } catch (err) {
         this.logger.warn(`回填 Redis 缓存失败 key=${cacheKey}: ${(err as Error).message}`)
       }
@@ -138,24 +144,27 @@ export class ConfigStoreService implements IConfigStore, OnModuleInit, OnModuleD
 
   /** {@inheritDoc IConfigStore.set} */
   async set(key: string, value: string): Promise<void> {
-    // 1. 写 DB（upsert：存在则更新，不存在则插入）
+    // 1. 加密敏感值
+    const encrypted = encryptSecret(value)
+
+    // 2. 写 DB（upsert：存在则更新，不存在则插入）
     await this.repo.upsert(
       {
         configKey: key,
-        configValue: value,
+        configValue: encrypted,
       },
       ['configKey'],
     )
 
-    // 2. 更新 Redis 缓存
+    // 3. 更新 Redis 缓存（存储加密后的值）
     const cacheKey = this.cacheKey(key)
     try {
-      await this.redis.set(cacheKey, value, 'EX', CACHE_TTL_SECONDS)
+      await this.redis.set(cacheKey, encrypted, 'EX', CACHE_TTL_SECONDS)
     } catch (err) {
       this.logger.warn(`更新 Redis 缓存失败 key=${cacheKey}: ${(err as Error).message}`)
     }
 
-    // 3. 发布 Pub/Sub 通知（其他实例收到后清除缓存）
+    // 4. 发布 Pub/Sub 通知（其他实例收到后清除缓存）
     try {
       await this.redis.publish(PUBSUB_CHANNEL, key)
     } catch (err) {
