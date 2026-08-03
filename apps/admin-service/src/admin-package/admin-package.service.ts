@@ -37,7 +37,7 @@ export class AdminPackageService {
    * @param dto 创建参数
    * @returns 创建的套餐实体
    */
-  async create(dto: CreatePackageDto): Promise<Package> {
+  async create(dto: CreatePackageDto, operatorId?: string): Promise<Package> {
     const pkg = this.packageRepo.create({
       name: dto.name,
       description: dto.description ?? null,
@@ -53,7 +53,9 @@ export class AdminPackageService {
     })
 
     const saved = await this.packageRepo.save(pkg)
-    this.logger.log(`创建套餐 packageId=${saved.id} name=${saved.name}`)
+    this.logger.log(
+      `创建套餐 packageId=${saved.id} name=${saved.name} operatorId=${operatorId ?? 'unknown'}`,
+    )
     return saved
   }
 
@@ -67,7 +69,7 @@ export class AdminPackageService {
    * @returns 更新后的套餐实体
    * @throws BusinessException NOT_FOUND 套餐不存在
    */
-  async update(id: string, dto: UpdatePackageDto): Promise<Package> {
+  async update(id: string, dto: UpdatePackageDto, operatorId?: string): Promise<Package> {
     const pkg = await this.packageRepo.findOne({ where: { id } })
     if (!pkg) {
       throw BusinessException.notFound('套餐')
@@ -77,7 +79,7 @@ export class AdminPackageService {
     Object.assign(pkg, dto)
 
     const saved = await this.packageRepo.save(pkg)
-    this.logger.log(`编辑套餐 packageId=${id}`)
+    this.logger.log(`编辑套餐 packageId=${id} operatorId=${operatorId ?? 'unknown'}`)
     return saved
   }
 
@@ -89,7 +91,11 @@ export class AdminPackageService {
    * @returns 更新后的套餐实体
    * @throws BusinessException NOT_FOUND 套餐不存在
    */
-  async updateStatus(id: string, dto: UpdatePackageStatusDto): Promise<Package> {
+  async updateStatus(
+    id: string,
+    dto: UpdatePackageStatusDto,
+    operatorId?: string,
+  ): Promise<Package> {
     const pkg = await this.packageRepo.findOne({ where: { id } })
     if (!pkg) {
       throw BusinessException.notFound('套餐')
@@ -98,7 +104,9 @@ export class AdminPackageService {
     pkg.status = dto.status
 
     const saved = await this.packageRepo.save(pkg)
-    this.logger.log(`更新套餐状态 packageId=${id} status=${dto.status}`)
+    this.logger.log(
+      `更新套餐状态 packageId=${id} status=${dto.status} operatorId=${operatorId ?? 'unknown'}`,
+    )
     return saved
   }
 

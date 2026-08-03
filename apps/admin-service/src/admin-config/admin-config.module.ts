@@ -6,7 +6,7 @@
  *  - PUT /admin/config/api-keys  更新指定 Provider 的 Key 列表
  *
  * 依赖：
- *  - ConfigStoreModule（来自 @reelclone/common，提供 CONFIG_STORE_SERVICE Token）
+ *  - ConfigStoreModule（来自 @reelclone/platform-data，提供 CONFIG_STORE_SERVICE Token）
  *  - ConfigModule（全局，提供 ConfigService 用于环境变量回退）
  *
  * 注意：此模块需在 app.module.ts 中统一注册（Task 后续步骤完成）。

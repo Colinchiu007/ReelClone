@@ -93,8 +93,13 @@ export class AdminConfigService {
    *
    * @param provider 目标 Provider
    * @param keys Key 列表
+   * @param operatorId 操作者 ID（用于审计日志）
    */
-  async updateApiKeys(provider: ApiKeyProvider, keys: string[]): Promise<UpdateApiKeysResult> {
+  async updateApiKeys(
+    provider: ApiKeyProvider,
+    keys: string[],
+    operatorId?: string,
+  ): Promise<UpdateApiKeysResult> {
     // 清洗输入：去首尾空白、过滤空字符串
     const cleanedKeys = (keys ?? [])
       .map((k) => (typeof k === 'string' ? k.trim() : ''))
@@ -104,7 +109,9 @@ export class AdminConfigService {
     const value = cleanedKeys.join(',')
     await this.configStore.set(this.providerConfigKey(provider), value)
 
-    this.logger.log(`管理员更新 Provider=${provider} 的 API Key，共 ${cleanedKeys.length} 个`)
+    this.logger.log(
+      `操作者 ${operatorId ?? 'unknown'} 更新 Provider=${provider} 的 API Key，共 ${cleanedKeys.length} 个`,
+    )
 
     return {
       success: true,

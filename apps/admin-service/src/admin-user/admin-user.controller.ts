@@ -59,8 +59,12 @@ export class AdminUserController {
    */
   @Put(':id/status')
   @ApiOperation({ summary: '封禁 / 解封用户' })
-  async updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto) {
-    return this.adminUserService.updateStatus(id, dto)
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserStatusDto,
+    @CurrentUser('userId') operatorId: string,
+  ) {
+    return this.adminUserService.updateStatus(id, dto, operatorId)
   }
 
   // -------------------- PUT /admin/users/:id/role --------------------
@@ -75,8 +79,9 @@ export class AdminUserController {
     @Param('id') id: string,
     @Body() dto: UpdateUserRoleDto,
     @CurrentUser('role') operatorRole: string,
+    @CurrentUser('userId') operatorId: string,
   ) {
-    return this.adminUserService.updateRole(id, dto, operatorRole)
+    return this.adminUserService.updateRole(id, dto, operatorRole, operatorId)
   }
 
   // -------------------- POST /admin/users/:id/grant-points --------------------

@@ -15,7 +15,7 @@
  */
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { Roles, RolesGuard } from '@reelclone/common'
+import { CurrentUser, Roles, RolesGuard } from '@reelclone/common'
 import { AdminConfigService } from './admin-config.service'
 import { UpdateApiKeysDto } from './dto/update-api-keys.dto'
 
@@ -51,7 +51,7 @@ export class AdminConfigController {
    */
   @Put('api-keys')
   @ApiOperation({ summary: '更新指定 Provider 的 Key 列表' })
-  async updateApiKeys(@Body() dto: UpdateApiKeysDto) {
-    return this.adminConfigService.updateApiKeys(dto.provider, dto.keys)
+  async updateApiKeys(@Body() dto: UpdateApiKeysDto, @CurrentUser('userId') operatorId: string) {
+    return this.adminConfigService.updateApiKeys(dto.provider, dto.keys, operatorId)
   }
 }

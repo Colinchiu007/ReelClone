@@ -17,6 +17,8 @@ import { AdminReviewService } from './admin-review.service'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
 
+// NOTE: 使用 'admin' 前缀而非 'admin/reviews'，因为本模块的端点跨多个资源路径
+// （/reviews/pending, /templates/:id/review, /avatar-groups/:id/authorization）
 @ApiTags('admin-review')
 @Controller('admin')
 @Roles('ADMIN', 'SUPER_ADMIN')

@@ -93,9 +93,9 @@ describe('AdminUserController', () => {
       const mockResult = { id: 'user-1', status: UserStatus.FROZEN }
       service.updateStatus.mockResolvedValue(mockResult as never)
 
-      const result = await controller.updateStatus('user-1', dto)
+      const result = await controller.updateStatus('user-1', dto, 'admin-001')
 
-      expect(service.updateStatus).toHaveBeenCalledWith('user-1', dto)
+      expect(service.updateStatus).toHaveBeenCalledWith('user-1', dto, 'admin-001')
       expect(result).toBe(mockResult)
     })
   })
@@ -108,9 +108,9 @@ describe('AdminUserController', () => {
       const mockResult = { id: 'user-1', role: UserRole.ADMIN }
       service.updateRole.mockResolvedValue(mockResult as never)
 
-      const result = await controller.updateRole('user-1', dto, 'SUPER_ADMIN')
+      const result = await controller.updateRole('user-1', dto, 'SUPER_ADMIN', 'admin-001')
 
-      expect(service.updateRole).toHaveBeenCalledWith('user-1', dto, 'SUPER_ADMIN')
+      expect(service.updateRole).toHaveBeenCalledWith('user-1', dto, 'SUPER_ADMIN', 'admin-001')
       expect(result).toBe(mockResult)
     })
   })

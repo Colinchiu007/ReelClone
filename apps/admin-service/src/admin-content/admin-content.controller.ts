@@ -20,6 +20,8 @@ import { ListWorksDto } from './dto/list-works.dto'
 import { TakedownWorkDto } from './dto/takedown-work.dto'
 import { UpdateTemplateStatusDto } from './dto/update-template-status.dto'
 
+// NOTE: 使用 'admin' 前缀而非 'admin/works' 或 'admin/templates'，因为本模块的端点跨多个资源路径
+// （/works, /works/:id, /templates, /templates/:id/status）
 @ApiTags('admin-content')
 @Controller('admin')
 @Roles('ADMIN', 'SUPER_ADMIN')

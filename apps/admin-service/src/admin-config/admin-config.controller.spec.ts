@@ -3,7 +3,7 @@
  *
  * 测试覆盖：
  *  - GET /admin/config/api-keys  listApiKeys：转发到 service.listApiKeys()
- *  - PUT /admin/config/api-keys  updateApiKeys：转发 dto.provider + dto.keys 到 service
+ *  - PUT /admin/config/api-keys  updateApiKeys：转发 dto.provider + dto.keys + operatorId 到 service
  *
  * 安全验证：
  *  - listApiKeys 返回结果不包含明文 Key（仅 keyCount / hasKeys）
@@ -92,9 +92,13 @@ describe('AdminConfigController', () => {
       }
       service.updateApiKeys.mockResolvedValue(mockResult)
 
-      const result = await controller.updateApiKeys(dto)
+      const result = await controller.updateApiKeys(dto, 'admin-001')
 
-      expect(service.updateApiKeys).toHaveBeenCalledWith('seedance', ['key-1', 'key-2', 'key-3'])
+      expect(service.updateApiKeys).toHaveBeenCalledWith(
+        'seedance',
+        ['key-1', 'key-2', 'key-3'],
+        'admin-001',
+      )
       expect(result).toEqual(mockResult)
     })
 
@@ -110,9 +114,9 @@ describe('AdminConfigController', () => {
       }
       service.updateApiKeys.mockResolvedValue(mockResult)
 
-      const result = await controller.updateApiKeys(dto)
+      const result = await controller.updateApiKeys(dto, 'admin-001')
 
-      expect(service.updateApiKeys).toHaveBeenCalledWith('llm', ['llm-key-1'])
+      expect(service.updateApiKeys).toHaveBeenCalledWith('llm', ['llm-key-1'], 'admin-001')
       expect(result.provider).toBe('llm')
       expect(result.keyCount).toBe(1)
     })
@@ -129,9 +133,13 @@ describe('AdminConfigController', () => {
       }
       service.updateApiKeys.mockResolvedValue(mockResult)
 
-      const result = await controller.updateApiKeys(dto)
+      const result = await controller.updateApiKeys(dto, 'admin-001')
 
-      expect(service.updateApiKeys).toHaveBeenCalledWith('oss', ['oss-key-1', 'oss-key-2'])
+      expect(service.updateApiKeys).toHaveBeenCalledWith(
+        'oss',
+        ['oss-key-1', 'oss-key-2'],
+        'admin-001',
+      )
       expect(result.success).toBe(true)
     })
 
@@ -147,7 +155,7 @@ describe('AdminConfigController', () => {
       }
       service.updateApiKeys.mockResolvedValue(mockResult)
 
-      const result = await controller.updateApiKeys(dto)
+      const result = await controller.updateApiKeys(dto, 'admin-001')
       const json = JSON.stringify(result)
 
       // 不应包含明文 Key
@@ -171,9 +179,9 @@ describe('AdminConfigController', () => {
       }
       service.updateApiKeys.mockResolvedValue(mockResult)
 
-      const result = await controller.updateApiKeys(dto)
+      const result = await controller.updateApiKeys(dto, 'admin-001')
 
-      expect(service.updateApiKeys).toHaveBeenCalledWith('seedance', [])
+      expect(service.updateApiKeys).toHaveBeenCalledWith('seedance', [], 'admin-001')
       expect(result.keyCount).toBe(0)
     })
   })

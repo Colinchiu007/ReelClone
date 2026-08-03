@@ -13,7 +13,7 @@
  */
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { Roles } from '@reelclone/common'
+import { CurrentUser, Roles } from '@reelclone/common'
 import { AdminPackageService } from './admin-package.service'
 import { CreatePackageDto } from './dto/create-package.dto'
 import { UpdatePackageDto } from './dto/update-package.dto'
@@ -30,8 +30,8 @@ export class AdminPackageController {
    */
   @Post()
   @ApiOperation({ summary: '创建套餐' })
-  async create(@Body() dto: CreatePackageDto) {
-    return this.adminPackageService.create(dto)
+  async create(@Body() dto: CreatePackageDto, @CurrentUser('userId') operatorId: string) {
+    return this.adminPackageService.create(dto, operatorId)
   }
 
   /**
@@ -39,8 +39,12 @@ export class AdminPackageController {
    */
   @Put(':id')
   @ApiOperation({ summary: '编辑套餐' })
-  async update(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
-    return this.adminPackageService.update(id, dto)
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePackageDto,
+    @CurrentUser('userId') operatorId: string,
+  ) {
+    return this.adminPackageService.update(id, dto, operatorId)
   }
 
   /**
@@ -49,8 +53,12 @@ export class AdminPackageController {
    */
   @Put(':id/status')
   @ApiOperation({ summary: '上架 / 下架套餐' })
-  async updateStatus(@Param('id') id: string, @Body() dto: UpdatePackageStatusDto) {
-    return this.adminPackageService.updateStatus(id, dto)
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdatePackageStatusDto,
+    @CurrentUser('userId') operatorId: string,
+  ) {
+    return this.adminPackageService.updateStatus(id, dto, operatorId)
   }
 
   /**

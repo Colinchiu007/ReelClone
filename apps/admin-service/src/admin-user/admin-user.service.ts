@@ -190,9 +190,12 @@ export class AdminUserService {
    * 封禁时设置 Redis 黑名单 key `user:password-changed:{userId}`，
    * 复用现有踢下线机制，使用户当前 token 失效。
    *
+   * @param id 目标用户 ID
+   * @param dto 更新状态的参数（目标状态）
+   * @param operatorId 操作者 ID（用于操作日志记录）
    * @throws BusinessException 用户不存在 / 状态不合法
    */
-  async updateStatus(id: string, dto: UpdateUserStatusDto): Promise<SafeUser> {
+  async updateStatus(id: string, dto: UpdateUserStatusDto, operatorId?: string): Promise<SafeUser> {
     // 仅允许 ACTIVE / FROZEN，不允许通过此接口设置为 DELETED
     if (dto.status !== UserStatus.ACTIVE && dto.status !== UserStatus.FROZEN) {
       throw new BusinessException(ErrorCode.VALIDATION_ERROR, '仅支持 ACTIVE / FROZEN 状态', {
@@ -213,6 +216,7 @@ export class AdminUserService {
     }
 
     this.logger.log(`用户 ${id} 状态更新为 ${dto.status}`)
+    this.logger.log(`操作者 ${operatorId ?? 'unknown'} 更新用户 ${id} 状态`)
     return this.sanitizeUser(saved)
   }
 
@@ -227,9 +231,15 @@ export class AdminUserService {
    * @param id 目标用户 ID
    * @param dto 目标角色
    * @param operatorRole 操作者角色（需为 SUPER_ADMIN）
+   * @param operatorId 操作者 ID（用于操作日志记录）
    * @throws BusinessException 权限不足 / 用户不存在
    */
-  async updateRole(id: string, dto: UpdateUserRoleDto, operatorRole: string): Promise<SafeUser> {
+  async updateRole(
+    id: string,
+    dto: UpdateUserRoleDto,
+    operatorRole: string,
+    operatorId?: string,
+  ): Promise<SafeUser> {
     // 仅 SUPER_ADMIN 可操作角色变更
     if (operatorRole !== UserRole.SUPER_ADMIN) {
       throw BusinessException.forbidden('仅超级管理员可变更用户角色')
@@ -240,6 +250,7 @@ export class AdminUserService {
     const saved = await this.userRepository.save(user)
 
     this.logger.log(`用户 ${id} 角色更新为 ${dto.role}`)
+    this.logger.log(`操作者 ${operatorId ?? 'unknown'} 更新用户 ${id} 角色`)
     return this.sanitizeUser(saved)
   }
 

@@ -75,9 +75,9 @@ describe('AdminPackageController', () => {
       const mockPackage = createMockPackage({ name: '月度订阅', price: 29.9 })
       service.create.mockResolvedValue(mockPackage)
 
-      const result = await controller.create(dto)
+      const result = await controller.create(dto, 'admin-001')
 
-      expect(service.create).toHaveBeenCalledWith(dto)
+      expect(service.create).toHaveBeenCalledWith(dto, 'admin-001')
       expect(result).toBe(mockPackage)
     })
   })
@@ -90,9 +90,9 @@ describe('AdminPackageController', () => {
       const mockPackage = createMockPackage({ id: 'pkg-1', name: '新名称' })
       service.update.mockResolvedValue(mockPackage)
 
-      const result = await controller.update('pkg-1', dto)
+      const result = await controller.update('pkg-1', dto, 'admin-001')
 
-      expect(service.update).toHaveBeenCalledWith('pkg-1', dto)
+      expect(service.update).toHaveBeenCalledWith('pkg-1', dto, 'admin-001')
       expect(result).toBe(mockPackage)
     })
   })
@@ -108,9 +108,9 @@ describe('AdminPackageController', () => {
       })
       service.updateStatus.mockResolvedValue(mockPackage)
 
-      const result = await controller.updateStatus('pkg-1', dto)
+      const result = await controller.updateStatus('pkg-1', dto, 'admin-001')
 
-      expect(service.updateStatus).toHaveBeenCalledWith('pkg-1', dto)
+      expect(service.updateStatus).toHaveBeenCalledWith('pkg-1', dto, 'admin-001')
       expect(result).toBe(mockPackage)
     })
   })
