@@ -357,11 +357,68 @@ describe('BillingService', () => {
       expect(result.transactionId).toBe('s1')
       expect(ledger.settle).toHaveBeenCalled()
     })
+
+    it('B4: reservationMode=true 时路由到 CreditReservationService.settle', async () => {
+      creditReservations.settle.mockResolvedValue({
+        transactionId: 'reservation-1',
+        balance: 70,
+      })
+
+      const result = await service.settle({
+        userId: 'u1',
+        amount: 30,
+        idempotencyKey: 'benchmark-settle:bench-001:uuid',
+        freezeId: 'reservation-1',
+        reservationMode: true,
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.transactionId).toBe('reservation-1')
+      expect(result.balance).toBe(70)
+      expect(creditReservations.settle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          amount: 30,
+          freezeId: 'reservation-1',
+          idempotencyKey: 'benchmark-settle:bench-001:uuid',
+        }),
+      )
+      // reservationMode=true 走 CreditReservation，不走 LedgerService
+      expect(ledger.settle).not.toHaveBeenCalled()
+    })
   })
 
   // -------------------- release --------------------
 
   describe('release', () => {
+    it('B4: reservationMode=true 成功时路由到 CreditReservationService.release', async () => {
+      creditReservations.release.mockResolvedValue({
+        transactionId: 'reservation-1',
+        balance: 100,
+      })
+
+      const result = await service.release({
+        userId: 'u1',
+        amount: 30,
+        idempotencyKey: 'benchmark-release:bench-001:uuid',
+        freezeId: 'reservation-1',
+        reservationMode: true,
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.transactionId).toBe('reservation-1')
+      expect(result.balance).toBe(100)
+      expect(creditReservations.release).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          amount: 30,
+          freezeId: 'reservation-1',
+          idempotencyKey: 'benchmark-release:bench-001:uuid',
+        }),
+      )
+      expect(ledger.release).not.toHaveBeenCalled()
+    })
+
     it('V2 release 缺少权威预留时由 reservation 服务 fail closed', async () => {
       creditReservations.release.mockRejectedValue(
         BusinessException.validationError('旧版积分预留缺少可验证关联，需对账后处理'),

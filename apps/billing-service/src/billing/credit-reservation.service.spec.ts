@@ -205,6 +205,131 @@ describe('CreditReservationService', () => {
     expect(outboxRepo.save).not.toHaveBeenCalled()
   })
 
+  // --- settle tests ---
+
+  it('结算只允许 OPEN -> SETTLED，不返还余额', async () => {
+    const reservation = {
+      id: 'reservation-1',
+      userId: 'user-1',
+      workId: 'work-1',
+      amount: 300,
+      status: CreditReservationStatus.OPEN,
+      freezeOperationKey: 'benchmark:freeze',
+      terminalOperationKey: null,
+      terminalTransactionId: null,
+      balanceAfterFreeze: 700,
+      balanceAfterTerminal: null,
+      terminalAt: null,
+    } as CreditReservation
+    reservationRepo.createQueryBuilder.mockReturnValue(queryBuilder(reservation) as never)
+    reservationRepo.save.mockImplementation(async (value) => value as CreditReservation)
+
+    const result = await service.settle({
+      userId: 'user-1',
+      workId: 'work-1',
+      amount: 300,
+      idempotencyKey: 'benchmark:settle',
+      freezeId: 'reservation-1',
+    })
+
+    expect(result.transactionId).toBe('reservation-1')
+    expect(result.balance).toBe(700) // settle 不改变余额
+    expect(userRepo.save).not.toHaveBeenCalled() // 不调用 lockUser / save balance
+    expect(reservationRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: CreditReservationStatus.SETTLED,
+        terminalOperationKey: 'benchmark:settle',
+        balanceAfterTerminal: 700,
+      }),
+    )
+    expect(outboxRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: BillingProjectionType.SETTLE,
+        deliveryStatus: BillingProjectionDeliveryStatus.PENDING,
+      }),
+    )
+  })
+
+  it('相同 settle 幂等键重放不会重复结算', async () => {
+    const settled = {
+      id: 'reservation-1',
+      userId: 'user-1',
+      workId: 'work-1',
+      amount: 300,
+      status: CreditReservationStatus.SETTLED,
+      freezeOperationKey: 'benchmark:freeze',
+      terminalOperationKey: 'benchmark:settle',
+      terminalTransactionId: null,
+      balanceAfterFreeze: 700,
+      balanceAfterTerminal: 700,
+      terminalAt: new Date(),
+    } as CreditReservation
+    reservationRepo.createQueryBuilder.mockReturnValue(queryBuilder(settled) as never)
+
+    const result = await service.settle({
+      userId: 'user-1',
+      amount: 300,
+      idempotencyKey: 'benchmark:settle',
+      freezeId: 'reservation-1',
+    })
+
+    expect(result.transactionId).toBe('reservation-1')
+    expect(reservationRepo.save).not.toHaveBeenCalled()
+    expect(outboxRepo.save).not.toHaveBeenCalled()
+  })
+
+  it('金额不匹配时拒绝结算', async () => {
+    const reservation = {
+      id: 'reservation-1',
+      userId: 'user-1',
+      workId: 'work-1',
+      amount: 300,
+      status: CreditReservationStatus.OPEN,
+      freezeOperationKey: 'benchmark:freeze',
+      terminalOperationKey: null,
+      terminalTransactionId: null,
+      balanceAfterFreeze: 700,
+      balanceAfterTerminal: null,
+      terminalAt: null,
+    } as CreditReservation
+    reservationRepo.createQueryBuilder.mockReturnValue(queryBuilder(reservation) as never)
+
+    await expect(
+      service.settle({
+        userId: 'user-1',
+        amount: 200, // 不匹配 300
+        idempotencyKey: 'benchmark:settle',
+        freezeId: 'reservation-1',
+      }),
+    ).rejects.toThrow(BusinessException)
+  })
+
+  it('settle 后再用不同幂等键 release 会失败（状态不是 OPEN）', async () => {
+    const settled = {
+      id: 'reservation-1',
+      userId: 'user-1',
+      workId: 'work-1',
+      amount: 300,
+      status: CreditReservationStatus.SETTLED,
+      freezeOperationKey: 'benchmark:freeze',
+      terminalOperationKey: 'benchmark:settle',
+      terminalTransactionId: null,
+      balanceAfterFreeze: 700,
+      balanceAfterTerminal: 700,
+      terminalAt: new Date(),
+    } as CreditReservation
+    reservationRepo.createQueryBuilder.mockReturnValue(queryBuilder(settled) as never)
+
+    await expect(
+      service.release({
+        userId: 'user-1',
+        amount: 300,
+        idempotencyKey: 'benchmark:release:different',
+        freezeId: 'reservation-1',
+      }),
+    ).rejects.toThrow(BusinessException)
+  })
+
   it('billing 已写但 outbox 未标记交付时，重放只标记 DELIVERED', async () => {
     const outbox = {
       id: 'outbox-1',
