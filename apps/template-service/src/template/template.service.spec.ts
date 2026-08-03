@@ -314,7 +314,9 @@ describe('TemplateService', () => {
       const result = await service.findOne('found-1')
 
       expect(result).toBe(mockTemplate)
-      expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 'found-1' } })
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: 'found-1', status: TemplateStatus.ACTIVE },
+      })
     })
 
     it('模板不存在时抛出 NOT_FOUND 异常', async () => {

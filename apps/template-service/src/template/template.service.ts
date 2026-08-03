@@ -147,7 +147,9 @@ export class TemplateService {
    * @throws BusinessException NOT_FOUND 模板不存在
    */
   async findOne(id: string): Promise<Template> {
-    const template = await this.templateRepo.findOne({ where: { id } })
+    const template = await this.templateRepo.findOne({
+      where: { id, status: TemplateStatus.ACTIVE },
+    })
     if (!template) {
       throw BusinessException.notFound('模板')
     }

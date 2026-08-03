@@ -7,7 +7,7 @@
 | Phase | 总计 | 已完成 | 进行中 |
 | ----- | ---- | ------ | ------ |
 | P0    | 6    | 6      | 0      |
-| P1    | 13   | 8      | 0      |
+| P1    | 13   | 10     | 0      |
 | P2    | 4    | 0      | 0      |
 
 ## P0 — 生产就绪（6/6 ✅）
@@ -31,9 +31,9 @@
 | P1-4  | Temporal 错误处理        | ⬜ 待做 |                                                                                     |
 | P1-5  | Redis 缓存分层           | ⬜ 待做 |                                                                                     |
 | P1-6  | 配置拓扑收敛             | ✅      | `01d85fa` — ServiceConfigModule + ServiceJwtModule + RedisBridgeModule，11 服务迁移 |
-| P1-7  | Outbox 状态机            | ⬜ 待做 | 缺 attempts/退避/死信                                                               |
+| P1-7  | Outbox 状态机            | ✅      | 核心已在迁移 0009+0014 完成（attempts/退避/死信/replay），剩余为增强项              |
 | P1-8  | 可观测性闭环             | ⬜ 待做 | 无 Prometheus/告警                                                                  |
-| P1-9  | API 信任边界             | ⬜ 待做 | 内部 API Key 无 scope                                                               |
+| P1-9  | API 信任边界             | ✅      | findOne 状态过滤 + Guard caller 审计日志                                            |
 | P1-10 | 奖励补偿间隙饥饿         | ✅      | `26d6d1b` + `9832c7d`                                                               |
 | P1-11 | 密钥管理加密存储         | ✅      | AES-256-GCM 加密 ConfigStore，`enc:v1:` 前缀，迁移脚本                              |
 | P1-12 | Admin-service 代码审计   | ✅      | 补 @CurrentUser 审计 + config 导入修正 + 路由前缀注释                               |

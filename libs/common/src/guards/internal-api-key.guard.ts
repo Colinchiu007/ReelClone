@@ -23,6 +23,7 @@ interface MinimalRequest {
  * 仅对 @InternalApi() 装饰的路由生效：
  *  - 校验 `x-api-key` Header 与 INTERNAL_API_KEY 环境变量
  *  - 使用常量时间比较（timingSafeEqual）防范时序攻击
+ *  - 记录 x-caller 头用于审计追踪
  *  - 不匹配则抛 UNAUTHORIZED
  * 非 @InternalApi() 路由直接放行（交给上层 JWT 守卫处理）。
  */
@@ -63,6 +64,7 @@ export class InternalApiKeyGuard implements CanActivate {
     }
 
     if (!providedKey || !this.constantTimeCompare(providedKey, this.expectedKey)) {
+      this.logger.warn(`内部 API Key 鉴权失败 caller=${this.extractCaller(request.headers)}`)
       throw new BusinessException(
         ErrorCode.UNAUTHORIZED,
         '内部 API Key 无效',
@@ -71,7 +73,24 @@ export class InternalApiKeyGuard implements CanActivate {
       )
     }
 
+    // 鉴权通过，记录调用方身份用于审计
+    const caller = this.extractCaller(request.headers)
+    if (caller) {
+      this.logger.log(`内部 API 调用通过 caller=${caller}`)
+    }
+
     return true
+  }
+
+  /** 提取 x-caller Header（标识调用服务身份） */
+  private extractCaller(
+    headers: Record<string, string | string[] | undefined>,
+  ): string | undefined {
+    const raw = headers['x-caller'] ?? headers['X-Caller']
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      return raw.trim()
+    }
+    return undefined
   }
 
   /** 提取 x-api-key Header（大小写不敏感） */
