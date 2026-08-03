@@ -16,19 +16,15 @@
  */
 import { Module } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
-import {
-  DatabaseModule,
-  RedisModule,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   AllExceptionsFilter,
   ResponseInterceptor,
   JwtAuthGuard,
   createValidationPipe,
   ServiceConfigModule,
-  RedisBridgeModule,
 } from '@reelclone/common'
+import { RedisBridgeModule } from '@reelclone/platform-data'
 import {
   LoggerModule,
   HealthModule,

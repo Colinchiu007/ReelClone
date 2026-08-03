@@ -21,13 +21,9 @@ import {
   InternalApiKeyGuard,
   ServiceConfigModule,
   ServiceJwtModule,
-  RedisBridgeModule,
 } from '@reelclone/common'
-import {
-  DatabaseModule,
-  RedisModule,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { RedisBridgeModule } from '@reelclone/platform-data'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,

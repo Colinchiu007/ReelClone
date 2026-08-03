@@ -10,7 +10,8 @@
  *    - 积分扣回失败 → 订单保持 PAID + PARTIAL 审计日志
  *    - 套餐不存在时扣回 0 积分
  */
-import { AuditLogService, BusinessException } from '@reelclone/common'
+import { BusinessException } from '@reelclone/common'
+import { AuditLogService } from '@reelclone/platform-data'
 import {
   Order,
   OrderStatus,

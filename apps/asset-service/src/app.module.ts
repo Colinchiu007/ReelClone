@@ -19,8 +19,8 @@ import {
   AuthStrategyModule,
   ServiceConfigModule,
   ServiceJwtModule,
-  RedisBridgeModule,
 } from '@reelclone/common'
+import { RedisBridgeModule } from '@reelclone/platform-data'
 import {
   LoggerModule,
   HealthModule,

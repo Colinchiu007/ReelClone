@@ -13,7 +13,7 @@
  * 此模块不导出 AdminConfigService，仅供 Controller 使用。
  */
 import { Module } from '@nestjs/common'
-import { ConfigStoreModule } from '@reelclone/common'
+import { ConfigStoreModule } from '@reelclone/platform-data'
 import { AdminConfigController } from './admin-config.controller'
 import { AdminConfigService } from './admin-config.service'
 

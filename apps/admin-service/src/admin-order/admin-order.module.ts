@@ -12,7 +12,7 @@
  */
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { AuditLogModule } from '@reelclone/common'
+import { AuditLogModule } from '@reelclone/platform-data'
 import { DATABASE_CONNECTIONS, Order, Package } from '@reelclone/database'
 import { AdminOrderController } from './admin-order.controller'
 import { AdminOrderService } from './admin-order.service'

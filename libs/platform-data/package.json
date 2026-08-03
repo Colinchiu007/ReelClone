@@ -1,0 +1,20 @@
+{
+  "name": "@reelclone/platform-data",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone 数据库依赖层：AuditLog、ConfigStore、RedisBridge",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@reelclone/common": "*",
+    "@reelclone/database": "*",
+    "@reelclone/observability": "*",
+    "ioredis": "^5.4.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  }
+}

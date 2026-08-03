@@ -20,16 +20,11 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import {
   JwtAuthGuard,
   AuthStrategyModule,
-  ConfigStoreModule,
   ServiceConfigModule,
   ServiceJwtModule,
-  RedisBridgeModule,
 } from '@reelclone/common'
-import {
-  DatabaseModule,
-  RedisModule,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { ConfigStoreModule, RedisBridgeModule } from '@reelclone/platform-data'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,

@@ -12,7 +12,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AiModule } from '@reelclone/ai'
-import { ConfigStoreModule } from '@reelclone/common'
+import { ConfigStoreModule } from '@reelclone/platform-data'
 import { Benchmark, DATABASE_CONNECTIONS } from '@reelclone/database'
 import { BillingClient } from './billing-client'
 import { TemporalAdapter } from './temporal-adapter'

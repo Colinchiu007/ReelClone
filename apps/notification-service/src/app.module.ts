@@ -10,15 +10,9 @@
  */
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
-import {
-  ServiceConfigModule,
-  RedisBridgeModule,
-} from '@reelclone/common'
-import {
-  DatabaseModule,
-  RedisModule,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { ServiceConfigModule } from '@reelclone/common'
+import { RedisBridgeModule } from '@reelclone/platform-data'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   LoggerModule,
   HealthModule,

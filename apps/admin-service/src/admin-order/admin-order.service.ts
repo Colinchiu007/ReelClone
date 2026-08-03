@@ -16,7 +16,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { AuditLogService, BusinessException, ErrorCode } from '@reelclone/common'
+import { BusinessException, ErrorCode } from '@reelclone/common'
+import { AuditLogService } from '@reelclone/platform-data'
 import {
   DATABASE_CONNECTIONS,
   Order,
