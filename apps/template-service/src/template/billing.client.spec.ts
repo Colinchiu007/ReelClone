@@ -8,6 +8,8 @@
  *  - 构造函数读取环境变量配置（baseUrl / apiKey）
  *  - getRewardCount 成功调用返回奖励次数
  *  - getRewardCount 业务错误 + 网络错误处理
+ *  - getRewardOrdinals 成功调用返回序号列表
+ *  - getRewardOrdinals 业务错误 + 网络错误处理
  *  - B6: 重试机制（网络错误重试成功 / 重试耗尽 / 业务错误不重试）
  *  - B6: 熔断器（连续失败触发熔断 / 熔断时快速失败 / 半开恢复）
  */
@@ -373,6 +375,87 @@ describe('BillingClient', () => {
       getMock.mockRejectedValue(new Error('未知错误'))
 
       await expect(client.getRewardCount('tmpl-001')).rejects.toThrow(BusinessException)
+    })
+  })
+
+  // -------------------- getRewardOrdinals --------------------
+
+  describe('getRewardOrdinals', () => {
+    it('成功调用返回 ordinals 数组', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { templateId: 'tmpl-001', ordinals: [1, 2, 3] },
+        },
+      })
+
+      const result = await client.getRewardOrdinals('tmpl-001')
+
+      expect(result).toEqual([1, 2, 3])
+      // 校验 GET 请求路径
+      expect(getMock).toHaveBeenCalledWith(
+        '/api/v1/points/internal/templates/tmpl-001/reward-ordinals',
+      )
+    })
+
+    it('ordinals 为空数组时正确返回 []', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.SUCCESS,
+          message: 'ok',
+          data: { templateId: 'tmpl-new', ordinals: [] },
+        },
+      })
+
+      const result = await client.getRewardOrdinals('tmpl-new')
+
+      expect(result).toEqual([])
+    })
+
+    it('billing-service 返回非 SUCCESS 业务错误码时抛出 BusinessException', async () => {
+      getMock.mockResolvedValue({
+        data: {
+          code: ErrorCode.NOT_FOUND,
+          message: '模板不存在',
+          data: null,
+        },
+      })
+
+      await expect(client.getRewardOrdinals('tmpl-001')).rejects.toThrow(BusinessException)
+
+      try {
+        await client.getRewardOrdinals('tmpl-001')
+      } catch (e) {
+        expect(e).toBeInstanceOf(BusinessException)
+        expect((e as BusinessException).code).toBe(ErrorCode.NOT_FOUND)
+        expect((e as BusinessException).message).toBe('模板不存在')
+      }
+    })
+
+    it('Axios 网络错误且无响应时抛出 INTERNAL_ERROR', async () => {
+      const axiosError = {
+        isAxiosError: true,
+        response: undefined,
+        message: 'ECONNREFUSED',
+      } as AxiosError
+      getMock.mockRejectedValue(axiosError)
+
+      await expect(client.getRewardOrdinals('tmpl-001')).rejects.toThrow(BusinessException)
+
+      try {
+        await client.getRewardOrdinals('tmpl-001')
+      } catch (e) {
+        expect(e).toBeInstanceOf(BusinessException)
+        expect((e as BusinessException).code).toBe(ErrorCode.INTERNAL_ERROR)
+        expect((e as BusinessException).message).toContain('计费服务')
+      }
+    })
+
+    it('非 Axios 错误（普通 Error）时抛出 INTERNAL_ERROR', async () => {
+      getMock.mockRejectedValue(new Error('未知错误'))
+
+      await expect(client.getRewardOrdinals('tmpl-001')).rejects.toThrow(BusinessException)
     })
   })
 

@@ -20,6 +20,8 @@ import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
 import { BusinessException, ErrorCode } from '@reelclone/common'
 import {
+  CreditOperation,
+  CreditOperationType,
   DATABASE_CONNECTIONS,
   PointTransaction,
   PointTransactionType,
@@ -417,6 +419,44 @@ export class BillingService {
       where: { templateId, type: PointTransactionType.REWARD },
     })
     return count
+  }
+
+  /**
+   * 查询某模板已实际发放的奖励序号列表（P1-10 间隙补偿）
+   *
+   * 从 main 库 CreditOperation 权威记录提取序号，而非 billing 库 PointTransaction 投影。
+   * billing 库投影可能失败（ledger.service.ts 第 769-786 行 try/catch），
+   * 导致序号间隙，用 COUNT(*) 推导的序号起始点会跳过间隙中的漏发。
+   *
+   * 幂等键格式：`reward:template:{templateId}:use:{n}`
+   * 通过正则提取 n，返回已存在的序号集合（升序排列）。
+   *
+   * @param templateId 模板 ID
+   * @returns 已发放的奖励序号列表（如 [1, 2, 4, 5] 表示 3 号漏发）
+   */
+  async getRewardOrdinalsByTemplateId(templateId: string): Promise<number[]> {
+    const repo = this.mainDataSource.getRepository(CreditOperation)
+    const operations = await repo.find({
+      select: ['idempotencyKey'],
+      where: {
+        type: CreditOperationType.REWARD,
+        relatedTemplateId: templateId,
+      },
+    })
+
+    const prefix = `reward:template:${templateId}:use:`
+    const ordinals: number[] = []
+    for (const op of operations) {
+      const key = op.idempotencyKey
+      if (key.startsWith(prefix)) {
+        const n = Number(key.slice(prefix.length))
+        if (Number.isFinite(n) && n > 0) {
+          ordinals.push(n)
+        }
+      }
+    }
+
+    return ordinals.sort((a, b) => a - b)
   }
 
   // -------------------- 幂等编排 --------------------

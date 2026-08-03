@@ -129,4 +129,20 @@ export class BillingController {
     const count = await this.billing.countRewardsByTemplateId(templateId)
     return { templateId, rewardCount: count }
   }
+
+  /**
+   * GET /api/v1/points/internal/templates/:templateId/reward-ordinals
+   * 查询某模板已实际发放的奖励序号列表（P1-10 间隙补偿）
+   *
+   * 从 main 库 CreditOperation 提取序号，而非 billing 库 PointTransaction 投影。
+   * 返回已存在的序号集合，对账服务据此枚举缺口补发，避免 COUNT(*) 间隙饥饿。
+   */
+  @Public()
+  @InternalApi()
+  @Get('internal/templates/:templateId/reward-ordinals')
+  @ApiOperation({ summary: '查询模板已发放奖励序号列表（内部 API）' })
+  async getRewardOrdinals(@Param('templateId') templateId: string) {
+    const ordinals = await this.billing.getRewardOrdinalsByTemplateId(templateId)
+    return { templateId, ordinals }
+  }
 }

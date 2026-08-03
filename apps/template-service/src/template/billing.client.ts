@@ -6,6 +6,7 @@
  * 当前用于：
  *  - POST /api/v1/points/reward  模板被使用时奖励上传者
  *  - GET  /api/v1/points/internal/templates/:id/reward-count  查询奖励次数（对账用）
+ *  - GET  /api/v1/points/internal/templates/:id/reward-ordinals  查询已发放序号列表（P1-10 间隙补偿）
  *
  * 鉴权：通过 x-api-key Header 携带 INTERNAL_API_KEY
  * 幂等：每次 reward 调用传入 idempotencyKey，billing-service 保证重复请求返回首次结果
@@ -48,6 +49,12 @@ interface RewardResultData {
 interface RewardCountData {
   templateId: string
   rewardCount: number
+}
+
+/** reward-ordinals 接口返回数据 */
+interface RewardOrdinalsData {
+  templateId: string
+  ordinals: number[]
 }
 
 @Injectable()
@@ -108,5 +115,18 @@ export class BillingClient {
       `/api/v1/points/internal/templates/${templateId}/reward-count`,
     )
     return data.rewardCount
+  }
+
+  /**
+   * 查询某模板已实际发放的奖励序号列表（P1-10 间隙补偿）
+   *
+   * 从 main 库 CreditOperation 权威记录提取序号，用于枚举缺口补发。
+   * 返回升序排列的序号数组（如 [1, 2, 4, 5] 表示 3 号漏发）。
+   */
+  async getRewardOrdinals(templateId: string): Promise<number[]> {
+    const data = await this.client.get<RewardOrdinalsData>(
+      `/api/v1/points/internal/templates/${templateId}/reward-ordinals`,
+    )
+    return data.ordinals
   }
 }

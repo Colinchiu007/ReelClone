@@ -771,4 +771,77 @@ describe('BillingService', () => {
       expect(result).toBe(0)
     })
   })
+
+  // -------------------- getRewardOrdinalsByTemplateId --------------------
+
+  describe('getRewardOrdinalsByTemplateId', () => {
+    it('从 main 库 CreditOperation 提取已发放序号并升序排列', async () => {
+      const creditOpRepo = mockRepo<CreditOperation>()
+      creditOpRepo.find.mockResolvedValue([
+        { idempotencyKey: 'reward:template:tmpl-001:use:3' },
+        { idempotencyKey: 'reward:template:tmpl-001:use:1' },
+        { idempotencyKey: 'reward:template:tmpl-001:use:5' },
+      ] as CreditOperation[])
+
+      // 第一次 getRepository 返回 creditOpRepo（CreditOperation），后续返回 userRepo
+      mainDataSource.getRepository
+        .mockReturnValueOnce(creditOpRepo as never)
+
+      const result = await service.getRewardOrdinalsByTemplateId('tmpl-001')
+
+      expect(result).toEqual([1, 3, 5])
+      expect(creditOpRepo.find).toHaveBeenCalledWith({
+        select: ['idempotencyKey'],
+        where: {
+          type: CreditOperationType.REWARD,
+          relatedTemplateId: 'tmpl-001',
+        },
+      })
+    })
+
+    it('无 CreditOperation 记录时返回空数组', async () => {
+      const creditOpRepo = mockRepo<CreditOperation>()
+      creditOpRepo.find.mockResolvedValue([])
+
+      mainDataSource.getRepository
+        .mockReturnValueOnce(creditOpRepo as never)
+
+      const result = await service.getRewardOrdinalsByTemplateId('tmpl-new')
+
+      expect(result).toEqual([])
+    })
+
+    it('正确识别间隙：存在序号 [1,2,4,5] 缺失 3', async () => {
+      const creditOpRepo = mockRepo<CreditOperation>()
+      creditOpRepo.find.mockResolvedValue([
+        { idempotencyKey: 'reward:template:tmpl-gap:use:1' },
+        { idempotencyKey: 'reward:template:tmpl-gap:use:2' },
+        { idempotencyKey: 'reward:template:tmpl-gap:use:4' },
+        { idempotencyKey: 'reward:template:tmpl-gap:use:5' },
+      ] as CreditOperation[])
+
+      mainDataSource.getRepository
+        .mockReturnValueOnce(creditOpRepo as never)
+
+      const result = await service.getRewardOrdinalsByTemplateId('tmpl-gap')
+
+      expect(result).toEqual([1, 2, 4, 5])
+    })
+
+    it('忽略非 reward:template 前缀的 idempotencyKey', async () => {
+      const creditOpRepo = mockRepo<CreditOperation>()
+      creditOpRepo.find.mockResolvedValue([
+        { idempotencyKey: 'reward:template:tmpl-001:use:1' },
+        { idempotencyKey: 'consume:template:tmpl-001:use:2' },
+        { idempotencyKey: 'grant:manual:xxx' },
+      ] as CreditOperation[])
+
+      mainDataSource.getRepository
+        .mockReturnValueOnce(creditOpRepo as never)
+
+      const result = await service.getRewardOrdinalsByTemplateId('tmpl-001')
+
+      expect(result).toEqual([1])
+    })
+  })
 })
