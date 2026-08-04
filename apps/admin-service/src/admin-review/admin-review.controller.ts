@@ -4,9 +4,10 @@
  * 路由前缀：admin（与全局前缀 api/v1 拼接后为 /api/v1/admin）
  *
  * 端点（全部需要 @Roles('ADMIN', 'SUPER_ADMIN')）：
- *  - GET  /admin/reviews/pending                  聚合待审核列表（?type=template|avatar|all）
+ *  - GET  /admin/reviews/pending                  聚合待审核列表（?type=template|avatar|asset|all）
  *  - POST /admin/templates/:id/review             模板审核
  *  - PUT  /admin/avatar-groups/:id/authorization  形象组授权审核
+ *  - POST /admin/assets/:id/review                资产审核
  *
  * 所有端点均需 JWT + 管理员角色（全局 JwtAuthGuard + RolesGuard 生效）。
  */
@@ -16,6 +17,7 @@ import { CurrentUser, Roles } from '@reelclone/common'
 import { AdminReviewService } from './admin-review.service'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
+import { ReviewAssetDto } from './dto/review-asset.dto'
 
 // NOTE: 使用 'admin' 前缀而非 'admin/reviews'，因为本模块的端点跨多个资源路径
 // （/reviews/pending, /templates/:id/review, /avatar-groups/:id/authorization）
@@ -62,5 +64,19 @@ export class AdminReviewController {
     @CurrentUser('userId') operatorId: string,
   ) {
     return this.adminReviewService.reviewAvatarGroup(id, dto, operatorId)
+  }
+
+  /**
+   * POST /api/v1/admin/assets/:id/review
+   * 资产审核：更新 status + reviewNote + reviewedAt，并通知上传者
+   */
+  @Post('assets/:id/review')
+  @ApiOperation({ summary: '资产审核' })
+  async reviewAsset(
+    @Param('id') id: string,
+    @Body() dto: ReviewAssetDto,
+    @CurrentUser('userId') operatorId: string,
+  ) {
+    return this.adminReviewService.reviewAsset(id, dto, operatorId)
   }
 }

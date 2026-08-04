@@ -15,7 +15,7 @@
  *  - AdminReviewService: 审核聚合 + 通知推送
  */
 import { Module } from '@nestjs/common'
-import { DatabaseModule, DATABASE_CONNECTIONS, Template, AvatarGroup } from '@reelclone/database'
+import { DatabaseModule, DATABASE_CONNECTIONS, Template, AvatarGroup, Asset } from '@reelclone/database'
 import { AdminReviewController } from './admin-review.controller'
 import { AdminReviewService } from './admin-review.service'
 
@@ -23,8 +23,8 @@ import { AdminReviewService } from './admin-review.service'
   imports: [
     // template 库实体（Template）
     DatabaseModule.forFeature([Template], DATABASE_CONNECTIONS.TEMPLATE),
-    // main 库实体（AvatarGroup）
-    DatabaseModule.forFeature([AvatarGroup], DATABASE_CONNECTIONS.MAIN),
+    // main 库实体（AvatarGroup, Asset）
+    DatabaseModule.forFeature([AvatarGroup, Asset], DATABASE_CONNECTIONS.MAIN),
   ],
   controllers: [AdminReviewController],
   providers: [AdminReviewService],

@@ -1,9 +1,10 @@
 /**
  * 审核工作台服务
  *
- * 聚合模板审核与形象组授权审核：
+ * 聚合模板审核、形象组授权审核与资产审核：
  *  - 模板：从 template 库操作 Template 实体（status: PENDING_REVIEW → ACTIVE/REJECTED）
  *  - 形象组：从 main 库操作 AvatarGroup 实体（authorizationStatus: PENDING → APPROVED/EXPIRED）
+ *  - 资产：从 main 库操作 Asset 实体（status: PENDING_REVIEW → ACTIVE/REJECTED）
  *
  * 通知推送：通过 HTTP 调用 notification-service 的 /api/v1/notifications/send，
  *           携带 x-api-key（INTERNAL_API_KEY），best-effort，失败仅记录日志。
@@ -21,17 +22,21 @@ import {
   AvatarGroup,
   AuthorizationStatus,
   AvatarGroupStatus,
+  Asset,
+  AssetStatus,
   DATABASE_CONNECTIONS,
   NotificationType,
 } from '@reelclone/database'
 import { BusinessException } from '@reelclone/common'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
+import { ReviewAssetDto } from './dto/review-asset.dto'
 
 /** 待审核聚合结果 */
 export interface PendingReviewResult {
   templates: Template[]
   avatarGroups: AvatarGroup[]
+  assets: Asset[]
   total: number
 }
 
@@ -45,7 +50,7 @@ interface SendNotificationInput {
 }
 
 /** 合法的待审核类型筛选值 */
-type ReviewType = 'template' | 'avatar' | 'all'
+type ReviewType = 'template' | 'avatar' | 'asset' | 'all'
 
 @Injectable()
 export class AdminReviewService {
@@ -57,6 +62,8 @@ export class AdminReviewService {
     private readonly templateRepo: Repository<Template>,
     @InjectRepository(AvatarGroup, DATABASE_CONNECTIONS.MAIN)
     private readonly avatarGroupRepo: Repository<AvatarGroup>,
+    @InjectRepository(Asset, DATABASE_CONNECTIONS.MAIN)
+    private readonly assetRepo: Repository<Asset>,
     private readonly configService: ConfigService,
   ) {
     const baseUrl =
@@ -82,13 +89,14 @@ export class AdminReviewService {
    * @param type 筛选类型：template | avatar | all（默认 all，非法值回退到 all）
    */
   async findPending(type: string = 'all'): Promise<PendingReviewResult> {
-    const validTypes: ReviewType[] = ['template', 'avatar', 'all']
+    const validTypes: ReviewType[] = ['template', 'avatar', 'asset', 'all']
     const queryType: ReviewType = validTypes.includes(type as ReviewType)
       ? (type as ReviewType)
       : 'all'
 
     let templates: Template[] = []
     let avatarGroups: AvatarGroup[] = []
+    let assets: Asset[] = []
 
     if (queryType === 'template' || queryType === 'all') {
       templates = await this.templateRepo.find({
@@ -107,10 +115,18 @@ export class AdminReviewService {
       })
     }
 
+    if (queryType === 'asset' || queryType === 'all') {
+      assets = await this.assetRepo.find({
+        where: { status: AssetStatus.PENDING_REVIEW },
+        order: { createdAt: 'ASC' },
+      })
+    }
+
     return {
       templates,
       avatarGroups,
-      total: templates.length + avatarGroups.length,
+      assets,
+      total: templates.length + avatarGroups.length + assets.length,
     }
   }
 
@@ -202,6 +218,48 @@ export class AdminReviewService {
         dto.status === AuthorizationStatus.APPROVED ? '形象组授权审核通过' : '形象组授权已过期',
       content: dto.note ?? null,
       data: { avatarGroupId: id, status: dto.status },
+    })
+
+    return saved
+  }
+
+  /**
+   * 资产审核
+   *
+   * 更新资产 status + reviewNote + reviewedAt，并推送通知给所有者。
+   *
+   * @param id          资产 ID
+   * @param dto         审核参数
+   * @param operatorId  操作者用户 ID
+   * @returns 更新后的资产实体
+   */
+  async reviewAsset(id: string, dto: ReviewAssetDto, operatorId: string): Promise<Asset> {
+    const asset = await this.assetRepo.findOne({ where: { id } })
+    if (!asset) {
+      throw BusinessException.notFound('资产')
+    }
+
+    if (asset.status !== AssetStatus.PENDING_REVIEW) {
+      throw BusinessException.validationError(`资产当前状态为 ${asset.status}，无法审核`)
+    }
+
+    asset.status = dto.status
+    asset.reviewNote = dto.reviewNote ?? null
+    asset.reviewedAt = new Date()
+
+    const saved = await this.assetRepo.save(asset)
+
+    this.logger.log(
+      `审核资产 operatorId=${operatorId} assetId=${id} result=${dto.status} note=${dto.reviewNote ?? 'null'} at=${saved.reviewedAt?.toISOString()}`,
+    )
+
+    // 通知所有者（best-effort，失败不阻塞主流程）
+    await this.sendNotification({
+      userId: asset.userId,
+      type: NotificationType.SYSTEM,
+      title: dto.status === AssetStatus.ACTIVE ? '资产审核通过' : '资产审核未通过',
+      content: dto.reviewNote ?? null,
+      data: { assetId: id, status: dto.status },
     })
 
     return saved

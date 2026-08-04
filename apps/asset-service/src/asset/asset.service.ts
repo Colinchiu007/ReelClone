@@ -162,7 +162,7 @@ export class AssetService {
       duration: dto.duration ?? null,
       thumbnailKey: dto.thumbnailKey ?? null,
       avatarGroupId: avatarGroup ? avatarGroup.id : null,
-      status: AssetStatus.ACTIVE,
+      status: AssetStatus.PENDING_REVIEW,
     });
     const saved = await this.assetRepo.save(asset);
 

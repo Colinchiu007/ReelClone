@@ -285,7 +285,7 @@ describe('AssetService', () => {
           userId: 'user-1',
           ossKey: 'assets/image/user-1/x.png',
           type: AssetType.IMAGE,
-          status: AssetStatus.ACTIVE,
+          status: AssetStatus.PENDING_REVIEW,
           avatarGroupId: null,
         }),
       );

@@ -14,7 +14,8 @@ import { AdminReviewService } from './admin-review.service'
 import { ROLES_KEY } from '@reelclone/common'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
-import { TemplateStatus, AuthorizationStatus } from '@reelclone/database'
+import { ReviewAssetDto } from './dto/review-asset.dto'
+import { TemplateStatus, AuthorizationStatus, AssetStatus } from '@reelclone/database'
 
 describe('AdminReviewController', () => {
   let controller: AdminReviewController
@@ -26,6 +27,7 @@ describe('AdminReviewController', () => {
       findPending: jest.fn(),
       reviewTemplate: jest.fn(),
       reviewAvatarGroup: jest.fn(),
+      reviewAsset: jest.fn(),
     } as unknown as jest.Mocked<AdminReviewService>
 
     const moduleRef = await Test.createTestingModule({
@@ -110,6 +112,24 @@ describe('AdminReviewController', () => {
     })
   })
 
+  // -------------------- POST /assets/:id/review --------------------
+
+  describe('reviewAsset', () => {
+    it('调用 service.reviewAsset 并透传 id / dto / operatorId', async () => {
+      const dto: ReviewAssetDto = {
+        status: AssetStatus.ACTIVE,
+        reviewNote: '合规',
+      }
+      const mockResult = { id: 'asset-1', status: AssetStatus.ACTIVE }
+      service.reviewAsset.mockResolvedValue(mockResult as any)
+
+      const result = await controller.reviewAsset('asset-1', dto, 'admin-1')
+
+      expect(service.reviewAsset).toHaveBeenCalledWith('asset-1', dto, 'admin-1')
+      expect(result).toBe(mockResult)
+    })
+  })
+
   // -------------------- 权限元数据校验 --------------------
 
   describe('权限装饰器', () => {
@@ -136,6 +156,12 @@ describe('AdminReviewController', () => {
         AdminReviewController,
       ])
       expect(reviewAvatarGroupRoles).toEqual(['ADMIN', 'SUPER_ADMIN'])
+
+      const reviewAssetRoles = reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+        controller.reviewAsset,
+        AdminReviewController,
+      ])
+      expect(reviewAssetRoles).toEqual(['ADMIN', 'SUPER_ADMIN'])
     })
   })
 })

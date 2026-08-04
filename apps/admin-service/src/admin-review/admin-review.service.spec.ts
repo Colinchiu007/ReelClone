@@ -5,6 +5,7 @@
  *  - findPending: type=all/template/avatar 聚合查询 + 默认值 + 非法值回退
  *  - reviewTemplate: 成功 / 模板不存在 / 状态非待审核 / 通知推送（通过/拒绝/无提交者）
  *  - reviewAvatarGroup: 成功 / 形象组不存在 / 状态非待审核 / 通知推送（通过/过期）
+ *  - reviewAsset: 成功 / 资产不存在 / 状态非待审核 / 通知推送（通过/拒绝）
  */
 import { Test } from '@nestjs/testing'
 import { ConfigService } from '@nestjs/config'
@@ -16,12 +17,15 @@ import {
   AvatarGroup,
   AuthorizationStatus,
   AvatarGroupStatus,
+  Asset,
+  AssetStatus,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import { BusinessException, ErrorCode } from '@reelclone/common'
 import { AdminReviewService } from './admin-review.service'
 import { ReviewTemplateDto } from './dto/review-template.dto'
 import { ReviewAvatarGroupDto } from './dto/review-avatar-group.dto'
+import { ReviewAssetDto } from './dto/review-asset.dto'
 
 // -------------------- Mock 工具 --------------------
 
@@ -74,12 +78,36 @@ function createMockAvatarGroup(overrides: Partial<AvatarGroup> = {}): AvatarGrou
   } as AvatarGroup
 }
 
+/** 创建资产 Mock 实体 */
+function createMockAsset(overrides: Partial<Asset> = {}): Asset {
+  return {
+    id: 'asset-001',
+    userId: 'user-001',
+    type: 'IMAGE' as any,
+    name: '测试资产',
+    ossKey: 'oss://test.png',
+    ossUrl: null,
+    mimeType: 'image/png',
+    size: 1024,
+    duration: null,
+    thumbnailKey: null,
+    avatarGroupId: null,
+    status: AssetStatus.PENDING_REVIEW,
+    reviewNote: null,
+    reviewedAt: null,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    ...overrides,
+  } as Asset
+}
+
 // -------------------- 测试 --------------------
 
 describe('AdminReviewService', () => {
   let service: AdminReviewService
   let templateRepo: jest.Mocked<Repository<Template>>
   let avatarGroupRepo: jest.Mocked<Repository<AvatarGroup>>
+  let assetRepo: jest.Mocked<Repository<Asset>>
   let sendNotificationSpy: jest.SpyInstance
 
   beforeEach(async () => {
@@ -95,6 +123,12 @@ describe('AdminReviewService', () => {
       save: jest.fn(),
     } as unknown as jest.Mocked<Repository<AvatarGroup>>
 
+    assetRepo = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+    } as unknown as jest.Mocked<Repository<Asset>>
+
     const configService = {
       get: jest.fn().mockReturnValue(''),
     } as unknown as ConfigService
@@ -109,6 +143,10 @@ describe('AdminReviewService', () => {
         {
           provide: getRepositoryToken(AvatarGroup, DATABASE_CONNECTIONS.MAIN),
           useValue: avatarGroupRepo,
+        },
+        {
+          provide: getRepositoryToken(Asset, DATABASE_CONNECTIONS.MAIN),
+          useValue: assetRepo,
         },
         { provide: ConfigService, useValue: configService },
       ],
@@ -128,11 +166,13 @@ describe('AdminReviewService', () => {
   // -------------------- findPending --------------------
 
   describe('findPending', () => {
-    it('type=all: 同时查询模板和形象组', async () => {
+    it('type=all: 同时查询模板、形象组和资产', async () => {
       const templates = [createMockTemplate({ id: 't-1' })]
       const avatarGroups = [createMockAvatarGroup({ id: 'ag-1' })]
+      const assets = [createMockAsset({ id: 'a-1' })]
       templateRepo.find.mockResolvedValue(templates)
       avatarGroupRepo.find.mockResolvedValue(avatarGroups)
+      assetRepo.find.mockResolvedValue(assets)
 
       const result = await service.findPending('all')
 
@@ -147,9 +187,14 @@ describe('AdminReviewService', () => {
         },
         order: { createdAt: 'ASC' },
       })
+      expect(assetRepo.find).toHaveBeenCalledWith({
+        where: { status: AssetStatus.PENDING_REVIEW },
+        order: { createdAt: 'ASC' },
+      })
       expect(result.templates).toEqual(templates)
       expect(result.avatarGroups).toEqual(avatarGroups)
-      expect(result.total).toBe(2)
+      expect(result.assets).toEqual(assets)
+      expect(result.total).toBe(3)
     })
 
     it('type=template: 仅查询模板', async () => {
@@ -205,6 +250,21 @@ describe('AdminReviewService', () => {
       const result = await service.findPending('all')
 
       expect(result.total).toBe(0)
+    })
+
+    it('type=asset: 仅查询资产', async () => {
+      const assets = [createMockAsset({ id: 'a-1' })]
+      assetRepo.find.mockResolvedValue(assets)
+
+      const result = await service.findPending('asset')
+
+      expect(templateRepo.find).not.toHaveBeenCalled()
+      expect(avatarGroupRepo.find).not.toHaveBeenCalled()
+      expect(assetRepo.find).toHaveBeenCalled()
+      expect(result.templates).toEqual([])
+      expect(result.avatarGroups).toEqual([])
+      expect(result.assets).toEqual(assets)
+      expect(result.total).toBe(1)
     })
   })
 
@@ -389,6 +449,95 @@ describe('AdminReviewService', () => {
         expect.objectContaining({
           userId: 'user-000',
           title: '形象组授权已过期',
+        }),
+      )
+    })
+  })
+
+  // -------------------- reviewAsset --------------------
+
+  describe('reviewAsset', () => {
+    const dto: ReviewAssetDto = {
+      status: AssetStatus.ACTIVE,
+      reviewNote: '内容合规',
+    }
+
+    it('审核通过: 更新 status + reviewNote + reviewedAt', async () => {
+      const asset = createMockAsset({ id: 'asset-1' })
+      assetRepo.findOne.mockResolvedValue(asset)
+      ;(assetRepo.save as jest.Mock).mockImplementation(async (a: any) => a)
+
+      const result = await service.reviewAsset('asset-1', dto, 'admin-1')
+
+      expect(result.status).toBe(AssetStatus.ACTIVE)
+      expect(result.reviewNote).toBe('内容合规')
+      expect(result.reviewedAt).toBeInstanceOf(Date)
+      expect(assetRepo.findOne).toHaveBeenCalledWith({ where: { id: 'asset-1' } })
+      expect(assetRepo.save).toHaveBeenCalledWith(asset)
+    })
+
+    it('资产不存在: 抛出 NOT_FOUND', async () => {
+      assetRepo.findOne.mockResolvedValue(null)
+
+      await expect(service.reviewAsset('not-exist', dto, 'admin-1')).rejects.toThrow(
+        BusinessException,
+      )
+
+      try {
+        await service.reviewAsset('not-exist', dto, 'admin-1')
+      } catch (e) {
+        expect((e as BusinessException).code).toBe(ErrorCode.NOT_FOUND)
+      }
+    })
+
+    it('资产状态非待审核: 抛出 VALIDATION_ERROR', async () => {
+      const asset = createMockAsset({
+        id: 'asset-2',
+        status: AssetStatus.ACTIVE,
+      })
+      assetRepo.findOne.mockResolvedValue(asset)
+
+      await expect(service.reviewAsset('asset-2', dto, 'admin-1')).rejects.toThrow(
+        BusinessException,
+      )
+
+      try {
+        await service.reviewAsset('asset-2', dto, 'admin-1')
+      } catch (e) {
+        expect((e as BusinessException).code).toBe(ErrorCode.VALIDATION_ERROR)
+      }
+    })
+
+    it('审核通过后推送通知给所有者', async () => {
+      const asset = createMockAsset({ id: 'asset-3', userId: 'user-789' })
+      assetRepo.findOne.mockResolvedValue(asset)
+      ;(assetRepo.save as jest.Mock).mockImplementation(async (a: any) => a)
+
+      await service.reviewAsset('asset-3', dto, 'admin-1')
+
+      expect(sendNotificationSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-789',
+          title: '资产审核通过',
+        }),
+      )
+    })
+
+    it('审核拒绝后推送通知给所有者', async () => {
+      const rejectDto: ReviewAssetDto = {
+        status: AssetStatus.REJECTED,
+        reviewNote: '包含违规内容',
+      }
+      const asset = createMockAsset({ id: 'asset-4', userId: 'user-456' })
+      assetRepo.findOne.mockResolvedValue(asset)
+      ;(assetRepo.save as jest.Mock).mockImplementation(async (a: any) => a)
+
+      await service.reviewAsset('asset-4', rejectDto, 'admin-1')
+
+      expect(sendNotificationSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-456',
+          title: '资产审核未通过',
         }),
       )
     })

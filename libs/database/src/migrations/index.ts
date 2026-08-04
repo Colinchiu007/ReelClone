@@ -20,3 +20,4 @@ export { AddGenerationExecutions1700000000014 } from './main/0010_add_generation
 export { AddUserPackageOrderIdUnique1700000000015 } from './main/0011_add_user_package_order_id_unique'
 export { AddSmsCodeProviderMessageId1700000000016 } from './main/0012_add_sms_code_provider_message_id'
 export { AddOrderPaymentEvents1700000000017 } from './main/0013_add_order_payment_events'
+export { AddAssetReviewFields1722800000000 } from './main/0017_add_asset_review_fields'

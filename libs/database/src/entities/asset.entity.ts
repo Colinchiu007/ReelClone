@@ -20,7 +20,9 @@ export enum AssetType {
 
 /** 资产状态 */
 export enum AssetStatus {
+  PENDING_REVIEW = 'PENDING_REVIEW',
   ACTIVE = 'ACTIVE',
+  REJECTED = 'REJECTED',
   DELETED = 'DELETED',
 }
 
@@ -76,8 +78,16 @@ export class Asset {
   avatarGroupId: string | null;
 
   /** 资产状态 */
-  @Column({ type: 'enum', enum: AssetStatus, default: AssetStatus.ACTIVE })
+  @Column({ type: 'enum', enum: AssetStatus, default: AssetStatus.PENDING_REVIEW })
   status: AssetStatus;
+
+  /** 审核备注 */
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  reviewNote: string | null;
+
+  /** 审核时间 */
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewedAt: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
