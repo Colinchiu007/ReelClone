@@ -19,7 +19,12 @@ import { Logger } from '@nestjs/common'
 import axios, { type AxiosInstance } from 'axios'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
-import { type IWechatPayAdapter, type WechatPayNotification } from './wechat-pay-adapter.interface'
+import {
+  type IWechatPayAdapter,
+  type WechatPayNotification,
+  type ProfitSharingRequest,
+  type ProfitSharingQueryResult,
+} from './wechat-pay-adapter.interface'
 
 // -------------------- 类型定义 --------------------
 
@@ -623,6 +628,86 @@ export class RealWechatPayAdapter implements IWechatPayAdapter {
     const parsed = JSON.parse(plaintext.toString('utf8'))
 
     return parsed as DecryptedPaymentResult
+  }
+
+  // -------------------- 分账（Profit Sharing） --------------------
+
+  /**
+   * 发起分账请求
+   *
+   * 调用 POST /v3/pay/transactions/profitsharing
+   *
+   * @param params 分账请求参数
+   * @returns 分账请求结果（含商户分账单号）
+   */
+  async initiateProfitSharing(params: ProfitSharingRequest): Promise<{ outOrderNo: string }> {
+    const outOrderNo = `ps_${params.orderNo}_${Date.now()}`
+    const url = '/v3/pay/transactions/profitsharing'
+
+    const requestBody = {
+      appid: this.config.appId,
+      mchid: this.config.mchId,
+      description: params.description,
+      out_order_no: outOrderNo,
+      transaction_id: params.transactionId,
+      profit_sharing_receivers: params.receivers.map((r) => ({
+        type: r.type,
+        account: r.account,
+        amount: r.amount,
+        description: r.description,
+      })),
+    }
+
+    const bodyStr = JSON.stringify(requestBody)
+    const authorization = this.buildAuthorization('POST', url, bodyStr)
+
+    const resp = await this.httpClient.post(url, requestBody, {
+      headers: { Authorization: authorization },
+    })
+
+    return { outOrderNo: resp.data?.out_order_no ?? outOrderNo }
+  }
+
+  /**
+   * 查询分账状态
+   *
+   * 调用 GET /v3/pay/transactions/profitsharing/{out_order_no}
+   *
+   * @param outOrderNo 商户分账单号
+   * @returns 分账结果详情
+   */
+  async queryProfitSharing(outOrderNo: string): Promise<ProfitSharingQueryResult> {
+    const url = `/v3/pay/transactions/profitsharing/${outOrderNo}`
+    const authorization = this.buildAuthorization('GET', url, '')
+
+    const resp = await this.httpClient.get(url, {
+      headers: { Authorization: authorization },
+    })
+
+    const data = resp.data ?? {}
+
+    return {
+      outOrderNo: data.out_order_no ?? outOrderNo,
+      state: data.state ?? 'PROCESSING',
+      profitSharingNo: data.profit_sharing_no ?? null,
+      receivers: Array.isArray(data.receivers)
+        ? data.receivers.map(
+            (r: {
+              type?: string
+              account?: string
+              amount?: number
+              result?: string
+              fail_reason?: string
+            }) => ({
+              type: r.type ?? '',
+              account: r.account ?? '',
+              amount: r.amount ?? 0,
+              state: r.result ?? 'PROCESSING',
+              failReason: r.fail_reason,
+            }),
+          )
+        : [],
+    }
   }
 
   // -------------------- 字段绑定校验 --------------------

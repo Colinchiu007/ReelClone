@@ -8,6 +8,13 @@
  *  - cancel：成功 / 非 PENDING 状态拒绝
  *  - handleCallback：成功 / 订单不存在 / 幂等（已 PAID）/ 非 SUCCESS 状态 / 签名校验失败 / transaction_id 幂等
  */
+// Mock profit-sharing.service to avoid circular dependency via @InjectRepository
+jest.mock('../profit-sharing/profit-sharing.service', () => ({
+  ProfitSharingService: jest.fn().mockImplementation(() => ({
+    initiateProfitSharing: jest.fn().mockResolvedValue(undefined),
+  })),
+}))
+
 import { BusinessException } from '@reelclone/common'
 import {
   Order,
@@ -191,6 +198,7 @@ describe('OrderService', () => {
       redis as never,
       wechatPay,
       billingClient,
+      { initiateProfitSharing: jest.fn().mockResolvedValue(undefined) } as never,
     )
   })
 

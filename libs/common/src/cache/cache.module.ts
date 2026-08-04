@@ -44,7 +44,7 @@ export class CacheModule {
   static forRootAsync(options: CacheModuleAsyncOptions): DynamicModule {
     const redisProvider = {
       provide: CACHE_REDIS,
-      inject: options.inject ?? [],
+      inject: (options.inject ?? []) as (string | symbol)[],
       useFactory: options.useFactory,
     }
     return {

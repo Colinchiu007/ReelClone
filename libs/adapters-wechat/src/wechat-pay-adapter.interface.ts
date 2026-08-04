@@ -40,6 +40,45 @@ export interface WechatPayNotification {
   }
 }
 
+/** 分账请求参数 */
+export interface ProfitSharingRequest {
+  /** 商户订单号（即 out_trade_no） */
+  orderNo: string
+  /** 微信支付流水号 */
+  transactionId: string
+  /** 描述 */
+  description: string
+  /** 分账接收方列表 */
+  receivers: Array<{
+    /** 接收方类型：OPENID / MERCHANT_ID */
+    type: string
+    /** 接收方账号 */
+    account: string
+    /** 分账金额（分） */
+    amount: number
+    /** 分账结果描述（用于展示） */
+    description?: string
+  }>
+}
+
+/** 分账查询结果 */
+export interface ProfitSharingQueryResult {
+  /** 商户分账单号 */
+  outOrderNo: string
+  /** 分账状态：SUCCESS / PROCESSING / FAILED */
+  state: string
+  /** 分账单号（微信侧） */
+  profitSharingNo: string | null
+  /** 各接收方结果 */
+  receivers: Array<{
+    type: string
+    account: string
+    amount: number
+    state: string
+    failReason?: string
+  }>
+}
+
 /**
  * 微信支付适配器接口
  *
@@ -98,6 +137,26 @@ export interface IWechatPayAdapter {
    * @returns 完整的 Authorization 头值
    */
   buildAuthorization(method: string, url: string, body: string): string
+
+  /**
+   * 发起分账请求
+   *
+   * 调用 POST /v3/pay/transactions/profitsharing
+   *
+   * @param params 分账请求参数
+   * @returns 分账请求结果（含商户分账单号）
+   */
+  initiateProfitSharing(params: ProfitSharingRequest): Promise<{ outOrderNo: string }>
+
+  /**
+   * 查询分账状态
+   *
+   * 调用 GET /v3/pay/transactions/profitsharing/{out_order_no}
+   *
+   * @param outOrderNo 商户分账单号
+   * @returns 分账结果详情
+   */
+  queryProfitSharing(outOrderNo: string): Promise<ProfitSharingQueryResult>
 }
 
 /** WECHAT_PAY_ADAPTER DI token */

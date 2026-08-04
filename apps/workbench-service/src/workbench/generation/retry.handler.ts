@@ -7,7 +7,7 @@
  *  3. 重新冻结积分并重启独立的 Temporal 工作流
  *  4. 更新 Work 状态为 PENDING
  */
-import { Inject, Logger } from '@nestjs/common'
+import { Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
@@ -41,7 +41,6 @@ import {
 import { GenerationCreateHandler } from './create.handler'
 
 export class GenerationRetryHandler {
-  private readonly logger = new Logger(GenerationRetryHandler.name)
 
   constructor(
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)

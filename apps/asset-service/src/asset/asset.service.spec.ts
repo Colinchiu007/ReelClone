@@ -303,7 +303,7 @@ describe('AssetService', () => {
       );
 
       const dto: CreateAssetDto = {
-        ossKey: 'k',
+        ossKey: 'assets/image/user-1/x.png',
         name: 'n',
         type: AssetType.IMAGE,
         size: 1,
@@ -329,7 +329,7 @@ describe('AssetService', () => {
       avatarGroupRepo.findOne.mockResolvedValue(null);
 
       const dto: CreateAssetDto = {
-        ossKey: 'k',
+        ossKey: 'assets/image/user-1/x.png',
         name: 'n',
         type: AssetType.IMAGE,
         size: 1,

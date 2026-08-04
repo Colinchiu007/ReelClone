@@ -43,6 +43,7 @@ import { BillingClient } from './billing.client'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { ListOrdersDto } from './dto/list-orders.dto'
 import { WechatPayService } from './wechat-pay.service'
+import { ProfitSharingService } from '../profit-sharing/profit-sharing.service'
 import { v4 as uuidv4 } from 'uuid'
 
 /** 创建订单响应 */
@@ -107,6 +108,7 @@ export class OrderService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly wechatPay: WechatPayService,
     private readonly billingClient: BillingClient,
+    private readonly profitSharingService: ProfitSharingService,
   ) {}
 
   // -------------------- 创建订单 --------------------
@@ -555,6 +557,21 @@ export class OrderService {
     if (grantContext) {
       await this.invokeGrantWithCompensation(grantContext)
     }
+
+    // 11. 事务提交后 best-effort 发起分账（失败不阻塞回调）
+    //     分账由 ProfitSharingService 独立管理重试，此处仅触发首次尝试
+    this.profitSharingService
+      .initiateProfitSharing({
+        orderId: order.id,
+        orderNo: order.orderNo,
+        transactionId: result.transaction_id,
+        totalAmountYuan: Number(order.amount),
+      })
+      .catch((err) => {
+        this.logger.error(
+          `分账触发失败（best-effort）: orderNo=${order.orderNo} error=${(err as Error).message}`,
+        )
+      })
 
     return {
       processed: true,

@@ -7,7 +7,12 @@
  *
  * production/staging 环境禁止绑定此适配器（由 resolveWechatPayProfile fail-closed 保证）。
  */
-import type { IWechatPayAdapter, WechatPayNotification } from './wechat-pay-adapter.interface'
+import type {
+  IWechatPayAdapter,
+  WechatPayNotification,
+  ProfitSharingRequest,
+  ProfitSharingQueryResult,
+} from './wechat-pay-adapter.interface'
 
 export class MockWechatPayAdapter implements IWechatPayAdapter {
   readonly isMock = true
@@ -46,6 +51,20 @@ export class MockWechatPayAdapter implements IWechatPayAdapter {
   buildAuthorization(_method: string, _url: string, _body: string): string {
     // Mock 模式返回固定签名头（不需要真实签名）
     return 'WECHATPAY2-SHA256-RSA2048 mchid="mock_mchid",nonce_str="mock_nonce",timestamp="0",serial_no="mock_serial",signature="mock_signature"'
+  }
+
+  initiateProfitSharing(params: ProfitSharingRequest): Promise<{ outOrderNo: string }> {
+    // Mock 模式直接返回成功
+    return Promise.resolve({ outOrderNo: `mock_ps_${params.orderNo}` })
+  }
+
+  queryProfitSharing(outOrderNo: string): Promise<ProfitSharingQueryResult> {
+    return Promise.resolve({
+      outOrderNo,
+      state: 'SUCCESS',
+      profitSharingNo: `mock_profit_sharing_no_${outOrderNo}`,
+      receivers: [],
+    })
   }
 
   /** 大小写不敏感地提取 header 值 */

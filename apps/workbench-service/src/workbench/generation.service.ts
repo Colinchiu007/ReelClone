@@ -46,7 +46,7 @@ export class GenerationService {
     templateClient: TemplateClient,
     temporalService: TemporalService,
     configService: ConfigService,
-    @Inject(CAPABILITY_REGISTRY) private readonly registry: CapabilityRegistry,
+    @Inject(CAPABILITY_REGISTRY) registry: CapabilityRegistry,
   ) {
     this.createHandler = new GenerationCreateHandler(
       dataSource,

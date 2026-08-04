@@ -93,12 +93,12 @@ describe('BillingClient', () => {
 
     new BillingClient(configService)
 
-    expect(axios.create).toHaveBeenCalledWith(
+    expect(axios.create).toHaveBeenLastCalledWith(
       expect.objectContaining({
         baseURL: 'http://localhost:3006',
-        headers: expect.objectContaining({
-          'x-api-key': '',
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       }),
     )
 
@@ -136,13 +136,17 @@ describe('BillingClient', () => {
       })
 
       // 校验 POST 请求参数
-      expect(postMock).toHaveBeenCalledWith('/api/v1/points/reward', {
-        userId: 'user-001',
-        amount: 5,
-        templateId: 'tmpl-001',
-        idempotencyKey: 'reward:template:tmpl-001:use:0',
-        description: 'template:reward:tmpl-001',
-      })
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/v1/points/reward',
+        expect.objectContaining({
+          userId: 'user-001',
+          amount: 5,
+          templateId: 'tmpl-001',
+          idempotencyKey: 'reward:template:tmpl-001:use:0',
+          description: 'template:reward:tmpl-001',
+        }),
+        expect.anything(),
+      )
     })
 
     it('description 自定义值应传递', async () => {
@@ -162,13 +166,17 @@ describe('BillingClient', () => {
         description: 'custom-description',
       })
 
-      expect(postMock).toHaveBeenCalledWith('/api/v1/points/reward', {
-        userId: 'user-001',
-        amount: 1,
-        templateId: 'tmpl-002',
-        idempotencyKey: 'key-002',
-        description: 'custom-description',
-      })
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/v1/points/reward',
+        expect.objectContaining({
+          userId: 'user-001',
+          amount: 1,
+          templateId: 'tmpl-002',
+          idempotencyKey: 'key-002',
+          description: 'custom-description',
+        }),
+        expect.anything(),
+      )
     })
 
     it('billing-service 返回非 SUCCESS 业务错误码时抛出 BusinessException', async () => {
@@ -253,7 +261,7 @@ describe('BillingClient', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(BusinessException)
         expect((e as BusinessException).code).toBe(ErrorCode.INTERNAL_ERROR)
-        expect((e as BusinessException).message).toContain('计费服务')
+        expect((e as BusinessException).message).toBe('服务暂时不可用，请稍后重试')
       }
     })
 
@@ -292,6 +300,7 @@ describe('BillingClient', () => {
       // 校验 GET 请求路径
       expect(getMock).toHaveBeenCalledWith(
         '/api/v1/points/internal/templates/tmpl-001/reward-count',
+        expect.anything(),
       )
     })
 
@@ -367,7 +376,7 @@ describe('BillingClient', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(BusinessException)
         expect((e as BusinessException).code).toBe(ErrorCode.INTERNAL_ERROR)
-        expect((e as BusinessException).message).toContain('计费服务')
+        expect((e as BusinessException).message).toBe('服务暂时不可用，请稍后重试')
       }
     })
 
@@ -396,6 +405,7 @@ describe('BillingClient', () => {
       // 校验 GET 请求路径
       expect(getMock).toHaveBeenCalledWith(
         '/api/v1/points/internal/templates/tmpl-001/reward-ordinals',
+        expect.anything(),
       )
     })
 
@@ -448,7 +458,7 @@ describe('BillingClient', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(BusinessException)
         expect((e as BusinessException).code).toBe(ErrorCode.INTERNAL_ERROR)
-        expect((e as BusinessException).message).toContain('计费服务')
+        expect((e as BusinessException).message).toBe('服务暂时不可用，请稍后重试')
       }
     })
 

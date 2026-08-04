@@ -1,12 +1,12 @@
 /**
  * Activity 容器装配单元测试
  *
- * 验证 buildActivities() 将 7 组 Activity（共 27 个函数）正确聚合为单一对象。
+ * 验证 buildActivities() 将 8 组 Activity（共 32 个函数）正确聚合为单一对象。
  * 通过 mock @reelclone/temporal 提供 Activity 组，专注验证容器的装配逻辑。
  */
 import { buildActivities, ACTIVITY_NAMES } from './activities.container'
 
-// Mock @reelclone/temporal：提供 7 组 Activity 的桩实现
+// Mock @reelclone/temporal：提供 8 组 Activity 的桩实现
 // 避免加载真实 libs/temporal（其 Activity 在模块顶层调用 Context.current()，须在 Worker 上下文内执行）
 jest.mock('@reelclone/temporal', () => {
   const fn = () => jest.fn()
@@ -52,6 +52,13 @@ jest.mock('@reelclone/temporal', () => {
       finalizeTemplate: fn(),
       markTemplateFailed: fn(),
     },
+    reconcilerActivities: {
+      scanPendingExecutions: fn(),
+      claimExecution: fn(),
+      queryProviderTaskStatus: fn(),
+      updateExecutionStage: fn(),
+      releaseClaim: fn(),
+    },
   }
 })
 
@@ -62,7 +69,7 @@ function expectFunction(value: unknown): void {
 
 describe('activities.container', () => {
   describe('buildActivities', () => {
-    it('返回包含全部 27 个 Activity 的对象', () => {
+    it('返回包含全部 32 个 Activity 的对象', () => {
       const activities = buildActivities()
 
       expect(activities).toBeDefined()
@@ -144,8 +151,8 @@ describe('activities.container', () => {
   })
 
   describe('ACTIVITY_NAMES', () => {
-    it('包含 27 个 Activity 名称', () => {
-      expect(ACTIVITY_NAMES).toHaveLength(27)
+    it('包含 32 个 Activity 名称', () => {
+      expect(ACTIVITY_NAMES).toHaveLength(32)
     })
 
     it('所有名称均唯一', () => {

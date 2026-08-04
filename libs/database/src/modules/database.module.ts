@@ -26,6 +26,9 @@ import { CreditOperation } from '../entities/credit-operation.entity'
 import { CreditOperationOutbox } from '../entities/credit-operation-outbox.entity'
 import { GenerationExecution } from '../entities/generation-execution.entity'
 import { OrderPaymentEvent } from '../entities/order-payment-event.entity'
+import { ProfitSharingReceiver } from '../entities/profit-sharing-receiver.entity'
+import { ProfitSharingRecord } from '../entities/profit-sharing-record.entity'
+import { ProfitSharingItem } from '../entities/profit-sharing-item.entity'
 
 /** 实体构造器类型（避免直接使用 Function 字面量） */
 export type EntityConstructor = new (...args: unknown[]) => unknown
@@ -61,6 +64,9 @@ export const MAIN_ENTITIES: EntityConstructor[] = [
   CreditOperationOutbox,
   GenerationExecution,
   OrderPaymentEvent,
+  ProfitSharingReceiver,
+  ProfitSharingRecord,
+  ProfitSharingItem,
 ]
 
 /** billing 库实体清单 */

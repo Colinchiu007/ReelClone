@@ -8,7 +8,8 @@ import { Logger } from '@nestjs/common'
 import Redis from 'ioredis'
 import { DataSource } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
-import { GenerationProvider, GenerationTask, Work, WorkStatus } from '@reelclone/database'
+import { GenerationProvider, GenerationTask, Work, WorkStatus, WorkType } from '@reelclone/database'
+import { type BillingReservation } from '@reelclone/temporal'
 import { CapabilityRegistry, GenerationType } from '@reelclone/capability'
 import { BillingClient } from '../billing.client'
 import { TemplateClient } from '../template.client'
@@ -178,8 +179,8 @@ export async function releaseBillingReservation(
 // 类型映射
 // ============================================================
 
-export function mapToWorkType(registry: CapabilityRegistry, type: GenerationType): string {
-  return registry.getWorkType(type)
+export function mapToWorkType(registry: CapabilityRegistry, type: GenerationType): WorkType {
+  return registry.getWorkType(type) as WorkType
 }
 
 export function mapToProvider(

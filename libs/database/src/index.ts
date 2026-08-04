@@ -40,6 +40,16 @@ export {
   GenerationExecutionStage,
 } from './entities/generation-execution.entity'
 export { OrderPaymentEvent, PaymentEventStatus } from './entities/order-payment-event.entity'
+export {
+  ProfitSharingReceiver,
+  ReceiverType,
+  ReceiverStatus,
+} from './entities/profit-sharing-receiver.entity'
+export {
+  ProfitSharingRecord,
+  ProfitSharingStatus,
+} from './entities/profit-sharing-record.entity'
+export { ProfitSharingItem } from './entities/profit-sharing-item.entity'
 
 // ---------------- 模块 ----------------
 export {

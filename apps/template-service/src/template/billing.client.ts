@@ -75,6 +75,11 @@ export class BillingClient {
         process.env.BILLING_CLIENT_MAX_RETRIES ??
         3,
     )
+    const failureThreshold = Number(
+      this.configService.get<string>('BILLING_CLIENT_CB_THRESHOLD') ??
+        process.env.BILLING_CLIENT_CB_THRESHOLD ??
+        5,
+    )
     const cooldownMs = Number(
       this.configService.get<string>('BILLING_CLIENT_CB_COOLDOWN_MS') ??
         process.env.BILLING_CLIENT_CB_COOLDOWN_MS ??
@@ -85,7 +90,7 @@ export class BillingClient {
       baseUrl,
       apiKey,
       retry: { maxRetries, baseDelayMs: 200 },
-      circuitBreaker: { failureThreshold: 5, cooldownMs },
+      circuitBreaker: { failureThreshold, cooldownMs },
     })
   }
 

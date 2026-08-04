@@ -27,7 +27,7 @@ import {
   generateAssetKey,
   type STSToken,
 } from '@reelclone/oss';
-import { BusinessException } from '@reelclone/common';
+import { BusinessException, ErrorCode } from '@reelclone/common';
 import { CreateAssetDto, UploadTokenDto } from './dto/create-asset.dto';
 import { ListAssetsDto } from './dto/list-assets.dto';
 
@@ -140,10 +140,10 @@ export class AssetService {
       this.logger.warn(
         `ossKey prefix mismatch: expected ${expectedPrefix}, got ${dto.ossKey}`,
       )
-      throw new BusinessException({
-        code: 'ASSET_INVALID_OSS_KEY',
-        message: 'ossKey 前缀不匹配，无权创建资产',
-      })
+      throw new BusinessException(
+        ErrorCode.VALIDATION_ERROR,
+        'ossKey 前缀不匹配，无权创建资产',
+      )
     }
 
     let avatarGroup: AvatarGroup | null = null;

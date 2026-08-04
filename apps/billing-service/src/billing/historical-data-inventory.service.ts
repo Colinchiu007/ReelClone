@@ -112,8 +112,8 @@ export class HistoricalDataInventoryService {
    * 获取各表记录数
    */
   private async getCounts(): Promise<InventoryResult['counts']> {
-    const mainRepo = (table: string) => this.mainDataSource.getRepository(table)
-    const billingRepo = (table: string) => this.billingDataSource.getRepository(table)
+    const mainRepo = (table: string | Function) => this.mainDataSource.getRepository(table as any)
+    const billingRepo = (table: string | Function) => this.billingDataSource.getRepository(table as any)
 
     const [creditOperations, creditReservations, billingProjections, creditOperationOutbox, pointTransactions] =
       await Promise.all([

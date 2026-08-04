@@ -34,10 +34,12 @@ import { OutboxConsumer } from './outbox.consumer'
 import { WebhookController } from './webhook.controller'
 import { WechatPayService } from './wechat-pay.service'
 import { BillingClient } from './billing.client'
+import { ProfitSharingModule } from '../profit-sharing'
 
 @Module({
   imports: [
     WechatPayAdapterModule,
+    ProfitSharingModule,
     TypeOrmModule.forFeature(
       [
         Order,

@@ -2,12 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getDataSourceToken } from '@nestjs/typeorm'
 import {
   DATABASE_CONNECTIONS,
-  CreditReservationStatus,
-  BillingProjectionDeliveryStatus,
-  CreditOperationStatus,
-  PointTransactionType,
 } from '@reelclone/database'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource } from 'typeorm'
 import { HistoricalDataInventoryService } from './historical-data-inventory.service'
 
 describe('HistoricalDataInventoryService', () => {
