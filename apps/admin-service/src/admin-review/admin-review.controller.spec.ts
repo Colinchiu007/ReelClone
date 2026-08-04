@@ -50,6 +50,7 @@ describe('AdminReviewController', () => {
       const mockResult = {
         templates: [],
         avatarGroups: [],
+        assets: [],
         total: 0,
       }
       service.findPending.mockResolvedValue(mockResult)
@@ -64,6 +65,7 @@ describe('AdminReviewController', () => {
       service.findPending.mockResolvedValue({
         templates: [],
         avatarGroups: [],
+        assets: [],
         total: 0,
       })
 
