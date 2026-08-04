@@ -56,7 +56,7 @@ export class JwtTokenProvider {
   /**
    * 校验 access token，返回 payload
    */
-  async validateAccessToken(token: string): Promise<AccessTokenPayload> {
+  async validateAccessToken(_token: string): Promise<AccessTokenPayload> {
     // stub — 实际实现使用 jwt.verify()
     return { sub: '', username: '', phone: '' }
   }

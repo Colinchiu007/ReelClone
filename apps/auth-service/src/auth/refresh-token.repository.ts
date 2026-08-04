@@ -51,7 +51,7 @@ export class RefreshTokenRepository {
    * 按 refreshToken 值查找令牌族
    */
   async findFamily(
-    refreshToken: string,
+    _refreshToken: string,
   ): Promise<
     Array<{
       id: string
@@ -68,8 +68,8 @@ export class RefreshTokenRepository {
    * 更新 refreshTokenId（令牌轮转时）
    */
   async updateRefreshTokenId(
-    tokenRecordId: string,
-    newRefreshTokenId: string,
+    _tokenRecordId: string,
+    _newRefreshTokenId: string,
   ): Promise<void> {
     // stub — 实际实现使用 TypeORM repository.update()
   }
@@ -77,7 +77,7 @@ export class RefreshTokenRepository {
   /**
    * 标记令牌已使用（用于重用检测）
    */
-  async markAsUsed(tokenRecordId: string): Promise<void> {
+  async markAsUsed(_tokenRecordId: string): Promise<void> {
     // stub — 实际实现使用 TypeORM repository.update()
   }
 
@@ -92,7 +92,7 @@ export class RefreshTokenRepository {
   /**
    * 吊销整个令牌族（发现重用时）
    */
-  async revokeFamily(familyId: string): Promise<void> {
+  async revokeFamily(_familyId: string): Promise<void> {
     // stub — 实际实现使用 TypeORM repository.delete()
   }
 

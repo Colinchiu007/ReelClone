@@ -112,19 +112,32 @@ export class HistoricalDataInventoryService {
    * 获取各表记录数
    */
   private async getCounts(): Promise<InventoryResult['counts']> {
-    const mainRepo = (table: string | Function) => this.mainDataSource.getRepository(table as any)
-    const billingRepo = (table: string | Function) => this.billingDataSource.getRepository(table as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mainRepo = (table: any) => this.mainDataSource.getRepository(table)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const billingRepo = (table: any) => this.billingDataSource.getRepository(table)
 
-    const [creditOperations, creditReservations, billingProjections, creditOperationOutbox, pointTransactions] =
-      await Promise.all([
-        mainRepo(CreditOperation).count(),
-        mainRepo(CreditReservation).count(),
-        mainRepo(BillingProjectionOutbox).count(),
-        mainRepo(CreditOperationOutbox).count(),
-        billingRepo(PointTransaction).count(),
-      ])
+    const [
+      creditOperations,
+      creditReservations,
+      billingProjections,
+      creditOperationOutbox,
+      pointTransactions,
+    ] = await Promise.all([
+      mainRepo(CreditOperation).count(),
+      mainRepo(CreditReservation).count(),
+      mainRepo(BillingProjectionOutbox).count(),
+      mainRepo(CreditOperationOutbox).count(),
+      billingRepo(PointTransaction).count(),
+    ])
 
-    return { creditOperations, creditReservations, billingProjections, creditOperationOutbox, pointTransactions }
+    return {
+      creditOperations,
+      creditReservations,
+      billingProjections,
+      creditOperationOutbox,
+      pointTransactions,
+    }
   }
 
   /**
@@ -166,7 +179,7 @@ export class HistoricalDataInventoryService {
       .getRepository(CreditReservation)
       .createQueryBuilder('r')
       .where('r.status = :status', { status: CreditReservationStatus.OPEN })
-      .andWhere('r.createdAt < NOW() - INTERVAL \'24 hours\'')
+      .andWhere("r.createdAt < NOW() - INTERVAL '24 hours'")
       .getMany()
 
     if (staleReservations.length > 0) {
@@ -183,7 +196,7 @@ export class HistoricalDataInventoryService {
       .getRepository(BillingProjectionOutbox)
       .createQueryBuilder('b')
       .where('b.deliveryStatus = :status', { status: BillingProjectionDeliveryStatus.PENDING })
-      .andWhere('b.createdAt < NOW() - INTERVAL \'1 hour\'')
+      .andWhere("b.createdAt < NOW() - INTERVAL '1 hour'")
       .getMany()
 
     if (stalePendingProjections.length > 0) {
@@ -228,19 +241,19 @@ export class HistoricalDataInventoryService {
     const openReservationsWithoutProjection = await this.mainDataSource
       .getRepository(CreditReservation)
       .createQueryBuilder('r')
-      .leftJoin(
-        BillingProjectionOutbox,
-        'bpo',
-        'bpo.reservation_id = r.id AND bpo.type = \'FREEZE\'',
-      )
+      .leftJoin(BillingProjectionOutbox, 'bpo', "bpo.reservation_id = r.id AND bpo.type = 'FREEZE'")
       .where('r.status = :status', { status: CreditReservationStatus.OPEN })
       .andWhere('bpo.id IS NULL')
       .getMany()
 
     if (openReservationsWithoutProjection.length > 0) {
       cases.push({
-        reason: 'OPEN reservation 没有对应的 FREEZE billing projection — 无法证明积分冻结是否已投影到 billing 库',
-        records: openReservationsWithoutProjection.map((r) => ({ table: 'credit_reservations', id: r.id })),
+        reason:
+          'OPEN reservation 没有对应的 FREEZE billing projection — 无法证明积分冻结是否已投影到 billing 库',
+        records: openReservationsWithoutProjection.map((r) => ({
+          table: 'credit_reservations',
+          id: r.id,
+        })),
         context: {
           count: openReservationsWithoutProjection.length,
           note: '禁止根据金额猜测，需人工核实 billing 库 point_transactions 中是否存在对应记录',
@@ -253,13 +266,13 @@ export class HistoricalDataInventoryService {
     const orphanBillingTransactions = await this.billingDataSource
       .getRepository(PointTransaction)
       .createQueryBuilder('pt')
-      .leftJoin(
-        CreditReservation,
-        'cr',
-        'cr.id = pt.reservation_id',
-      )
+      .leftJoin(CreditReservation, 'cr', 'cr.id = pt.reservation_id')
       .where('pt.type IN (:...types)', {
-        types: [PointTransactionType.FREEZE, PointTransactionType.SETTLE, PointTransactionType.RELEASE],
+        types: [
+          PointTransactionType.FREEZE,
+          PointTransactionType.SETTLE,
+          PointTransactionType.RELEASE,
+        ],
       })
       .andWhere('pt.reservation_id IS NOT NULL')
       .andWhere('cr.id IS NULL')
@@ -280,11 +293,7 @@ export class HistoricalDataInventoryService {
     const operationsWithoutOutbox = await this.mainDataSource
       .getRepository(CreditOperation)
       .createQueryBuilder('co')
-      .leftJoin(
-        CreditOperationOutbox,
-        'coo',
-        'coo.credit_operation_id = co.id',
-      )
+      .leftJoin(CreditOperationOutbox, 'coo', 'coo.credit_operation_id = co.id')
       .where('coo.id IS NULL')
       .getMany()
 
@@ -303,11 +312,7 @@ export class HistoricalDataInventoryService {
     const deliveredButNotOpen = await this.mainDataSource
       .getRepository(BillingProjectionOutbox)
       .createQueryBuilder('bpo')
-      .leftJoin(
-        CreditReservation,
-        'cr',
-        'cr.id = bpo.reservation_id',
-      )
+      .leftJoin(CreditReservation, 'cr', 'cr.id = bpo.reservation_id')
       .where('bpo.delivery_status = :status', { status: BillingProjectionDeliveryStatus.DELIVERED })
       .andWhere('bpo.type = :type', { type: 'FREEZE' })
       .andWhere('cr.status != :status', { status: CreditReservationStatus.OPEN })
