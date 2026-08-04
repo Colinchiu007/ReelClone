@@ -35,6 +35,11 @@ function buildMockDeps(): ActivityDependencies {
     eventPublisher: {
       publish: jest.fn(),
     },
+    moderationService: {
+      moderateText: jest.fn(),
+    },
+    validateLlmStructuredReport: jest.fn(),
+    sanitizePromptInput: jest.fn(),
   }
 }
 
@@ -93,6 +98,9 @@ describe('activity-context', () => {
         'videoDownloader',
         'workflowStateStore',
         'eventPublisher',
+        'moderationService',
+        'validateLlmStructuredReport',
+        'sanitizePromptInput',
       ].sort(),
     )
   })

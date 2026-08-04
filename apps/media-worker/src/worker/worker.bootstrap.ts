@@ -16,9 +16,12 @@ import { getDataSourceToken } from '@nestjs/typeorm'
 import {
   FfmpegService,
   LlmProvider,
+  ModerationService,
   SeedanceProvider,
   VideoAnalyzerService,
   VideoDownloaderService,
+  validateLlmStructuredReport,
+  sanitizePromptInput,
 } from '@reelclone/ai'
 import { OSSService } from '@reelclone/oss'
 import { DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
@@ -87,6 +90,9 @@ export async function bootstrapWorker(app: INestApplication): Promise<void> {
     ffmpegService,
     llmProvider,
     ossService,
+    moderationService: app.get(ModerationService),
+    validateLlmStructuredReport,
+    sanitizePromptInput,
     workflowStateStore: new TypeOrmWorkflowStateStore(mainDataSource),
     eventPublisher,
   })

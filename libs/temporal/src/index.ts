@@ -75,6 +75,8 @@ export {
   type EventPublisher,
   type WorkflowStateStore,
   type EntityRepository,
+  type ModerationServiceContract,
+  type LlmStructuredValidationResult,
 } from './activities/activity-context'
 
 // ============================================================

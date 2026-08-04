@@ -31,7 +31,21 @@ import type {
   VideoDownloaderService,
 } from '@reelclone/ai'
 import type { OSSService } from '@reelclone/oss'
-import type { WorkStatus } from '../types'
+import type { WorkStatus, StructuredReport } from '../types'
+
+/** LLM 结构化报告校验结果（避免 temporal 运行时依赖 @reelclone/ai） */
+export interface LlmStructuredValidationResult {
+  valid: boolean
+  report: Partial<StructuredReport>
+  errors: string[]
+}
+
+/** 内容安全审核最小接口（避免 temporal 运行时依赖 @reelclone/ai） */
+export interface ModerationServiceContract {
+  moderateText(
+    key: string,
+  ): Promise<{ passed: boolean; reason?: string; hitKeywords?: string[] }>
+}
 
 /** 通用实体 Repository 最小接口（避免 temporal 直接依赖 database 实体类型） */
 export interface EntityRepository {
@@ -74,6 +88,12 @@ export interface ActivityDependencies {
   workflowStateStore: WorkflowStateStore
   /** Redis Pub/Sub 发布器 */
   eventPublisher: EventPublisher
+  /** 内容安全审核（关键词过滤，原 @reelclone/ai.ModerationService） */
+  moderationService: ModerationServiceContract
+  /** LLM 输出字段级校验器（原 @reelclone/ai.validateLlmStructuredReport） */
+  validateLlmStructuredReport: (raw: unknown) => LlmStructuredValidationResult
+  /** Prompt Injection 脱敏函数（原 @reelclone/ai.sanitizePromptInput） */
+  sanitizePromptInput: (input: unknown) => string
   /** C5: GenerationExecution 仓库（Reconciler 用） */
   executionRepo?: EntityRepository
   /** C5: GenerationWork 仓库（Reconciler 用） */

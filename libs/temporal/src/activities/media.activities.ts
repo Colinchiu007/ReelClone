@@ -161,13 +161,12 @@ export async function moderateContent(
   }
 
   // ---- 真实模式：MVP 关键词过滤（后续替换为微信/阿里云内容安全 API）----
-  const { ModerationService } = await import('@reelclone/ai')
-  const moderation = new ModerationService()
+  const { moderationService } = getActivityDependencies()
 
   // 对视频 Key 与封面 Key 进行文本审核（MVP 阶段基于关键词黑名单）
   const [videoResult, imageResult] = await Promise.all([
-    moderation.moderateText(videoKey),
-    moderation.moderateText(thumbnailKey),
+    moderationService.moderateText(videoKey),
+    moderationService.moderateText(thumbnailKey),
   ])
 
   const allHits = [...(videoResult.hitKeywords ?? []), ...(imageResult.hitKeywords ?? [])]

@@ -15,7 +15,6 @@
  */
 import { Context } from '@temporalio/activity'
 import axios from 'axios'
-import { validateLlmStructuredReport, sanitizePromptInput } from '@reelclone/ai'
 import {
   type AnalysisReport,
   type AsrResult,
@@ -272,9 +271,9 @@ export async function summarizeTemplate(analysisReport: AnalysisReport): Promise
   }
 
   // ---- 真实模式：调用 LLM 输出 JSON 结构化模板建议 ----
-  const { llmProvider } = getActivityDependencies()
+  const { llmProvider, validateLlmStructuredReport, sanitizePromptInput } = getActivityDependencies()
 
-  const prompt = buildTemplatePrompt(analysisReport)
+  const prompt = buildTemplatePrompt(analysisReport, sanitizePromptInput)
   const system =
     '你是一位短视频内容策略分析师，擅长从镜头、口播、画面文字、视觉描述中提炼可复用的创作模板。' +
     '请严格输出 JSON 格式（不要包含 ```json 代码块标记），字段包括：' +
@@ -465,7 +464,10 @@ export async function markTemplateFailed(params: {
 // -------------------- 提示词构建 --------------------
 
 /** 构建模板建议提示词（要求 LLM 返回 JSON） */
-function buildTemplatePrompt(report: AnalysisReport): string {
+function buildTemplatePrompt(
+  report: AnalysisReport,
+  sanitizePromptInput: (input: unknown) => string,
+): string {
   // B5: 对 OCR/ASR/VLM 文本进行 Prompt Injection 脱敏
   const shotsText = report.scenes
     .map(
