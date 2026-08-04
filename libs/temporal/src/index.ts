@@ -23,6 +23,17 @@ export {
 } from './errors'
 
 // ============================================================
+// 重试策略
+// ============================================================
+export {
+  NON_RETRYABLE_ERROR_TYPES,
+  VIDEO_GENERATION_RETRY,
+  BENCHMARK_ANALYSIS_RETRY,
+  TEMPLATE_GENERATION_RETRY,
+  RECONCILER_RETRY,
+} from './retry-policies'
+
+// ============================================================
 // 共享映射函数
 // ============================================================
 export { mapAnalyzerReportToTemporal } from './mappers'

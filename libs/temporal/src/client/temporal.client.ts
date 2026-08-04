@@ -8,6 +8,7 @@
  */
 import { Connection, Client, type ConnectionOptions } from '@temporalio/client'
 import { TASK_QUEUE, WORKFLOW_ID_PREFIX, type VideoGenParams } from '../types'
+import { BENCHMARK_ANALYSIS_RETRY, VIDEO_GENERATION_RETRY } from '../retry-policies'
 
 /** 默认命名空间 */
 const DEFAULT_NAMESPACE = 'reelclone'
@@ -94,13 +95,8 @@ export async function startVideoGenerationWorkflow(params: VideoGenParams): Prom
     args: [params],
     // 工作流整体超时：15 分钟（含轮询 10 分钟 + 后处理 5 分钟）
     workflowExecutionTimeout: '15 minutes',
-    // 重试策略：工作流级失败重试 1 次
-    retry: {
-      initialInterval: '10 seconds',
-      maximumInterval: '1 minute',
-      backoffCoefficient: 2,
-      maximumAttempts: 1,
-    },
+    // 重试策略：基础设施故障自动恢复（maximumAttempts: 2），业务终态错误不重试
+    retry: VIDEO_GENERATION_RETRY,
   })
 
   console.info('[Temporal] 视频生成工作流已启动', { workflowId, workId: params.workId })
@@ -126,12 +122,7 @@ export async function startBenchmarkAnalysisWorkflow(params: {
     taskQueue: TASK_QUEUE.BENCHMARK_ANALYSIS,
     args: [params],
     workflowExecutionTimeout: '10 minutes',
-    retry: {
-      initialInterval: '10 seconds',
-      maximumInterval: '1 minute',
-      backoffCoefficient: 2,
-      maximumAttempts: 1,
-    },
+    retry: BENCHMARK_ANALYSIS_RETRY,
   })
 
   console.info('[Temporal] 对标解析工作流已启动', { workflowId, benchmarkId: params.benchmarkId })

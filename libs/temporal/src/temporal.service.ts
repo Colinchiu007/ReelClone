@@ -17,6 +17,12 @@ import {
   type TemplateGenerationInput,
   type VideoGenParams,
 } from './types'
+import {
+  BENCHMARK_ANALYSIS_RETRY,
+  RECONCILER_RETRY,
+  TEMPLATE_GENERATION_RETRY,
+  VIDEO_GENERATION_RETRY,
+} from './retry-policies'
 
 @Injectable()
 export class TemporalService {
@@ -57,12 +63,7 @@ export class TemporalService {
       taskQueue: TASK_QUEUE.VIDEO_GENERATION,
       args: [params],
       workflowExecutionTimeout: '15 minutes',
-      retry: {
-        initialInterval: '10 seconds',
-        maximumInterval: '1 minute',
-        backoffCoefficient: 2,
-        maximumAttempts: 1,
-      },
+      retry: VIDEO_GENERATION_RETRY,
     })
 
     this.logger.log(`视频生成工作流已启动 workId=${params.workId} workflowId=${workflowId}`)
@@ -81,12 +82,7 @@ export class TemporalService {
       taskQueue: TASK_QUEUE.BENCHMARK_ANALYSIS,
       args: [params],
       workflowExecutionTimeout: '10 minutes',
-      retry: {
-        initialInterval: '10 seconds',
-        maximumInterval: '1 minute',
-        backoffCoefficient: 2,
-        maximumAttempts: 1,
-      },
+      retry: BENCHMARK_ANALYSIS_RETRY,
     })
 
     this.logger.log(
@@ -111,13 +107,7 @@ export class TemporalService {
       args: [params],
       // 视频分析 + LLM 汇总耗时较长，整体超时放宽到 15 分钟
       workflowExecutionTimeout: '15 minutes',
-      retry: {
-        initialInterval: '10 seconds',
-        maximumInterval: '1 minute',
-        backoffCoefficient: 2,
-        // 工作流内部已处理失败路径（标记 ANALYSIS_FAILED），不重试整个工作流
-        maximumAttempts: 1,
-      },
+      retry: TEMPLATE_GENERATION_RETRY,
     })
 
     this.logger.log(`模板生成工作流已启动 templateId=${params.templateId} workflowId=${workflowId}`)
@@ -195,12 +185,7 @@ export class TemporalService {
         args: [params ?? {}],
         // 长运行工作流：无执行超时
         workflowExecutionTimeout: '0',
-        retry: {
-          initialInterval: '10 seconds',
-          maximumInterval: '5 minutes',
-          backoffCoefficient: 2,
-          maximumAttempts: 1,
-        },
+        retry: RECONCILER_RETRY,
       })
       this.logger.log(`Reconciler 工作流已启动 workflowId=${workflowId}`)
     } catch (err: unknown) {

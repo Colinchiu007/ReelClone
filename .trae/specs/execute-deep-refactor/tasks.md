@@ -39,11 +39,11 @@
 | P1-12 | Admin-service 代码审计   | ✅   | 补 @CurrentUser 审计 + config 导入修正 + 路由前缀注释                                           |
 | P1-13 | Temporal 契约类型解耦    | ✅   | VideoMetaInfo → @reelclone/common，消除 temporal→ai 类型依赖                                    |
 
-## P2 — 业务功能（2/4）
+## P2 — 业务功能（4/4）
 
 | #    | 任务              | 状态 |
 | ---- | ----------------- | ---- |
 | P2-1 | 微信支付分账      | ✅   |
 | P2-2 | 套餐到期自动降级  | ✅   |
-| P2-3 | 上传审核流程      | ⬜   |
-| P2-4 | Temporal 重试策略 | ⬜   |
+| P2-3 | 上传审核流程      | ✅   |
+| P2-4 | Temporal 重试策略 | ✅   |
