@@ -226,26 +226,32 @@ describe('AdminReviewService', () => {
     it('默认值: 未传 type 时按 all 处理', async () => {
       templateRepo.find.mockResolvedValue([])
       avatarGroupRepo.find.mockResolvedValue([])
+      assetRepo.find.mockResolvedValue([])
 
-      await service.findPending()
+      const result = await service.findPending()
 
       expect(templateRepo.find).toHaveBeenCalled()
       expect(avatarGroupRepo.find).toHaveBeenCalled()
+      expect(assetRepo.find).toHaveBeenCalled()
+      expect(result.total).toBe(0)
     })
 
     it('非法 type: 回退到 all', async () => {
       templateRepo.find.mockResolvedValue([])
       avatarGroupRepo.find.mockResolvedValue([])
+      assetRepo.find.mockResolvedValue([])
 
       await service.findPending('invalid')
 
       expect(templateRepo.find).toHaveBeenCalled()
       expect(avatarGroupRepo.find).toHaveBeenCalled()
+      expect(assetRepo.find).toHaveBeenCalled()
     })
 
     it('空结果: total=0', async () => {
       templateRepo.find.mockResolvedValue([])
       avatarGroupRepo.find.mockResolvedValue([])
+      assetRepo.find.mockResolvedValue([])
 
       const result = await service.findPending('all')
 
