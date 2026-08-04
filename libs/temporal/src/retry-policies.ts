@@ -8,7 +8,7 @@
  *  2. 配置 nonRetryableErrorTypes — 业务终态错误（审核拒绝、Provider 取消未确认等）不应触发整个工作流重试
  *  3. 工作流内部的失败补偿逻辑（释放积分、标记 ANAlYSIS_FAILED）不变 — 重试仅覆盖工作流级异常
  */
-import type { RetryOptions } from '@temporalio/client'
+import type { RetryPolicy } from '@temporalio/common'
 
 // ============================================================
 // 不可重试错误码（业务终态）
@@ -30,7 +30,7 @@ export const NON_RETRYABLE_ERROR_TYPES = [
 // ============================================================
 
 /** 视频生成工作流重试策略 */
-export const VIDEO_GENERATION_RETRY: RetryOptions = {
+export const VIDEO_GENERATION_RETRY: RetryPolicy = {
   initialInterval: '10 seconds',
   maximumInterval: '1 minute',
   backoffCoefficient: 2,
@@ -39,7 +39,7 @@ export const VIDEO_GENERATION_RETRY: RetryOptions = {
 }
 
 /** 对标解析工作流重试策略 */
-export const BENCHMARK_ANALYSIS_RETRY: RetryOptions = {
+export const BENCHMARK_ANALYSIS_RETRY: RetryPolicy = {
   initialInterval: '10 seconds',
   maximumInterval: '1 minute',
   backoffCoefficient: 2,
@@ -48,7 +48,7 @@ export const BENCHMARK_ANALYSIS_RETRY: RetryOptions = {
 }
 
 /** 模板生成工作流重试策略 */
-export const TEMPLATE_GENERATION_RETRY: RetryOptions = {
+export const TEMPLATE_GENERATION_RETRY: RetryPolicy = {
   initialInterval: '10 seconds',
   maximumInterval: '1 minute',
   backoffCoefficient: 2,
@@ -57,7 +57,7 @@ export const TEMPLATE_GENERATION_RETRY: RetryOptions = {
 }
 
 /** Reconciler 长运行工作流重试策略（单实例，不应自动重试整个工作流） */
-export const RECONCILER_RETRY: RetryOptions = {
+export const RECONCILER_RETRY: RetryPolicy = {
   initialInterval: '10 seconds',
   maximumInterval: '5 minutes',
   backoffCoefficient: 2,
