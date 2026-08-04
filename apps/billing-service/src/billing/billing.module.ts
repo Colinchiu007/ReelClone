@@ -31,6 +31,8 @@ import { ReconciliationService } from './reconciliation.service'
 import { CreditReservationService } from './credit-reservation.service'
 import { BillingProjectionCron } from './billing-projection.cron'
 import { HistoricalDataInventoryService } from './historical-data-inventory.service'
+import { PackageExpiryService } from './package-expiry.service'
+import { PackageExpiryCron } from './package-expiry.cron'
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { HistoricalDataInventoryService } from './historical-data-inventory.serv
     ReconciliationCron,
     BillingProjectionCron,
     HistoricalDataInventoryService,
+    PackageExpiryService,
+    PackageExpiryCron,
   ],
   exports: [BillingService, LedgerService, CreditReservationService, ReconciliationService, HistoricalDataInventoryService],
 })
