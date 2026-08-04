@@ -1550,3 +1550,53 @@ console.log('Stmts', ((sfHit / sf) * 100).toFixed(2) + '%')
 | PowerShell coverage 输出丢失 (L-052) | 1 次                                      | ❌ 环境特定          |
 
 **结论**: 本次无 skillify 候选。
+
+---
+
+## 2026-08-04 复盘批次（深度重构验收 + P1-13 依赖解耦修复）
+
+### L-053 [pattern] Temporal Activity 依赖注入消除跨层运行时依赖
+
+**场景**: Temporal Activity 运行在 Worker 进程中，直接 import 其他 NestJS 模块的类（如 `ModerationService`）或纯函数（如 `validateLlmStructuredReport`、`sanitizePromptInput`），导致 temporal lib 对 ai lib 产生运行时依赖，破坏架构分层。CI lint 门禁检测到 3 处违规。
+
+**模式**: 通过 Activity 依赖容器（`setActivityDependencies()` / `getActivityDependencies()`）注入：
+
+1. 在 `activity-context.ts` 中定义最小契约接口（如 `ModerationServiceContract`、`LlmStructuredValidationResult`），不依赖外部模块的类
+2. Activity 内部通过 `getActivityDependencies()` 解构获取依赖，不直接 import 外部模块
+3. Worker bootstrap 时调用 `setActivityDependencies()` 注入真实实现
+4. 测试中 mock 整个依赖容器，不 import 真实实现
+
+**关键点**:
+
+1. 契约接口定义在 temporal lib 内部，用 `import type` 引入必要类型（如 `StructuredReport`），避免运行时耦合
+2. 纯函数（如 `sanitizePromptInput`）和类实例（如 `ModerationService`）均可通过同一容器注入
+3. Activity 签名不因此改变，调用方无感知
+4. 接口定义需精确匹配消费端用法（如 `LlmStructuredValidationResult` 需含 `valid` 字段而非仅 `{ report, errors }`），否则 TS 编译报类型不兼容
+
+**置信度**: 10/10（temporal typecheck ✅，media-worker typecheck ✅，14 个测试套件 175 测试全部通过）
+**来源**: implemented
+**关联文件**: [activity-context.ts](file:///d:/Data/projects/ReelClone/libs/temporal/src/activities/activity-context.ts), [worker.bootstrap.ts](file:///d:/Data/projects/ReelClone/apps/media-worker/src/worker/worker.bootstrap.ts)
+
+---
+
+### L-054 [architecture] 深度重构验收评分体系（P0/P1/P2 分级 + 质量门禁）
+
+**场景**: 23 个重构任务（P0:6 + P1:13 + P2:4）需要系统性验收，确保重构后代码质量和架构合规。
+
+**模式**: 验收评分体系 = 任务完成度（80%）+ 质量门禁（20%）：
+
+1. **任务完成度**: 逐项检查每个 task 的实现状态、文件变更、测试覆盖
+2. **质量门禁**: Lint + Typecheck + Test + Build 四项全绿为通过
+3. **架构违规检测**: 检查跨层依赖（如 lib 间的运行时 import）、依赖方向、模块边界
+4. **预存问题标注**: Docker 构建失败、Taro 构建失败等预存问题单独标注，不计入验收扣分
+
+**评级标准**:
+
+- A: 所有任务完成 + 质量门禁全绿 + 0 违规
+- B+: 所有任务完成 + 质量门禁全绿 + 1 个违规（可修复）
+- B: 所有任务完成 + 1 个门禁失败（预存问题）
+- C: 有任务未完成
+
+**置信度**: 9/10（首次使用，CI #30899544342 验证通过）
+**来源**: implemented
+**关联文件**: [tasks.md](file:///d:/Data/projects/ReelClone/.trae/specs/execute-deep-refactor/tasks.md)
