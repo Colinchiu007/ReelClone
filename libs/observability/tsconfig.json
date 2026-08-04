@@ -2,19 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../../",
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,
     "composite": false
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "coverage",
-    "**/*.spec.ts",
-    "**/*.test.ts"
-  ]
+  "exclude": ["node_modules", "dist", "build", "coverage", "**/*.spec.ts", "**/*.test.ts"]
 }
