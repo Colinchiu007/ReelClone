@@ -1600,3 +1600,47 @@ console.log('Stmts', ((sfHit / sf) * 100).toFixed(2) + '%')
 **置信度**: 9/10（首次使用，CI #30899544342 验证通过）
 **来源**: implemented
 **关联文件**: [tasks.md](file:///d:/Data/projects/ReelClone/.trae/specs/execute-deep-refactor/tasks.md)
+
+---
+
+## 2026-08-05 复盘批次（全量代码审查修复 + S-1/S-2 实现）
+
+### L-055 [pattern] 全量代码审查 → 修复 → CI 验证闭环
+
+**场景**: P0-P2 重构完成后，对 260 文件变更进行 4 维度审查（架构/安全/代码质量/业务逻辑），发现 7 个 Major + 4 个 Minor + 5 个 Suggestion，综合评分 8.5/10。
+
+**模式**: 审查修复闭环 = 审查报告（4 维度评分）→ 逐项修复 → 类型检查 → 测试验证 → 提交推送：
+
+1. **M-1** admin-review 用原生 axios → 改用 InternalHttpClient（含重试 + 熔断 + trace）
+2. **M-4** decryptSecret fail-open → 生产环境 fail-closed（环境感知：production/staging 抛异常，development 返回原值）
+3. **M-5** 覆盖率阈值偏低 → 逐步提升（50→52 / 33→35 / 35→37 / 50→52）
+4. **M-6** 字符串表名 `getRepository('user_packages')` → 实体类 `getRepository(UserPackage)`
+5. **M-7** 错误枚举 `CreditOperationStatus.DEAD as any` → 正确枚举 `OutboxStatus.DEAD`
+6. **S-1** 新增 `createInternalClient()` 工厂函数，统一跨服务调用入口
+7. **S-2** outbox 投影暴露 Prometheus 指标（Counter + Histogram），可监控投影成功率和批次大小
+
+**陷阱**: M-7 的根因是两个独立枚举（`CreditOperationStatus.DEAD` vs `OutboxStatus.DEAD`）命名相似但语义不同。TypeORM 的 `find({ where: { status } })` 推断期望 `OutboxStatus` 而非 `CreditOperationStatus`。修复时引入 `as any` 会绕过类型检查，正确做法是导入正确的枚举。
+
+**关联**: admin-review 引入 InternalHttpClient 后，需同步更新 admin-service 的 `jest.config.js` 添加 `@reelclone/http-client` moduleNameMapper，否则 Jest 测试报 `Cannot find module`。
+
+**置信度**: 10/10（所有修改通过 typecheck + 123/93 tests 全绿）
+**来源**: implemented
+**关联 commit**: `46f5893`
+**关联文件**: [secret-encryption.ts](file:///d:/Data/projects/ReelClone/libs/common/src/crypto/secret-encryption.ts), [credit-reservation.service.ts](file:///d:/Data/projects/ReelClone/apps/billing-service/src/billing/credit-reservation.service.ts), [http-client.ts](file:///d:/Data/projects/ReelClone/libs/http-client/src/http-client.ts), [metrics.module.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.module.ts), [admin-review.service.ts](file:///d:/Data/projects/ReelClone/apps/admin-service/src/admin-review/admin-review.service.ts)
+
+### L-056 [architecture] Prometheus 指标注册模式（NestJS DI + prom-client）
+
+**场景**: 为 outbox 投影添加可观测性指标（Counter + Histogram），需要在 @reelclone/observability 库中注册指标常量和实例，通过 NestJS DI 注入到业务服务中。
+
+**模式**: 四步注册模式：
+
+1. **常量定义** (`metrics.constants.ts`): 定义 metric 名称 token，避免魔法字符串
+2. **模块注册** (`metrics.module.ts`): 在 `forRoot()` 中用 `getOrCreateCounter` / `getOrCreateHistogram` 创建实例，注册为 Provider 并导出
+3. **服务注入** (`credit-reservation.service.ts`): `@Inject(TOKEN) private readonly metric: Counter<string>`
+4. **测试 Mock** (`credit-reservation.service.spec.ts`): 构造函数传入 `{ inc: jest.fn() }` / `{ observe: jest.fn() }`
+
+**约束**: 新指标必须同时在 `providers` 和 `exports` 数组中注册，否则 APP_INTERCEPTOR 上下文无法注入（与 HttpMetricsInterceptor 相同的坑，参见 `metrics.module.ts:93` 注释）。
+
+**置信度**: 9/10（首次使用此模式，billing-service test suite 5/5 全绿）
+**来源**: implemented
+**关联文件**: [metrics.constants.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.constants.ts), [metrics.module.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.module.ts), [credit-reservation.service.ts](file:///d:/Data/projects/ReelClone/apps/billing-service/src/billing/credit-reservation.service.ts)
