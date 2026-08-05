@@ -1,6 +1,6 @@
 # Tasks — Phase 0/1/2 深度重构执行清单
 
-> 最后更新：2026-08-04
+> 最后更新：2026-08-05
 
 ## 进度总览
 
@@ -9,6 +9,28 @@
 | P0    | 6    | 6      | 0      |
 | P1    | 13   | 13     | 0      |
 | P2    | 4    | 4      | 0      |
+
+## 审查修复（2026-08-05）
+
+全量代码审查（4 维度，评分 8.5/10）后执行的修复：
+
+| 级别 | 编号                                                                                 | 修复项    | commit |
+| ---- | ------------------------------------------------------------------------------------ | --------- | ------ |
+| M-1  | admin-review 改用 InternalHttpClient（替换原生 axios）                               | `46f5893` |
+| M-4  | decryptSecret fail-closed（production/staging 抛异常）                               | `46f5893` |
+| M-5  | 后端覆盖率阈值提升（50→52 / 33→35 / 35→37 / 50→52）                                  | `46f5893` |
+| M-6  | package-expiry 用实体类替代字符串表名                                                | `46f5893` |
+| M-7  | historical-data-inventory 修正枚举（CreditOperationStatus.DEAD → OutboxStatus.DEAD） | `46f5893` |
+| m-1  | common/index.ts 删除重复 auth 导出                                                   | `46f5893` |
+| S-1  | http-client 新增 createInternalClient() 工厂函数                                     | `46f5893` |
+| S-2  | outbox 投影 Prometheus 指标（Counter + Histogram）                                   | `46f5893` |
+| fix  | metrics.module.spec.ts 补充 outbox 指标测试                                          | `4ecfb0a` |
+
+### 验证结果
+
+- TypeCheck: admin ✅ / billing ✅ / http-client ✅ / observability ✅ / temporal ✅ / common ✅
+- Tests: admin 15 suites (123 tests) ✅ / billing 5 suites (93 tests) ✅ / common 215 tests ✅ / metrics 17 tests ✅
+- CI Lint·Typecheck·Test·Build: ✅ (Docker/小程序失败为预存基础设施问题)
 
 ## P0 — 生产就绪（6/6 ✅）
 

@@ -1644,3 +1644,24 @@ console.log('Stmts', ((sfHit / sf) * 100).toFixed(2) + '%')
 **置信度**: 9/10（首次使用此模式，billing-service test suite 5/5 全绿）
 **来源**: implemented
 **关联文件**: [metrics.constants.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.constants.ts), [metrics.module.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.module.ts), [credit-reservation.service.ts](file:///d:/Data/projects/ReelClone/apps/billing-service/src/billing/credit-reservation.service.ts)
+
+### L-057 [pitfall] NestJS 模块新增 Provider 必须同步更新测试断言
+
+**场景**: MetricsModule.forRoot() 新增了 outbox 指标 Provider 和 exports，但 `metrics.module.spec.ts` 中的 `toEqual` 硬编码断言未同步更新，导致 CI 单元测试失败。
+
+**模式**: 当 NestJS Module 的 `providers` 或 `exports` 数组有变更时，对应的 spec 文件中基于 `toEqual` 的数组等值断言会立即失败。**修复清单**：
+
+1. 更新 `providers` 数组断言
+2. 更新 `exports` 数组断言
+3. 新增 Provider 的独立测试用例（验证 `useValue` 的 `.name` 属性）
+4. 注册表断言（`register.getMetricsAsArray()`）
+5. Token 常量值断言
+
+**陷阱**: 在 CI 失败修复中，第一次提交只修复了业务代码（`46f5893`），未更新测试断言，导致第二次 CI 仍然失败。第二次提交（`4ecfb0a`）补充了 5 个新测试用例后才全部通过。
+
+**关联**: L-025（CI 覆盖率门禁首次修复模式）— 同样是变更后未同步测试导致 CI 失败。
+
+**置信度**: 10/10（CI #31004731519 Lint·Typecheck·Test 全绿验证）
+**来源**: implemented
+**关联 commit**: `4ecfb0a`
+**关联文件**: [metrics.module.spec.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.module.spec.ts)
