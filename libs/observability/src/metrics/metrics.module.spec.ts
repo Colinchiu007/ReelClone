@@ -18,7 +18,13 @@ jest.mock('prom-client', () => {
   }
 })
 
-import { HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL, MetricsModule } from './metrics.module'
+import {
+  HTTP_REQUEST_DURATION_SECONDS,
+  HTTP_REQUESTS_TOTAL,
+  OUTBOX_PROJECTED_TOTAL,
+  OUTBOX_CLAIM_BATCH_SIZE,
+  MetricsModule,
+} from './metrics.module'
 import { HttpMetricsInterceptor } from './http.interceptor'
 import { MetricsController } from './metrics.controller'
 
@@ -68,18 +74,50 @@ describe('MetricsModule', () => {
       expect((provider?.useValue as { name: string }).name).toBe(HTTP_REQUEST_DURATION_SECONDS)
     })
 
+    it('应提供 OUTBOX_PROJECTED_TOTAL Counter', () => {
+      const dynamicModule = MetricsModule.forRoot()
+      const provider = dynamicModule.providers?.find(
+        (p) =>
+          typeof p === 'object' &&
+          p !== null &&
+          'provide' in p &&
+          (p as { provide: unknown }).provide === OUTBOX_PROJECTED_TOTAL,
+      ) as { provide: unknown; useValue: unknown } | undefined
+
+      expect(provider).toBeDefined()
+      expect(provider?.useValue).toBeDefined()
+      expect((provider?.useValue as { name: string }).name).toBe(OUTBOX_PROJECTED_TOTAL)
+    })
+
+    it('应提供 OUTBOX_CLAIM_BATCH_SIZE Histogram', () => {
+      const dynamicModule = MetricsModule.forRoot()
+      const provider = dynamicModule.providers?.find(
+        (p) =>
+          typeof p === 'object' &&
+          p !== null &&
+          'provide' in p &&
+          (p as { provide: unknown }).provide === OUTBOX_CLAIM_BATCH_SIZE,
+      ) as { provide: unknown; useValue: unknown } | undefined
+
+      expect(provider).toBeDefined()
+      expect(provider?.useValue).toBeDefined()
+      expect((provider?.useValue as { name: string }).name).toBe(OUTBOX_CLAIM_BATCH_SIZE)
+    })
+
     it('应提供 HttpMetricsInterceptor', () => {
       const dynamicModule = MetricsModule.forRoot()
       const hasInterceptor = dynamicModule.providers?.some((p) => p === HttpMetricsInterceptor)
       expect(hasInterceptor).toBe(true)
     })
 
-    it('应导出 HttpMetricsInterceptor + 两个 token', () => {
+    it('应导出 HttpMetricsInterceptor + 四个 token', () => {
       const dynamicModule = MetricsModule.forRoot()
       expect(dynamicModule.exports).toEqual([
         HttpMetricsInterceptor,
         HTTP_REQUESTS_TOTAL,
         HTTP_REQUEST_DURATION_SECONDS,
+        OUTBOX_PROJECTED_TOTAL,
+        OUTBOX_CLAIM_BATCH_SIZE,
       ])
     })
 
@@ -170,6 +208,8 @@ describe('MetricsModule', () => {
       const names = metrics.map((m) => m.name)
       expect(names).toContain(HTTP_REQUESTS_TOTAL)
       expect(names).toContain(HTTP_REQUEST_DURATION_SECONDS)
+      expect(names).toContain(OUTBOX_PROJECTED_TOTAL)
+      expect(names).toContain(OUTBOX_CLAIM_BATCH_SIZE)
     })
   })
 
@@ -180,6 +220,14 @@ describe('MetricsModule', () => {
 
     it('HTTP_REQUEST_DURATION_SECONDS 应为字符串 token', () => {
       expect(HTTP_REQUEST_DURATION_SECONDS).toBe('http_request_duration_seconds')
+    })
+
+    it('OUTBOX_PROJECTED_TOTAL 应为字符串 token', () => {
+      expect(OUTBOX_PROJECTED_TOTAL).toBe('outbox_projected_total')
+    })
+
+    it('OUTBOX_CLAIM_BATCH_SIZE 应为字符串 token', () => {
+      expect(OUTBOX_CLAIM_BATCH_SIZE).toBe('outbox_claim_batch_size')
     })
   })
 })
