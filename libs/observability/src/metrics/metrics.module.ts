@@ -24,10 +24,20 @@ import { type DynamicModule, Global, Module, type Provider } from '@nestjs/commo
 import { Counter, Histogram, collectDefaultMetrics, register } from 'prom-client'
 import { HttpMetricsInterceptor } from './http.interceptor'
 import { MetricsController } from './metrics.controller'
-import { HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS } from './metrics.constants'
+import {
+  HTTP_REQUESTS_TOTAL,
+  HTTP_REQUEST_DURATION_SECONDS,
+  OUTBOX_PROJECTED_TOTAL,
+  OUTBOX_CLAIM_BATCH_SIZE,
+} from './metrics.constants'
 
 // 重新导出常量以保持向后兼容（其他模块可能从 metrics.module 导入）
-export { HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS }
+export {
+  HTTP_REQUESTS_TOTAL,
+  HTTP_REQUEST_DURATION_SECONDS,
+  OUTBOX_PROJECTED_TOTAL,
+  OUTBOX_CLAIM_BATCH_SIZE,
+}
 
 export interface MetricsModuleOptions {
   /** 服务名（保留用于后续按服务标签区分，当前可选） */
@@ -79,9 +89,26 @@ export class MetricsModule {
       [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
     )
 
+    // Outbox 投影完成总数 Counter（outbox_projected_total{result=projected|failed}）
+    const outboxProjectedTotal = getOrCreateCounter(
+      OUTBOX_PROJECTED_TOTAL,
+      'Total number of outbox projection attempts',
+      ['result'],
+    )
+
+    // Outbox 声明批次大小 Histogram（outbox_claim_batch_size）
+    const outboxClaimBatchSize = getOrCreateHistogram(
+      OUTBOX_CLAIM_BATCH_SIZE,
+      'Size of each outbox claim batch',
+      [],
+      [1, 5, 10, 25, 50, 100],
+    )
+
     const providers: Provider[] = [
       { provide: HTTP_REQUESTS_TOTAL, useValue: httpRequestTotal },
       { provide: HTTP_REQUEST_DURATION_SECONDS, useValue: httpRequestDuration },
+      { provide: OUTBOX_PROJECTED_TOTAL, useValue: outboxProjectedTotal },
+      { provide: OUTBOX_CLAIM_BATCH_SIZE, useValue: outboxClaimBatchSize },
       HttpMetricsInterceptor,
     ]
 
@@ -91,7 +118,13 @@ export class MetricsModule {
       providers,
       // 必须导出 token，否则当 HttpMetricsInterceptor 作为 APP_INTERCEPTOR 在 AppModule
       // 上下文中实例化时，无法注入 @Inject(HTTP_REQUESTS_TOTAL) 等依赖。
-      exports: [HttpMetricsInterceptor, HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS],
+      exports: [
+        HttpMetricsInterceptor,
+        HTTP_REQUESTS_TOTAL,
+        HTTP_REQUEST_DURATION_SECONDS,
+        OUTBOX_PROJECTED_TOTAL,
+        OUTBOX_CLAIM_BATCH_SIZE,
+      ],
     }
   }
 }

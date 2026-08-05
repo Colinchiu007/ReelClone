@@ -82,6 +82,15 @@ export function decryptSecret(storedValue: string): string {
 
   try {
     const payload = Buffer.from(storedValue.slice(ENCRYPTED_PREFIX.length), 'base64')
+
+    // 最小 payload = IV(12) + authTag(16) = 28 bytes
+    const MIN_PAYLOAD_LENGTH = IV_LENGTH + AUTH_TAG_LENGTH
+    if (payload.length < MIN_PAYLOAD_LENGTH) {
+      throw new Error(
+        `Encrypted payload too short: got ${payload.length} bytes, minimum is ${MIN_PAYLOAD_LENGTH}`,
+      )
+    }
+
     const iv = payload.subarray(0, IV_LENGTH)
     const authTag = payload.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH)
     const ciphertext = payload.subarray(IV_LENGTH + AUTH_TAG_LENGTH)
@@ -91,7 +100,17 @@ export function decryptSecret(storedValue: string): string {
     const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
     return decrypted.toString('utf8')
   } catch (err) {
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging'
+
     console.error(`[SecretEncryption] Failed to decrypt value: ${(err as Error).message}`)
+
+    if (isProduction) {
+      throw new Error(
+        `[SecretEncryption] Decrypt failed for an encrypted value (fail-closed in production): ${(err as Error).message}`,
+      )
+    }
+
+    // 开发/测试环境：保持旧行为，返回原始值
     return storedValue
   }
 }

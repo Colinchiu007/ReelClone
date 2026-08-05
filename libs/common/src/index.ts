@@ -30,9 +30,6 @@ export * from './guards/rate-limit.guard'
 export * from './guards/roles.guard'
 export * from './guards/internal-api-key.guard'
 
-// -------------------- 认证策略 --------------------
-export * from './auth'
-
 // -------------------- 装饰器 --------------------
 export * from './decorators/current-user.decorator'
 export * from './decorators/public.decorator'

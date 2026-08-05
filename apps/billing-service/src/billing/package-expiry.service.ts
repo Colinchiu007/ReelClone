@@ -14,7 +14,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { DataSource, In } from 'typeorm'
-import { DATABASE_CONNECTIONS, UserPackageStatus } from '@reelclone/database'
+import { DATABASE_CONNECTIONS, UserPackage, UserPackageStatus } from '@reelclone/database'
 
 /** 每批处理的最大记录数 */
 const EXPIRY_BATCH_SIZE = 500
@@ -31,7 +31,7 @@ export class PackageExpiryService {
    * @returns 本次过期的套餐数量
    */
   async expireOverduePackages(): Promise<number> {
-    const userPackageRepo = this.mainDataSource.getRepository('user_packages')
+    const userPackageRepo = this.mainDataSource.getRepository(UserPackage)
     let totalExpired = 0
     let hasMore = true
 

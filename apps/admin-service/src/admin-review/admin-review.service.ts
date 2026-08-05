@@ -15,7 +15,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ConfigService } from '@nestjs/config'
-import axios, { type AxiosInstance } from 'axios'
+import { InternalHttpClient } from '@reelclone/http-client'
 import {
   Template,
   TemplateStatus,
@@ -55,7 +55,7 @@ type ReviewType = 'template' | 'avatar' | 'asset' | 'all'
 @Injectable()
 export class AdminReviewService {
   private readonly logger = new Logger(AdminReviewService.name)
-  private readonly httpClient: AxiosInstance
+  private readonly httpClient: InternalHttpClient
 
   constructor(
     @InjectRepository(Template, DATABASE_CONNECTIONS.TEMPLATE)
@@ -73,13 +73,9 @@ export class AdminReviewService {
     const apiKey =
       this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
 
-    this.httpClient = axios.create({
-      baseURL: baseUrl,
-      timeout: 10_000,
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
+    this.httpClient = new InternalHttpClient({
+      baseUrl,
+      apiKey,
     })
   }
 

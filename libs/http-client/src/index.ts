@@ -10,5 +10,11 @@
 export { InternalHttpClient } from './http-client'
 export { CircuitBreaker } from './circuit-breaker'
 export { isRetryableError } from './http-client'
-export type { HttpClientConfig, RetryConfig, ApiResponse } from './http-client'
+export { createInternalClient } from './http-client'
+export type {
+  HttpClientConfig,
+  RetryConfig,
+  ApiResponse,
+  CreateInternalClientConfig,
+} from './http-client'
 export type { CircuitBreakerConfig } from './circuit-breaker'

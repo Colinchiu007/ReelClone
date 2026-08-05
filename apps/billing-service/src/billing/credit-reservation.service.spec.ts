@@ -45,6 +45,8 @@ describe('CreditReservationService', () => {
   let reservationRepo: jest.Mocked<Repository<CreditReservation>>
   let outboxRepo: jest.Mocked<Repository<BillingProjectionOutbox>>
   let ledger: jest.Mocked<LedgerService>
+  let mockOutboxProjected: { inc: jest.Mock }
+  let mockOutboxClaimBatchSize: { observe: jest.Mock }
 
   beforeEach(() => {
     userRepo = mockRepo<User>()
@@ -72,7 +74,14 @@ describe('CreditReservationService', () => {
       findByIdempotencyKey: jest.fn(),
       writeTransaction: jest.fn(),
     } as unknown as jest.Mocked<LedgerService>
-    service = new CreditReservationService(mainDataSource, ledger)
+    mockOutboxProjected = { inc: jest.fn() }
+    mockOutboxClaimBatchSize = { observe: jest.fn() }
+    service = new CreditReservationService(
+      mainDataSource,
+      ledger,
+      mockOutboxProjected as never,
+      mockOutboxClaimBatchSize as never,
+    )
 
     outboxRepo.find.mockResolvedValue([])
     outboxRepo.findOne.mockResolvedValue(null)

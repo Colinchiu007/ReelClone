@@ -26,10 +26,7 @@ export { OBS_SERVICE_NAME, OBS_LOG_LEVEL } from './logger/logger.config'
 // -------------------- 日志 --------------------
 export { LoggerService } from './logger/logger.service'
 export { LoggerModule, type LoggerModuleOptions } from './logger/logger.module'
-export {
-  createLoggerConfig,
-  type LoggerConfigOptions,
-} from './logger/logger.config'
+export { createLoggerConfig, type LoggerConfigOptions } from './logger/logger.config'
 
 // -------------------- 健康检查 --------------------
 export { HealthModule, type HealthModuleOptions } from './health/health.module'
@@ -47,6 +44,8 @@ export {
   type MetricsModuleOptions,
   HTTP_REQUESTS_TOTAL,
   HTTP_REQUEST_DURATION_SECONDS,
+  OUTBOX_PROJECTED_TOTAL,
+  OUTBOX_CLAIM_BATCH_SIZE,
 } from './metrics/metrics.module'
 export { MetricsController } from './metrics/metrics.controller'
 export { HttpMetricsInterceptor } from './metrics/http.interceptor'

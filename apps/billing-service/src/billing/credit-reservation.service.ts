@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { Counter, Histogram } from 'prom-client'
 import { randomUUID } from 'node:crypto'
 import { BusinessException } from '@reelclone/common'
 import {
@@ -13,6 +14,7 @@ import {
   PointTransactionType,
   User,
 } from '@reelclone/database'
+import { OUTBOX_PROJECTED_TOTAL, OUTBOX_CLAIM_BATCH_SIZE } from '@reelclone/observability'
 import { DataSource } from 'typeorm'
 import { LedgerService } from './ledger.service'
 
@@ -85,6 +87,8 @@ export class CreditReservationService {
     @InjectDataSource(DATABASE_CONNECTIONS.MAIN)
     private readonly mainDataSource: DataSource,
     private readonly ledger: LedgerService,
+    @Inject(OUTBOX_PROJECTED_TOTAL) private readonly outboxProjected: Counter<string>,
+    @Inject(OUTBOX_CLAIM_BATCH_SIZE) private readonly outboxClaimBatchSize: Histogram<string>,
   ) {}
 
   async freeze(params: FreezeReservationParams): Promise<ReservationOperationResult> {
@@ -200,6 +204,10 @@ export class CreditReservationService {
         await this.handleFailedOutbox(outbox.id, outbox.attempts, err)
       }
     }
+
+    this.outboxProjected.inc({ result: 'projected' }, projected)
+    this.outboxProjected.inc({ result: 'failed' }, failed)
+    this.outboxClaimBatchSize.observe(claimed.length)
 
     return { claimed: claimed.length, projected, failed }
   }

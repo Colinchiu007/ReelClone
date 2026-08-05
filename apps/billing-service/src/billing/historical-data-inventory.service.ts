@@ -8,6 +8,7 @@ import {
   CreditReservationStatus,
   BillingProjectionOutbox,
   BillingProjectionDeliveryStatus,
+  OutboxStatus,
   PointTransaction,
   PointTransactionType,
   DATABASE_CONNECTIONS,
@@ -163,7 +164,7 @@ export class HistoricalDataInventoryService {
     // 2. 检查 DEAD 状态的 credit operation outbox
     const deadOpOutbox = await this.mainDataSource
       .getRepository(CreditOperationOutbox)
-      .find({ where: { status: CreditOperationStatus.DEAD as any } })
+      .find({ where: { status: OutboxStatus.DEAD } })
 
     if (deadOpOutbox.length > 0) {
       issues.push({

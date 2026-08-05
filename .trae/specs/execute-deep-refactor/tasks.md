@@ -8,7 +8,7 @@
 | ----- | ---- | ------ | ------ |
 | P0    | 6    | 6      | 0      |
 | P1    | 13   | 13     | 0      |
-| P2    | 4    | 2      | 0      |
+| P2    | 4    | 4      | 0      |
 
 ## P0 — 生产就绪（6/6 ✅）
 
@@ -37,7 +37,7 @@
 | P1-10 | 奖励补偿间隙饥饿         | ✅   | `26d6d1b` + `9832c7d`                                                                           |
 | P1-11 | 密钥管理加密存储         | ✅   | AES-256-GCM 加密 ConfigStore，`enc:v1:` 前缀，迁移脚本                                          |
 | P1-12 | Admin-service 代码审计   | ✅   | 补 @CurrentUser 审计 + config 导入修正 + 路由前缀注释                                           |
-| P1-13 | Temporal 契约类型解耦    | ✅   | VideoMetaInfo → @reelclone/common，消除 temporal→ai 类型依赖                                    |
+| P1-13 | Temporal 契约类型解耦    | ✅   | `de2a628` — 3 处运行时 import→依赖注入，消除 temporal→ai/oss 运行时依赖，175 tests              |
 
 ## P2 — 业务功能（4/4）
 

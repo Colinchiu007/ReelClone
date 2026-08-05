@@ -98,7 +98,8 @@ export class InternalHttpClient {
   /** 统一 POST 请求（自动重试 + 熔断 + ApiResponse 解包） */
   async post<T>(
     path: string,
-    body: Record<string, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    body: Record<string, any>,
     options?: { timeoutMs?: number; idempotencyKey?: string },
   ): Promise<T> {
     return this.requestWithRetry<T>(() => this.rawPost<T>(path, body, options))
@@ -213,4 +214,55 @@ export class InternalHttpClient {
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
   }
+}
+
+/** createInternalClient 工厂函数的配置类型 */
+export interface CreateInternalClientConfig {
+  /** 目标服务 base URL（必填） */
+  baseUrl: string
+  /** 内部 API key，未提供时从 process.env.INTERNAL_API_KEY 读取 */
+  apiKey?: string
+  /** 默认超时 ms（默认 10000） */
+  timeoutMs?: number
+  /** 重试配置（默认 maxRetries=3, baseDelayMs=200） */
+  retry?: Partial<RetryConfig>
+  /** 熔断器配置（默认 failureThreshold=5, cooldownMs=30000） */
+  circuitBreaker?: Partial<CircuitBreakerConfig>
+}
+
+/**
+ * 创建 InternalHttpClient 的推荐工厂方法。
+ *
+ * 这是跨服务调用时创建 HTTP 客户端的推荐方式。它会自动从环境变量
+ * `INTERNAL_API_KEY` 中读取 API Key 作为后备值，确保客户端始终携带
+ * 有效的认证信息。
+ *
+ * @example
+ * ```ts
+ * const client = createInternalClient({
+ *   baseUrl: 'https://api.example.com',
+ *   apiKey: 'optional-override',
+ * })
+ * const data = await client.post<DataType>('/api/v1/endpoint', body)
+ * ```
+ */
+export function createInternalClient(config: CreateInternalClientConfig): InternalHttpClient {
+  const apiKey = config.apiKey || process.env.INTERNAL_API_KEY || ''
+  if (!config.baseUrl) {
+    throw new BusinessException(
+      ErrorCode.INTERNAL_ERROR,
+      'createInternalClient: baseUrl is required',
+    )
+  }
+  if (!apiKey) {
+    throw new BusinessException(
+      ErrorCode.INTERNAL_ERROR,
+      'createInternalClient: apiKey is required (provide via config or set INTERNAL_API_KEY env)',
+    )
+  }
+
+  return new InternalHttpClient({
+    ...config,
+    apiKey,
+  })
 }

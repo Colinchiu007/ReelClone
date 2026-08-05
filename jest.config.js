@@ -23,13 +23,13 @@ module.exports = {
   coverageDirectory: './coverage',
   // 覆盖率阈值门禁 — 基于基线 (Stmts 54.52% / Branches 38.29% / Funcs 40.62% / Lines 54.17%)
   // 后端整体覆盖率偏低主要因 Temporal workflows/activities（声明式代码，由 E2E 10 套件 95 测试覆盖）
-  // 阈值设基线以下约 5%，防止覆盖率回归；后续通过补充单元测试逐步提高基线和阈值
+  // 阈值逐步提高，防止覆盖率回归；后续通过补充单元测试继续提升
   coverageThreshold: {
     global: {
-      statements: 50,
-      branches: 33,
-      functions: 35,
-      lines: 50,
+      statements: 52,
+      branches: 35,
+      functions: 37,
+      lines: 52,
     },
   },
   testPathIgnorePatterns: [
