@@ -28,13 +28,10 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# 复制构建产物（libs 已内联编译到 service dist）
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json* ./
+# 复制 node_modules + 编译产物（builder 已安装所有依赖，runner 无需重新安装）
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/asset-service/dist ./apps/asset-service/dist
-
-# 仅安装生产依赖
-RUN npm ci --omit=dev --legacy-peer-deps || npm install --omit=dev
+COPY --from=builder /app/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=3003
