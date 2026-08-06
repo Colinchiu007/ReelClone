@@ -197,4 +197,7 @@ export class RequestManager {
 }
 
 /** 全局请求实例 */
-export const request = new RequestManager(API_BASE_URL ?? 'http://localhost:3000/api');
+export const request = new RequestManager(
+  API_BASE_URL ??
+    (process.env.NODE_ENV === 'production' ? 'https://api.reelclone.com/api' : 'http://localhost:3000/api'),
+);

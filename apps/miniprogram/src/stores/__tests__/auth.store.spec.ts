@@ -5,8 +5,6 @@
  *  - 初始状态（user=null, isAuthenticated=false）
  *  - setUser → 设置用户 + 认证状态
  *  - logout → 清空用户 + 认证状态
- *  - updatePoints → 更新用户积分
- *  - updatePoints when user=null → 安全无操作
  *  - 持久化：setUser 后存储写入，冷启动恢复
  */
 import { useAuthStore } from '../auth.store'
@@ -19,7 +17,6 @@ function buildUser(overrides: Partial<User> = {}): User {
     mobile: '13800138000',
     nickname: '测试用户',
     avatarUrl: 'https://example.com/avatar.png',
-    currentPoints: 100,
     ...overrides,
   } as unknown as User
 }
@@ -77,36 +74,4 @@ describe('AuthStore', () => {
     })
   })
 
-  describe('updatePoints', () => {
-    it('应更新 user.currentPoints', () => {
-      useAuthStore.getState().setUser(buildUser({ currentPoints: 100 }))
-      useAuthStore.getState().updatePoints(50)
-
-      expect(useAuthStore.getState().user?.currentPoints).toBe(50)
-    })
-
-    it('更新积分不应影响 isAuthenticated', () => {
-      useAuthStore.getState().setUser(buildUser({ currentPoints: 100 }))
-      useAuthStore.getState().updatePoints(200)
-
-      expect(useAuthStore.getState().isAuthenticated).toBe(true)
-    })
-
-    it('user 为 null 时 updatePoints 应安全无操作', () => {
-      useAuthStore.getState().updatePoints(50)
-      expect(useAuthStore.getState().user).toBeNull()
-    })
-
-    it('更新积分为 0 应正常处理', () => {
-      useAuthStore.getState().setUser(buildUser({ currentPoints: 100 }))
-      useAuthStore.getState().updatePoints(0)
-      expect(useAuthStore.getState().user?.currentPoints).toBe(0)
-    })
-
-    it('更新积分为负数也应写入（业务层负责校验）', () => {
-      useAuthStore.getState().setUser(buildUser({ currentPoints: 100 }))
-      useAuthStore.getState().updatePoints(-10)
-      expect(useAuthStore.getState().user?.currentPoints).toBe(-10)
-    })
-  })
 })

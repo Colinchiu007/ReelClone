@@ -9,7 +9,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useDidShow, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
+import Taro, { useDidShow, useLoad, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
 import { WorkCard, EmptyState, LoadingState, ErrorState } from '@/components'
 import type { WorkItem, WorkStatus } from '@/components'
 import { listWorks } from '@/services/api/workbench.api'
@@ -68,6 +68,8 @@ function toWorkItem(work: Work): WorkItem {
 }
 
 export default function WorksList() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '我的作品' }))
+
   const [activeTab, setActiveTab] = useState('all')
   const [works, setWorks] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)

@@ -42,7 +42,6 @@ export interface User {
   avatarUrl: string | null
   mobile: string | null
   email: string | null
-  currentPoints: number
   totalPoints: number
   industryPreferences: string[]
   status: string

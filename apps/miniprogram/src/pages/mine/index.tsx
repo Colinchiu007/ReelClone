@@ -84,6 +84,7 @@ export default function Index() {
   }, [setUser, setBalance])
 
   useLoad(() => {
+    Taro.setNavigationBarTitle({ title: '我的' })
     if (isAuthenticated) {
       setLoading(true)
       loadProfile()

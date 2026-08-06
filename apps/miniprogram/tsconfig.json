@@ -19,8 +19,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@reelclone/capability": ["../../libs/capability/src/index.ts"],
-      "@reelclone/capability/*": ["../../libs/capability/src/*"]
+      "@reelclone/capability": ["config/capability.ts"],
+      "@reelclone/capability/*": ["../../libs/capability/dist/libs/capability/src/*"]
     }
   },
   "include": [

@@ -9,7 +9,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useLoad } from '@tarojs/taro';
 import { CreditBadge, MediaUploader } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
@@ -25,6 +25,7 @@ const POINTS_PER_CALL = getFixedPoints(TYPE) ?? 1200;
 const EXTEND_DURATIONS = [5, 10];
 
 export default function VideoExtendWorkbench() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '延长视频' }));
   const [videoKeys, setVideoKeys] = useState<string[]>([]);
   const [duration, setDuration] = useState(5);
   const [submitting, setSubmitting] = useState(false);

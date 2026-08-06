@@ -23,16 +23,10 @@ import {
   unfavoriteTemplate,
 } from '@/services/api/template.api'
 import type { Template } from '@/types'
+import { PLATFORM_OPTIONS } from '@/utils/platform'
 import './index.scss'
 
-/** 平台 Tab（key 与后端 platform 枚举对齐） */
-const PLATFORM_TABS: Array<{ key: string; label: string }> = [
-  { key: '', label: '全部' },
-  { key: 'DOUYIN', label: '抖音' },
-  { key: 'XIAOHONGSHU', label: '小红书' },
-  { key: 'BILIBILI', label: 'B站' },
-  { key: 'WECHAT_VIDEO', label: '视频号' },
-]
+const PLATFORM_TABS = [{ value: '', label: '全部' }, ...PLATFORM_OPTIONS]
 
 /** 排序/筛选 Tab */
 type SortKey = 'industry' | 'heat' | 'latest'
@@ -256,9 +250,9 @@ export default function GalleryPage() {
         <ScrollView className="gallery__platforms" scrollX showScrollbar={false}>
           {PLATFORM_TABS.map((tab) => (
             <View
-              key={tab.key || 'all'}
-              className={`gallery__platform ${platform === tab.key ? 'gallery__platform--on' : ''}`}
-              onClick={() => setPlatform(tab.key)}
+              key={tab.value || 'all'}
+              className={`gallery__platform ${platform === tab.value ? 'gallery__platform--on' : ''}`}
+              onClick={() => setPlatform(tab.value)}
             >
               <Text>{tab.label}</Text>
             </View>

@@ -25,7 +25,6 @@ export interface AuthState {
   isAuthenticated: boolean;
   setUser: (user: User) => void;
   logout: () => void;
-  updatePoints: (points: number) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,14 +36,6 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isAuthenticated: true }),
 
       logout: () => set({ user: null, isAuthenticated: false }),
-
-      /** 更新用户积分（支付/消费后同步） */
-      updatePoints: (points) =>
-        set((state) => ({
-          user: state.user
-            ? { ...state.user, currentPoints: points }
-            : null,
-        })),
     }),
     {
       name: 'rc-auth-store',

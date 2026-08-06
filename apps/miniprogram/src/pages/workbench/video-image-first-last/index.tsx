@@ -8,7 +8,7 @@
  */
 import { useState, useCallback, useMemo } from 'react';
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useLoad } from '@tarojs/taro';
 import { CreditBadge, MediaUploader, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
@@ -20,6 +20,7 @@ import './index.scss';
 const TYPE = GenerationType.IMAGE_TO_VIDEO_FIRST_LAST;
 
 export default function VideoImageFirstLastWorkbench() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '首尾帧生视频' }));
   const MODELS = useMemo(() => getModels(TYPE), []);
   const RESOLUTIONS = useMemo(() => getResolutions(TYPE), []);
   const ASPECT_RATIOS = useMemo(() => getAspectRatios(TYPE), []);

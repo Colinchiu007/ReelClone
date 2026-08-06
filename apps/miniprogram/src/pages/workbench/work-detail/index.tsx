@@ -10,7 +10,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { View, Text, Image, Video, Progress } from '@tarojs/components'
-import Taro, { getCurrentInstance } from '@tarojs/taro'
+import Taro, { getCurrentInstance, useLoad, useShareAppMessage } from '@tarojs/taro'
 import { LoadingState, ErrorState } from '@/components'
 import {
   getWork,
@@ -59,6 +59,8 @@ export default function WorkDetail() {
   const instance = getCurrentInstance()
   const workId = instance.router?.params?.workId ?? ''
 
+  useLoad(() => Taro.setNavigationBarTitle({ title: '作品详情' }))
+
   const [work, setWork] = useState<Work | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -66,6 +68,12 @@ export default function WorkDetail() {
   const [operating, setOperating] = useState(false)
 
   const { subscribe, unsubscribe } = useWebSocket()
+
+  useShareAppMessage(() => ({
+    title: work ? `${work.workType}作品` : '作品详情',
+    path: `/pages/workbench/work-detail/index?workId=${workId}`,
+    imageUrl: work?.coverUrl || (work?.resultUrl && !work.workType.includes('VIDEO') ? work.resultUrl : undefined),
+  }))
 
   /** 拉取作品详情 */
   const fetchWork = useCallback(async () => {

@@ -10,14 +10,12 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { View, Text, Input, Textarea } from '@tarojs/components'
-import Taro, { getCurrentInstance } from '@tarojs/taro'
+import Taro, { getCurrentInstance, useLoad } from '@tarojs/taro'
 import { LoadingState, ErrorState, IndustryPicker } from '@/components'
 import { getWork, publishWorkAsTemplate } from '@/services/api/workbench.api'
 import type { Work } from '@/types'
+import { PLATFORM_OPTIONS } from '@/utils/platform'
 import './index.scss'
-
-/** 平台选项 */
-const PLATFORMS = ['抖音', '小红书', '视频号', '快手', 'B站']
 
 /** 分类选项 */
 const CATEGORIES = ['口播', '剧情', '测评', '教程', 'Vlog', '混剪']
@@ -28,6 +26,8 @@ const MAX_TAGS = 5
 export default function PublishTemplatePage() {
   const instance = getCurrentInstance()
   const workId = instance.router?.params?.workId ?? ''
+
+  useLoad(() => Taro.setNavigationBarTitle({ title: '发布为模板' }))
 
   const [work, setWork] = useState<Work | null>(null)
   const [loading, setLoading] = useState(true)
@@ -198,13 +198,13 @@ export default function PublishTemplatePage() {
         <View className="page-wrap__section">
           <Text className="page-wrap__label">适用平台</Text>
           <View className="page-wrap__row">
-            {PLATFORMS.map((p) => (
+            {PLATFORM_OPTIONS.map(({ value, label }) => (
               <View
-                key={p}
-                className={`page-wrap__chip ${platform === p ? 'page-wrap__chip--on' : ''}`}
-                onClick={() => setPlatform(platform === p ? '' : p)}
+                key={value}
+                className={`page-wrap__chip ${platform === value ? 'page-wrap__chip--on' : ''}`}
+                onClick={() => setPlatform(platform === value ? '' : value)}
               >
-                <Text>{p}</Text>
+                <Text>{label}</Text>
               </View>
             ))}
           </View>

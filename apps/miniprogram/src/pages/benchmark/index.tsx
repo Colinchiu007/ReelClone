@@ -1,28 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { View, Text, Input } from '@tarojs/components'
-import Taro, { useLoad, useDidShow } from '@tarojs/taro'
+import Taro, { useLoad, useDidShow, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
 import { CreditBadge, LoadingState, ErrorState, EmptyState } from '@/components'
 import { createBenchmark, listBenchmarks } from '@/services/api/benchmark.api'
 import { getBalance } from '@/services/api/billing.api'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { usePointsStore } from '@/stores/points.store'
 import type { Benchmark } from '@/types'
+import { PLATFORM_METADATA } from '@/utils/platform'
 import './index.scss'
 
-interface PlatformMeta {
-  label: string
-  icon: string
-}
-
-const PLATFORM_MAP: Record<string, PlatformMeta> = {
-  douyin: { label: '抖音', icon: '🎵' },
-  xiaohongshu: { label: '小红书', icon: '📕' },
-  bilibili: { label: 'B站', icon: '📺' },
-  kuaishou: { label: '快手', icon: '⚡' },
-  weibo: { label: '微博', icon: '🔴' },
-  weixin: { label: '视频号', icon: '💬' },
-  unknown: { label: '未知平台', icon: '🔗' },
-}
+const UNKNOWN_PLATFORM = { label: '未知平台', icon: '🔗' }
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   PENDING: { label: '排队中', cls: 'benchmark__status--pending' },
@@ -32,8 +20,8 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   CANCELLED: { label: '已取消', cls: 'benchmark__status--cancelled' },
 }
 
-function getPlatformMeta(platform: string): PlatformMeta {
-  return PLATFORM_MAP[platform] || PLATFORM_MAP.unknown
+function getPlatformMeta(platform: string) {
+  return PLATFORM_METADATA[platform as keyof typeof PLATFORM_METADATA] || UNKNOWN_PLATFORM
 }
 
 function getStatusMeta(status: string): { label: string; cls: string } {
@@ -59,6 +47,9 @@ export default function Index() {
   const [submitting, setSubmitting] = useState(false)
   const [history, setHistory] = useState<Benchmark[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState(false)
   const { subscribe, unsubscribe } = useWebSocket()
   const wsHandlerRef = useRef<((data: unknown) => void) | null>(null)
@@ -73,26 +64,43 @@ export default function Index() {
     }
   }, [setBalance])
 
-  const loadHistory = useCallback(async () => {
-    setLoading(true)
-    setError(false)
+  const loadHistory = useCallback(async (targetPage = 1, refresh = true) => {
+    if (targetPage === 1) {
+      setLoading(true)
+      setError(false)
+    } else {
+      setLoadingMore(true)
+    }
     try {
-      const res = await listBenchmarks({ pageSize: 20 })
-      setHistory(res.data.list)
+      const res = await listBenchmarks({ page: targetPage, pageSize: 20 })
+      setHistory((prev) => (refresh ? res.data.list : [...prev, ...res.data.list]))
+      setPage(targetPage)
+      setHasMore(targetPage * res.data.pageSize < res.data.total)
     } catch {
-      setError(true)
+      if (targetPage === 1) setError(true)
+      else Taro.showToast({ title: '加载更多失败', icon: 'none' })
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }, [])
 
   useLoad(() => {
+    Taro.setNavigationBarTitle({ title: '对标解析' })
     loadBalance()
     loadHistory()
   })
 
   useDidShow(() => {
     loadBalance()
+  })
+
+  useReachBottom(() => {
+    if (!loading && !loadingMore && hasMore) loadHistory(page + 1, false)
+  })
+
+  usePullDownRefresh(() => {
+    loadHistory(1).finally(() => Taro.stopPullDownRefresh())
   })
 
   // WebSocket 监听 task:completed / task:failed 自动刷新历史
@@ -204,7 +212,7 @@ export default function Index() {
       <View className="benchmark__history">
         <View className="benchmark__history-header">
           <Text className="benchmark__history-title">历史记录</Text>
-          <Text className="benchmark__history-refresh" onClick={loadHistory}>
+          <Text className="benchmark__history-refresh" onClick={() => loadHistory()}>
             刷新
           </Text>
         </View>
@@ -212,7 +220,7 @@ export default function Index() {
         {loading ? (
           <LoadingState title="加载历史中..." />
         ) : error ? (
-          <ErrorState title="加载失败" onRetry={loadHistory} />
+          <ErrorState title="加载失败" onRetry={() => loadHistory()} />
         ) : history.length === 0 ? (
           <EmptyState title="暂无解析记录" description="输入视频链接开始对标分析" />
         ) : (

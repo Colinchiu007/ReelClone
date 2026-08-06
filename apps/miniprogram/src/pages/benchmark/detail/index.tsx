@@ -9,7 +9,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { getCurrentInstance } from '@tarojs/taro'
+import Taro, { getCurrentInstance, useShareAppMessage } from '@tarojs/taro'
 import { LoadingState, ErrorState } from '@/components'
 import { getBenchmarkDetail, cloneBenchmark } from '@/services/api/benchmark.api'
 import type { Benchmark } from '@/types'
@@ -64,6 +64,11 @@ export default function BenchmarkDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [cloning, setCloning] = useState(false)
+
+  useShareAppMessage(() => ({
+    title: benchmark ? `${benchmark.platform || '视频'}对标解析` : '对标解析详情',
+    path: `/pages/benchmark/detail/index?id=${benchmarkId}`,
+  }))
 
   /** 拉取解析详情 */
   const fetchDetail = useCallback(async () => {

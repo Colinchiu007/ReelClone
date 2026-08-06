@@ -73,6 +73,7 @@ export default function Index() {
   }, [setUser, setUnreadCount]);
 
   useLoad(() => {
+    Taro.setNavigationBarTitle({ title: '推荐' });
     loadRecommend();
     refreshUserAndNotifications();
   });
@@ -99,7 +100,7 @@ export default function Index() {
   };
 
   const handleBellTap = () => {
-    Taro.showToast({ title: '通知中心即将上线', icon: 'none' });
+    Taro.navigateTo({ url: '/pages/settings/notifications/index' });
   };
 
   const handleAvatarTap = () => {

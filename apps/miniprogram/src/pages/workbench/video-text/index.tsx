@@ -10,7 +10,7 @@
  */
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useLoad } from '@tarojs/taro'
 import { CreditBadge, PromptInput } from '@/components'
 import { useCredits } from '@/hooks/useCredits'
 import { createGeneration } from '@/services/api/workbench.api'
@@ -22,6 +22,7 @@ import './index.scss'
 const TYPE = GenerationType.TEXT_TO_VIDEO
 
 export default function VideoTextWorkbench() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '视频生成' }))
   const MODELS = useMemo(() => getModels(TYPE), [])
   const RESOLUTIONS = useMemo(() => getResolutions(TYPE), [])
   const ASPECT_RATIOS = useMemo(() => getAspectRatios(TYPE), [])

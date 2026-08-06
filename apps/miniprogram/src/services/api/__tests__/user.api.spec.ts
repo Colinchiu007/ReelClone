@@ -44,7 +44,6 @@ function buildUser(overrides: Partial<User> = {}): User {
     avatarUrl: 'https://cdn.example.com/avatar.png',
     mobile: '13800000000',
     email: 'test@example.com',
-    currentPoints: 1000,
     totalPoints: 5000,
     industryPreferences: ['好物种草', '本地生活'],
     status: 'ACTIVE',

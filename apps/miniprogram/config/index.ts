@@ -20,7 +20,14 @@ export default defineConfig(async (merge) => {
     outputRoot: 'dist',
     plugins: [],
     defineConstants: {
-      API_BASE_URL: JSON.stringify(process.env.API_BASE_URL || 'http://localhost:3000/api'),
+      API_BASE_URL: JSON.stringify(
+        process.env.API_BASE_URL ||
+          (process.env.NODE_ENV === 'production' ? 'https://api.reelclone.com/api' : 'http://localhost:3000/api'),
+      ),
+      WS_BASE_URL: JSON.stringify(
+        process.env.WS_BASE_URL ||
+          (process.env.NODE_ENV === 'production' ? 'wss://api.reelclone.com' : 'ws://localhost:3008'),
+      ),
     },
     copy: {
       patterns: [],
@@ -41,6 +48,7 @@ export default defineConfig(async (merge) => {
     // 路径别名：@/ -> apps/miniprogram/src/
     alias: {
       '@': path.resolve(__dirname, '..', 'src'),
+      '@reelclone/capability': path.resolve(__dirname, 'capability.ts'),
     },
     mini: {
       // 主包优化：将公共依赖提取到主包，减少分包体积

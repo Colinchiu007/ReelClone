@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, Video, ScrollView, Image } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
+import Taro, { useRouter, useShareAppMessage } from '@tarojs/taro';
 import { LoadingState, ErrorState } from '@/components';
 import {
   favoriteTemplate,
@@ -50,6 +50,12 @@ export default function TemplateDetailPage() {
   const [favoriting, setFavoriting] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [related, setRelated] = useState<Template[]>([]);
+
+  useShareAppMessage(() => ({
+    title: detail?.title || '模板详情',
+    path: `/pages/template/detail/index?templateId=${templateId}`,
+    imageUrl: detail?.coverUrl || undefined,
+  }));
 
   /** 加载详情 */
   const fetchDetail = useCallback(async (id: string) => {

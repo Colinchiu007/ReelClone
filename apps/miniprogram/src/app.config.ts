@@ -32,7 +32,7 @@ export default {
     },
     {
       root: 'pages/settings',
-      pages: ['index', 'about/index', 'privacy/index', 'user-agreement/index'],
+      pages: ['index', 'about/index', 'privacy/index', 'user-agreement/index', 'notifications/index'],
     },
     {
       root: 'pages/template',

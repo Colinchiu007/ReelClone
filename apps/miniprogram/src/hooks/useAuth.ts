@@ -39,7 +39,6 @@ export function useAuth() {
           avatarUrl: result.user.avatarUrl,
           mobile: result.user.mobile,
           email: null,
-          currentPoints: result.user.currentPoints,
           totalPoints: result.user.totalPoints,
           industryPreferences: [],
           status: result.user.status,

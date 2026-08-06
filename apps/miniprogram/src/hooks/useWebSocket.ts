@@ -2,7 +2,7 @@
  * useWebSocket —— WebSocket Hook（任务进度推送）
  *
  * 功能：
- *  1. 连接 ws://localhost:3008/ws?token=<jwt>，使用 Taro.connectSocket
+ *  1. 连接配置的 WebSocket 服务，使用 Taro.connectSocket
  *  2. 自动重连（指数退避：1s → 2s → 4s → ... → 最大 30s）
  *  3. 心跳（每 30s 发送 ping，服务端回 pong）
  *  4. 事件订阅：task:progress / task:completed / task:failed / notification
@@ -25,8 +25,10 @@ type WsEvent = 'task:progress' | 'task:completed' | 'task:failed' | 'notificatio
 /** 事件处理函数 */
 type EventHandler = (data: unknown) => void
 
-/** WebSocket 服务地址（notification-service，端口 3008） */
-const WS_BASE_URL = 'ws://localhost:3008'
+declare const WS_BASE_URL: string | undefined
+
+const websocketBaseUrl =
+  typeof WS_BASE_URL === 'undefined' || !WS_BASE_URL ? 'wss://api.reelclone.com' : WS_BASE_URL
 
 /** 心跳间隔（30s） */
 const HEARTBEAT_INTERVAL = 30000
@@ -72,7 +74,7 @@ export function useWebSocket() {
     manualCloseRef.current = false
 
     const socket = await Taro.connectSocket({
-      url: `${WS_BASE_URL}/ws?token=${token}`,
+      url: `${websocketBaseUrl}/ws?token=${token}`,
       header: { 'content-type': 'application/json' },
     })
     socketRef.current = socket

@@ -263,7 +263,6 @@ describe('useAuth', () => {
         avatarUrl: 'https://example.com/new.png',
         mobile: '13900139000',
         email: 'new@example.com',
-        currentPoints: 200,
         totalPoints: 500,
         industryPreferences: ['tech'],
         status: 1,
@@ -281,7 +280,7 @@ describe('useAuth', () => {
       expect(getCurrentUser).toHaveBeenCalledTimes(1)
       expect(returned).toEqual(freshUser)
       expect(result.current.user?.nickname).toBe('新昵称')
-      expect(result.current.user?.currentPoints).toBe(200)
+      expect(result.current.user?.totalPoints).toBe(500)
       expect(result.current.isAuthenticated).toBe(true)
     })
 

@@ -9,7 +9,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, Text } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useLoad } from '@tarojs/taro';
 import { CreditBadge, MediaUploader, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
@@ -22,6 +22,7 @@ const TYPE = GenerationType.IMAGE_GENERATE;
 const POINTS_PER_CALL = getFixedPoints(TYPE) ?? 60;
 
 export default function ImageWorkbench() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '图片生成' }));
   const [reverseKeys, setReverseKeys] = useState<string[]>([]);
   const [referenceKeys, setReferenceKeys] = useState<string[]>([]);
   const [prompt, setPrompt] = useState('');

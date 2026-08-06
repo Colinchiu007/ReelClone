@@ -14,20 +14,10 @@ import {
   getIndustryPreferences,
   setIndustryPreferences,
 } from '@/services/api/template.api';
+import { PLATFORM_OPTIONS } from '@/utils/platform';
 import './index.scss';
 
-interface PlatformTab {
-  key: string;
-  label: string;
-}
-
-const PLATFORM_TABS: PlatformTab[] = [
-  { key: '', label: '全部' },
-  { key: 'douyin', label: '抖音' },
-  { key: 'xiaohongshu', label: '小红书' },
-  { key: 'bilibili', label: 'B站' },
-  { key: 'weixin', label: '视频号' },
-];
+const PLATFORM_TABS = [{ value: '', label: '全部' }, ...PLATFORM_OPTIONS];
 
 interface SortTab {
   key: string;
@@ -109,6 +99,7 @@ export default function Index() {
   }, []);
 
   useLoad(() => {
+    Taro.setNavigationBarTitle({ title: '灵感广场' });
     doSearch();
     checkIndustryPreferences();
   });
@@ -184,11 +175,11 @@ export default function Index() {
       <ScrollView className='recommend__platform-tabs' scrollX>
         {PLATFORM_TABS.map((tab) => (
           <View
-            key={tab.key}
+            key={tab.value}
             className={`recommend__tab ${
-              platform === tab.key ? 'recommend__tab--on' : ''
+              platform === tab.value ? 'recommend__tab--on' : ''
             }`}
-            onClick={() => handlePlatformTap(tab.key)}
+            onClick={() => handlePlatformTap(tab.value)}
           >
             <Text>{tab.label}</Text>
           </View>

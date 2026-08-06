@@ -9,7 +9,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Textarea } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useLoad } from '@tarojs/taro';
 import { CreditBadge, PromptInput } from '@/components';
 import { useCredits } from '@/hooks/useCredits';
 import { createGeneration } from '@/services/api/workbench.api';
@@ -35,6 +35,7 @@ interface ChatMessage {
 type TabKey = 'chat' | 'rewrite';
 
 export default function TextWorkbench() {
+  useLoad(() => Taro.setNavigationBarTitle({ title: '文本生成' }));
   const [tab, setTab] = useState<TabKey>('chat');
   const [prompt, setPrompt] = useState('');
   const [originalText, setOriginalText] = useState('');

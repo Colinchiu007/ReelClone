@@ -110,7 +110,9 @@ export async function refreshAccessToken(): Promise<string> {
     throw new Error('无可用的 refreshToken');
   }
 
-  const baseUrl = API_BASE_URL ?? 'http://localhost:3000/api';
+  const baseUrl =
+    API_BASE_URL ??
+    (process.env.NODE_ENV === 'production' ? 'https://api.reelclone.com/api' : 'http://localhost:3000/api');
 
   refreshPromise = (async () => {
     try {
