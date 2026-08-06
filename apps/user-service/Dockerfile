@@ -17,10 +17,10 @@ COPY nx.json ./
 COPY libs/ ./libs/
 COPY apps/ ./apps/
 
-# 安装全部依赖（含 devDependencies，用于构建）
-RUN npm ci || npm install
+# 安装依赖（path aliases 会将 @reelclone/* 解析到 libs 源码，tsc 内联编译）
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-# 构建 user-service
+# 构建 user-service（libs 通过 path aliases 内联编译到 dist）
 RUN npx nx build user-service || npx tsc -p apps/user-service/tsconfig.json
 
 # -------------------- Stage 2: 运行 --------------------
@@ -28,15 +28,13 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# 复制构建产物
+# 复制构建产物（libs 已内联编译到 service dist）
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json* ./
 COPY --from=builder /app/apps/user-service/dist ./apps/user-service/dist
-COPY --from=builder /app/libs/common/dist ./libs/common/dist
-COPY --from=builder /app/libs/database/dist ./libs/database/dist
 
 # 仅安装生产依赖
-RUN npm ci --omit=dev || npm install --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps || npm install --omit=dev
 
 ENV NODE_ENV=production
 ENV PORT=3002

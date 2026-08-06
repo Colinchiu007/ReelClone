@@ -15,10 +15,10 @@ COPY nx.json ./
 COPY libs ./libs
 COPY apps/workbench-service ./apps/workbench-service
 
-# 安装依赖（包含 workspace 链接）
-RUN npm ci --workspace=@reelclone/workbench-service --workspace=@reelclone/common --workspace=@reelclone/database --workspace=@reelclone/temporal --workspace=@reelclone/ai --include-workspace-root || npm install
+# 安装依赖（path aliases 会将 @reelclone/* 解析到 libs 源码，tsc 内联编译）
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-# 编译 workbench-service
+# 编译 workbench-service（libs 通过 path aliases 内联编译到 dist）
 RUN npx tsc -p apps/workbench-service/tsconfig.json
 
 # -------------------- Stage 2: prod --------------------
@@ -28,13 +28,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 复制 package.json 与已编译产物
+# 复制 package.json 与已编译产物（libs 已内联编译到 service dist）
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/apps/workbench-service/dist ./apps/workbench-service/dist
-COPY --from=builder /app/libs/common/dist ./libs/common/dist
-COPY --from=builder /app/libs/database/dist ./libs/database/dist
-COPY --from=builder /app/libs/temporal/dist ./libs/temporal/dist
-COPY --from=builder /app/libs/ai/dist ./libs/ai/dist
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3007

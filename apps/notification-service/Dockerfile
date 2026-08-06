@@ -21,10 +21,10 @@ COPY libs ./libs
 # 复制 notification-service 自身
 COPY apps/notification-service ./apps/notification-service
 
-# 安装所有依赖（包括 dev）
-RUN npm ci --workspace=@reelclone/notification-service --include-workspace-root || npm install
+# 安装依赖（path aliases 会将 @reelclone/* 解析到 libs 源码，tsc 内联编译）
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-# 编译 notification-service
+# 编译 notification-service（libs 通过 path aliases 内联编译到 dist）
 RUN npx tsc -p apps/notification-service/tsconfig.json
 
 # -------------------- Stage 2: runner --------------------
@@ -34,18 +34,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 复制 package 元信息
-COPY package.json package-lock.json* ./
-COPY tsconfig.base.json ./
-
-# 复制 libs 源码（运行时通过 workspace 软链接引用）
-COPY libs ./libs
-
-# 复制编译产物
+# 复制编译产物（libs 已内联编译到 service dist）
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/apps/notification-service/dist ./apps/notification-service/dist
-
-# 仅安装生产依赖
-RUN npm ci --omit-dev --workspace=@reelclone/notification-service --include-workspace-root || npm install --omit-dev
+COPY --from=builder /app/node_modules ./node_modules
 
 # 暴露端口
 EXPOSE 3008

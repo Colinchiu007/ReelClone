@@ -18,10 +18,10 @@ COPY nx.json ./
 COPY libs ./libs
 COPY apps/media-worker ./apps/media-worker
 
-# 安装依赖（含 peer 依赖冲突时使用 legacy-peer-deps）
+# 安装依赖（path aliases 会将 @reelclone/* 解析到 libs 源码，tsc 内联编译）
 RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-# 编译 media-worker
+# 编译 media-worker（libs 通过 path aliases 内联编译到 dist）
 RUN npx tsc -p apps/media-worker/tsconfig.json
 
 # -------------------- Production Stage --------------------
