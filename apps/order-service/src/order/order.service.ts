@@ -42,7 +42,7 @@ import {
 import { BillingClient } from './billing.client'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { ListOrdersDto } from './dto/list-orders.dto'
-import { WechatPayService } from './wechat-pay.service'
+import { WechatPayService, WechatPayResult } from './wechat-pay.service'
 import { ProfitSharingService } from '../profit-sharing/profit-sharing.service'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -72,6 +72,17 @@ export interface HandleCallbackResult {
   processed: boolean
   orderId: string
   orderNo: string
+}
+
+/** 事务内更新后返回的上下文，用于事务外 best-effort 调用 billing grant */
+interface GrantContext {
+  orderId: string
+  orderNo: string
+  userId: string
+  packageId: string
+  totalPoints: number
+  outboxId: string
+  operationIdempotencyKey: string
 }
 
 /** 幂等结果缓存 TTL（秒） */
@@ -310,7 +321,79 @@ export class OrderService {
     headers: Record<string, string | string[] | undefined>
     rawBody: string
   }): Promise<HandleCallbackResult> {
-    // 1. 委托适配器验签 + 解密
+    // 1. 验签 + 解密
+    const { decrypted, eventType, notificationId } = await this.verifyCallbackSignature(payload)
+    if (!decrypted) {
+      this.logger.warn(
+        `回调验签通过但无解密结果: eventType=${eventType} notificationId=${notificationId}`,
+      )
+      return { processed: false, orderId: '', orderNo: '' }
+    }
+    // 2. 幂等检查 + 落库事件
+    const idem = await this.checkIdempotency({
+      transactionId: decrypted.transaction_id,
+      orderNo: decrypted.out_trade_no,
+      eventType,
+      notificationId,
+      rawBody: payload.rawBody,
+      decryptResult: decrypted,
+    })
+    if (idem.isDuplicate) return idem.idempotentResult
+    const { paymentEvent } = idem
+    // 3. 非 SUCCESS 状态
+    const nonSuccessResult = await this.handleNonSuccessState(decrypted, paymentEvent)
+    if (nonSuccessResult) return nonSuccessResult
+    // 4. 查找订单 + 绑定 + 字段校验
+    const orderBinding = await this.findAndBindOrder(decrypted, paymentEvent)
+    if (!orderBinding) return { processed: false, orderId: '', orderNo: decrypted.out_trade_no }
+    const { order, bindingError } = orderBinding
+    if (bindingError) return { processed: false, orderId: order.id, orderNo: order.orderNo }
+    // 5. 幂等：订单已 PAID
+    if (order.status === OrderStatus.PAID) {
+      this.logger.log(
+        `订单 ${order.orderNo} 已 PAID，回调幂等返回（transactionId=${order.transactionId}）`,
+      )
+      await this.paymentEventRepo.update(paymentEvent.id, {
+        status: PaymentEventStatus.DUPLICATED,
+        processedAt: new Date(),
+      })
+      return { processed: false, orderId: order.id, orderNo: order.orderNo }
+    }
+    // 6. 事务化更新 + best-effort grant + 分账
+    const grantContext = await this.transactionalUpdate(decrypted, order, paymentEvent)
+    if (grantContext) await this.invokeGrantWithCompensation(grantContext)
+    this.profitSharingService
+      .initiateProfitSharing({
+        orderId: order.id,
+        orderNo: order.orderNo,
+        transactionId: decrypted.transaction_id,
+        totalAmountYuan: Number(order.amount),
+      })
+      .catch((err) => {
+        this.logger.error(
+          `分账触发失败（best-effort）: orderNo=${order.orderNo} error=${(err as Error).message}`,
+        )
+      })
+    return { processed: true, orderId: order.id, orderNo: order.orderNo }
+  }
+
+  /**
+   * 验签 + 解密回调报文
+   *
+   * 委托 WechatPayService 完成验签与 AES-GCM 解密。
+   * 验签失败抛 UNAUTHORIZED 异常；解密结果为空（非支付类通知）时由调用方处理。
+   *
+   * @param payload 回调报文（headers + rawBody）
+   * @returns 解密结果与通知元信息；decrypted 为 null 表示验签通过但无 resource
+   */
+  private async verifyCallbackSignature(payload: {
+    headers: Record<string, string | string[] | undefined>
+    rawBody: string
+  }): Promise<{
+    decrypted: WechatPayResult | null
+    eventType: string | null
+    notificationId: string | null
+  }> {
     const { verified, notification, decrypted } = await this.wechatPay.verifyAndDecryptCallback(
       payload.headers,
       payload.rawBody,
@@ -320,53 +403,65 @@ export class OrderService {
       throw new BusinessException(ErrorCode.UNAUTHORIZED, '微信支付回调签名校验失败', undefined)
     }
 
-    // 提取回调元信息
     const eventType = notification.body?.event_type ?? null
     const notificationId = notification.body?.id ?? null
 
-    // 2. 解密结果为空（验签通过但无 resource，如非支付类通知）
-    if (!decrypted) {
-      this.logger.warn(
-        `回调验签通过但无解密结果: eventType=${eventType} notificationId=${notificationId}`,
-      )
-      return {
-        processed: false,
-        orderId: '',
-        orderNo: '',
-      }
-    }
+    return { decrypted, eventType, notificationId }
+  }
 
-    const result = decrypted
-
-    // 3. transaction_id 幂等检查（durable inbox）
-    //    同一微信支付流水号的事件不会被重复处理
+  /**
+   * transaction_id 幂等检查 + 支付事件落库（durable inbox）
+   *
+   * 查询是否已存在同一 transactionId 的事件：
+   *  - 已存在 → 幂等返回
+   *  - 不存在 → 插入新事件（RECEIVED），唯一约束保证并发安全
+   *    * 并发回调第二个插入失败 → 幂等返回
+   *
+   * @param ctx 幂等检查上下文（transactionId + 事件元信息）
+   * @returns isDuplicate=true 时携带幂等返回结果；isDuplicate=false 时携带新落库的事件
+   */
+  private async checkIdempotency(ctx: {
+    transactionId: string
+    orderNo: string
+    eventType: string | null
+    notificationId: string | null
+    rawBody: string
+    decryptResult: WechatPayResult
+  }): Promise<
+    | { isDuplicate: true; idempotentResult: HandleCallbackResult }
+    | { isDuplicate: false; paymentEvent: OrderPaymentEvent }
+  > {
+    // 查询是否已存在同一 transactionId 的事件
     const existingEvent = await this.paymentEventRepo.findOne({
-      where: { transactionId: result.transaction_id },
+      where: { transactionId: ctx.transactionId },
     })
     if (existingEvent) {
       this.logger.log(
-        `回调幂等返回: transactionId=${result.transaction_id} status=${existingEvent.status}`,
+        `回调幂等返回: transactionId=${ctx.transactionId} status=${existingEvent.status}`,
       )
       return {
-        processed: false,
-        orderId: existingEvent.orderId ?? '',
-        orderNo: existingEvent.orderNo,
+        isDuplicate: true,
+        idempotentResult: {
+          processed: false,
+          orderId: existingEvent.orderId ?? '',
+          orderNo: existingEvent.orderNo,
+        },
       }
     }
 
-    // 4. 落库支付事件（durable inbox，RECEIVED 状态）
-    //    唯一约束保证并发回调时只有一个插入成功
+    // 落库支付事件（durable inbox，RECEIVED 状态）
+    // 唯一约束保证并发回调时只有一个插入成功
     const paymentEvent = this.paymentEventRepo.create({
       id: uuidv4(),
       orderId: null,
-      orderNo: result.out_trade_no,
-      transactionId: result.transaction_id,
-      eventType,
-      notificationId,
-      rawBody: payload.rawBody,
+      orderNo: ctx.orderNo,
+      transactionId: ctx.transactionId,
+      eventType: ctx.eventType,
+      notificationId: ctx.notificationId,
+      rawBody: ctx.rawBody,
       verified: true,
       status: PaymentEventStatus.RECEIVED,
-      decryptResult: result as unknown as Record<string, unknown>,
+      decryptResult: ctx.decryptResult as unknown as Record<string, unknown>,
       errorMessage: null,
       processedAt: null,
     })
@@ -375,33 +470,68 @@ export class OrderService {
     } catch (err) {
       // 唯一约束冲突：并发回调，另一个请求已先落库 → 幂等返回
       this.logger.log(
-        `并发回调幂等返回（唯一约束冲突）: transactionId=${result.transaction_id} err=${(err as Error).message}`,
+        `并发回调幂等返回（唯一约束冲突）: transactionId=${ctx.transactionId} err=${(err as Error).message}`,
       )
       return {
-        processed: false,
-        orderId: '',
-        orderNo: result.out_trade_no,
+        isDuplicate: true,
+        idempotentResult: {
+          processed: false,
+          orderId: '',
+          orderNo: ctx.orderNo,
+        },
       }
     }
 
-    // 5. 非 SUCCESS 状态 → 标记事件 + 返回（零状态变更）
-    if (result.trade_state !== 'SUCCESS') {
-      this.logger.warn(
-        `收到非 SUCCESS 状态回调: orderNo=${result.out_trade_no} state=${result.trade_state}`,
-      )
-      await this.paymentEventRepo.update(paymentEvent.id, {
-        status: PaymentEventStatus.PROCESSED,
-        processedAt: new Date(),
-        errorMessage: `non-SUCCESS state: ${result.trade_state}`,
-      })
-      return {
-        processed: false,
-        orderId: '',
-        orderNo: result.out_trade_no,
-      }
+    return { isDuplicate: false, paymentEvent }
+  }
+
+  /**
+   * 处理非 SUCCESS 状态的回调
+   *
+   * trade_state 非 SUCCESS 时，将事件标记为 PROCESSED 并返回幂等结果（零状态变更）。
+   *
+   * @param result 解密后的支付结果
+   * @param paymentEvent 已落库的支付事件
+   * @returns 非 SUCCESS 时返回处理结果；SUCCESS 时返回 null 表示继续后续流程
+   */
+  private async handleNonSuccessState(
+    result: WechatPayResult,
+    paymentEvent: OrderPaymentEvent,
+  ): Promise<HandleCallbackResult | null> {
+    if (result.trade_state === 'SUCCESS') {
+      return null
     }
 
-    // 6. 查找订单
+    this.logger.warn(
+      `收到非 SUCCESS 状态回调: orderNo=${result.out_trade_no} state=${result.trade_state}`,
+    )
+    await this.paymentEventRepo.update(paymentEvent.id, {
+      status: PaymentEventStatus.PROCESSED,
+      processedAt: new Date(),
+      errorMessage: `non-SUCCESS state: ${result.trade_state}`,
+    })
+    return {
+      processed: false,
+      orderId: '',
+      orderNo: result.out_trade_no,
+    }
+  }
+
+  /**
+   * 查找订单 + 关联事件 + 字段绑定校验
+   *
+   *  - 按 out_trade_no 查找订单，不存在 → 标记事件 FAILED + 返回 null
+   *  - 关联 orderId 到支付事件
+   *  - 字段绑定校验（appid/mchid/amount/currency），不匹配 → 标记事件 FAILED
+   *
+   * @param result 解密后的支付结果
+   * @param paymentEvent 已落库的支付事件
+   * @returns null 表示订单不存在；{ order, bindingError } 中 bindingError 非 null 表示绑定失败
+   */
+  private async findAndBindOrder(
+    result: WechatPayResult,
+    paymentEvent: OrderPaymentEvent,
+  ): Promise<{ order: Order; bindingError: string | null } | null> {
     const order = await this.findByOrderNo(result.out_trade_no)
     if (!order) {
       this.logger.warn(`回调对应订单不存在: ${result.out_trade_no}`)
@@ -410,17 +540,13 @@ export class OrderService {
         processedAt: new Date(),
         errorMessage: `order not found: ${result.out_trade_no}`,
       })
-      return {
-        processed: false,
-        orderId: '',
-        orderNo: result.out_trade_no,
-      }
+      return null
     }
 
     // 关联订单 ID
     await this.paymentEventRepo.update(paymentEvent.id, { orderId: order.id })
 
-    // 7. 字段绑定校验（零状态变更：不匹配则标记 FAILED 并返回）
+    // 字段绑定校验（零状态变更：不匹配则标记 FAILED 并返回）
     const bindingError = this.verifyFieldBinding(result, order)
     if (bindingError) {
       this.logger.error(`字段绑定校验失败: orderNo=${order.orderNo} error=${bindingError}`)
@@ -429,33 +555,34 @@ export class OrderService {
         processedAt: new Date(),
         errorMessage: bindingError,
       })
-      // 零状态变更：订单不更新，返回 processed=false
-      return {
-        processed: false,
-        orderId: order.id,
-        orderNo: order.orderNo,
-      }
     }
 
-    // 8. 幂等检查：订单已 PAID 直接返回
-    if (order.status === OrderStatus.PAID) {
-      this.logger.log(
-        `订单 ${order.orderNo} 已 PAID，回调幂等返回（transactionId=${order.transactionId}）`,
-      )
-      await this.paymentEventRepo.update(paymentEvent.id, {
-        status: PaymentEventStatus.DUPLICATED,
-        processedAt: new Date(),
-      })
-      return {
-        processed: false,
-        orderId: order.id,
-        orderNo: order.orderNo,
-      }
-    }
+    return { order, bindingError }
+  }
 
-    // 9. 事务化更新订单 + 创建 UserPackage + 写入 outbox + 更新事件状态
-    //    注意：billing-service grant 调用放在事务外执行（避免长事务持锁 + 网络抖动回滚）
-    const grantContext = await this.mainDataSource.transaction(async (manager) => {
+  /**
+   * 事务化更新：订单状态 + UserPackage + Outbox + 事件状态
+   *
+   * 在单一事务内：
+   *  a. 双重检查订单状态（防并发回调）
+   *  b. 更新订单为 PAID（含 transactionId、paidAt）
+   *  c. 创建 UserPackage（积分 + 有效期）
+   *  d. 写入 CreditOperationOutbox（durable grant 意图，B5: 仅 outbox）
+   *  e. 更新 OrderPaymentEvent 为 PROCESSED
+   *
+   * 注意：billing-service grant 调用放在事务外执行（避免长事务持锁 + 网络抖动回滚）
+   *
+   * @param result 解密后的支付结果
+   * @param order 已绑定的订单
+   * @param paymentEvent 已落库的支付事件
+   * @returns grant 上下文（事务内双重检查命中时返回 null）
+   */
+  private async transactionalUpdate(
+    result: WechatPayResult,
+    order: Order,
+    paymentEvent: OrderPaymentEvent,
+  ): Promise<GrantContext | null> {
+    return this.mainDataSource.transaction(async (manager) => {
       // 双重检查：在事务内再次确认状态（防止并发回调）
       const fresh = await manager.findOne(Order, { where: { id: order.id } })
       if (!fresh || fresh.status === OrderStatus.PAID) {
@@ -465,13 +592,13 @@ export class OrderService {
       const now = new Date()
       const paidAt = result.success_time ? new Date(result.success_time) : now
 
-      // 9a. 更新订单
+      // 更新订单
       fresh.status = OrderStatus.PAID
       fresh.transactionId = result.transaction_id
       fresh.paidAt = paidAt
       await manager.save(fresh)
 
-      // 9b. 查找套餐（获取 points / bonusPoints / duration）
+      // 查找套餐（获取 points / bonusPoints / duration）
       const pkg = await manager.findOne(Package, {
         where: { id: fresh.packageId },
       })
@@ -482,7 +609,7 @@ export class OrderService {
         return null
       }
 
-      // 9c. 创建 UserPackage
+      // 创建 UserPackage
       const totalPoints = Number(pkg.points) + Number(pkg.bonusPoints)
       const durationDays = Number(pkg.duration) || 30
       const expiredAt = new Date(now)
@@ -502,7 +629,7 @@ export class OrderService {
       })
       await manager.save(userPackage)
 
-      // 9d. B5: 仅写入 CreditOperationOutbox（不再写 CreditOperation）
+      // B5: 仅写入 CreditOperationOutbox（不再写 CreditOperation）
       //     由 billing-service 在执行 grant 时创建权威的 CreditOperation。
       //     order-service 只负责投递"意图"，避免 main/billing 两库双重写入。
       const operationId = `order-grant:${fresh.id}`
@@ -530,7 +657,7 @@ export class OrderService {
       })
       await manager.save(outbox)
 
-      // 9e. 更新支付事件状态为 PROCESSED
+      // 更新支付事件状态为 PROCESSED
       await manager.update(
         OrderPaymentEvent,
         { id: paymentEvent.id },
@@ -551,33 +678,6 @@ export class OrderService {
         operationIdempotencyKey: idempotencyKey,
       }
     })
-
-    // 10. 事务提交后 best-effort 调用 billing-service 赠送积分
-    //     失败不阻塞回调（避免微信重试），outbox（PENDING）由 OutboxConsumer 捞取重试
-    if (grantContext) {
-      await this.invokeGrantWithCompensation(grantContext)
-    }
-
-    // 11. 事务提交后 best-effort 发起分账（失败不阻塞回调）
-    //     分账由 ProfitSharingService 独立管理重试，此处仅触发首次尝试
-    this.profitSharingService
-      .initiateProfitSharing({
-        orderId: order.id,
-        orderNo: order.orderNo,
-        transactionId: result.transaction_id,
-        totalAmountYuan: Number(order.amount),
-      })
-      .catch((err) => {
-        this.logger.error(
-          `分账触发失败（best-effort）: orderNo=${order.orderNo} error=${(err as Error).message}`,
-        )
-      })
-
-    return {
-      processed: true,
-      orderId: order.id,
-      orderNo: order.orderNo,
-    }
   }
 
   /**
