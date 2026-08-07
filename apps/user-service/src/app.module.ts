@@ -1,12 +1,11 @@
 /**
  * 应用根模块
  *
- * 组合：ConfigModule + DatabaseModule + RedisModule + JwtModule + PassportModule + UserModule
+ * 组合：ConfigModule + DatabaseModule + RedisModule + AuthStrategyModule + JwtModule + UserModule
  * 可观测性：LoggerModule + HealthModule + MetricsModule
  * 全局守卫（JwtAuthGuard + RateLimitGuard）在 main.ts 中通过 useGlobalGuards 注册。
  */
 import { Module } from '@nestjs/common'
-import { PassportModule } from '@nestjs/passport'
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import {
   DatabaseModule,
@@ -15,7 +14,7 @@ import {
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import {
-  JwtAuthGuard,
+  AuthStrategyModule,
   RateLimitGuard,
   REDIS_CLIENT as COMMON_REDIS_CLIENT,
   redisConfig,
@@ -49,8 +48,12 @@ import { UserModule } from './user/user.module'
     // Redis
     RedisModule.forRoot(),
 
-    // Passport JWT
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // JWT 鉴权（共享 AccessTokenStrategy + 用户状态检查）
+    // userStatusCheck 启用后，策略会通过 USER_STATUS_CHECKER 检查 FROZEN/DELETED 状态
+    AuthStrategyModule.forRoot({
+      userStatusCheck: true,
+      redisToken: COMMON_REDIS_CLIENT,
+    }),
 
     // JWT 模块
     ServiceJwtModule.forRoot(),
@@ -64,8 +67,6 @@ import { UserModule } from './user/user.module'
   providers: [
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // JwtAuthGuard — main.ts 通过 app.get(JwtAuthGuard) 获取
-    JwtAuthGuard,
     // RateLimitGuard 需注入 common 的 REDIS_CLIENT
     RateLimitGuard,
     // 桥接：将 database 的 REDIS_CLIENT 暴露为 common 的 REDIS_CLIENT

@@ -15,5 +15,7 @@ export {
   AccessTokenStrategy,
   type AuthenticatedUser,
   type AccessTokenStrategyOptions,
+  type UserStatusChecker,
+  USER_STATUS_CHECKER,
 } from './access-token.strategy'
 export { AuthStrategyModule, type AuthStrategyModuleOptions } from './auth.strategy.module'

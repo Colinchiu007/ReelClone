@@ -9,6 +9,7 @@
  *  4. 密码修改标记（改密踢下线）
  *  5. Token Version 校验（凭证变更撤权）
  *  6. Session Family 存在性（刷新轮换）
+ *  7. 用户状态校验（FROZEN/DELETED，仅 user-service 等需要的服务启用）
  */
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
@@ -33,6 +34,20 @@ export interface AuthenticatedUser {
   role?: string
 }
 
+/** 用户状态检查器注入 token（仅 user-service 等需要检查用户状态的服务提供） */
+export const USER_STATUS_CHECKER = Symbol('USER_STATUS_CHECKER')
+
+/**
+ * 用户状态检查器接口
+ *
+ * 由需要检查用户状态的服务（如 user-service）实现并注入。
+ * 检查用户是否存在、是否已冻结/已注销，状态异常时抛出异常。
+ */
+export interface UserStatusChecker {
+  /** 检查用户状态，异常时抛出 UnauthorizedException / ForbiddenException */
+  check(userId: string): Promise<void>
+}
+
 /**
  * Strategy 配置选项
  */
@@ -45,6 +60,10 @@ export interface AccessTokenStrategyOptions {
   checkTokenVersion?: boolean
   /** 是否检查 session family（默认 true，仅 access token 需要） */
   checkSessionFamily?: boolean
+  /** 是否检查用户状态 FROZEN/DELETED（默认 false，仅 user-service 启用） */
+  userStatusCheck?: boolean
+  /** 用户状态检查器实例（当 userStatusCheck 为 true 时必需） */
+  userStatusChecker?: UserStatusChecker
 }
 
 @Injectable()
@@ -52,6 +71,8 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
   private readonly redis: Redis
   private readonly checkTokenVersion: boolean
   private readonly checkSessionFamily: boolean
+  private readonly userStatusCheck: boolean
+  private readonly userStatusChecker?: UserStatusChecker
 
   constructor(options: AccessTokenStrategyOptions) {
     super({
@@ -62,6 +83,8 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
     this.redis = options.redis
     this.checkTokenVersion = options.checkTokenVersion ?? true
     this.checkSessionFamily = options.checkSessionFamily ?? true
+    this.userStatusCheck = options.userStatusCheck ?? false
+    this.userStatusChecker = options.userStatusChecker
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
@@ -103,6 +126,14 @@ export class AccessTokenStrategy extends PassportStrategy(Strategy, 'jwt') {
       if (!familyExists) {
         throw new UnauthorizedException('会话已失效，请重新登录')
       }
+    }
+
+    // 6. 用户状态校验（仅 user-service 等需要的服务启用）
+    if (this.userStatusCheck) {
+      if (!this.userStatusChecker) {
+        throw new UnauthorizedException('用户状态检查器未配置')
+      }
+      await this.userStatusChecker.check(payload.sub)
     }
 
     return {
