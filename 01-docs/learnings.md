@@ -1665,3 +1665,103 @@ console.log('Stmts', ((sfHit / sf) * 100).toFixed(2) + '%')
 **来源**: implemented
 **关联 commit**: `4ecfb0a`
 **关联文件**: [metrics.module.spec.ts](file:///d:/Data/projects/ReelClone/libs/observability/src/metrics/metrics.module.spec.ts)
+
+---
+
+## 2026-08-06 复盘批次（Docker 构建失败修复）
+
+### L-058 [pitfall] tsc path alias 将 libs 源码内联编译到 service dist，不存在独立 libs/dist/
+
+**场景**: 11 个微服务的 Dockerfile prod stage 中有 `COPY --from=builder /app/libs/common/dist ./libs/common/dist`，CI 构建时报 `COPY failed: stat /.../libs/common/dist: file does not exist`。
+
+**根因**: `tsconfig.base.json` 中 `@reelclone/*` 路径映射到 `libs/*/src/index.ts`。当 `tsc -p apps/X/tsconfig.json` 编译 service 时，TypeScript 通过 path alias 将所有 `@reelclone/*` 导入**内联解析到 service 自己的 dist/ 输出**。不会生成独立的 `libs/*/dist/` 目录。这是 TypeScript path alias 的标准行为，不是 monorepo 工具链的特性。
+
+**修复**: 移除所有 Dockerfile prod stage 中的 `COPY --from=builder /app/libs/*/dist` 行。
+
+**模式对比**:
+
+| monorepo 类型           | lib 构建产物                             | Dockerfile 行为       |
+| ----------------------- | ---------------------------------------- | --------------------- |
+| Nx + path alias         | `tsc -p service` 内联，无 `libs/*/dist/` | 仅 COPY `apps/X/dist` |
+| tscproject references   | 每个 lib 独立编译，有 `libs/*/dist/`     | 需 COPY `libs/*/dist` |
+| Turborepo + build cache | 依赖构建缓存，有 `libs/*/dist/`          | 需 COPY `libs/*/dist` |
+
+**预防**: 修改 Dockerfile 前，先在本地执行 `tsc -p apps/X/tsconfig.json --listEmittedFiles` 确认实际输出了哪些文件，再据此编写 COPY 指令。不要凭假设编写 Dockerfile。
+
+**置信度**: 10/10（9 个服务验证修复）
+**来源**: observed
+**关联 commit**: `fb41968`
+**关联文件**: [tsconfig.base.json](file:///d:/Data/projects/ReelClone/tsconfig.base.json), [apps/*/Dockerfile](file:///d:/Data/projects/ReelClone/apps/)
+
+---
+
+### L-059 [pitfall] npm workspaces runner 阶段 npm ci --omit=dev 触发 root prepare 脚本导致 husky install 失败
+
+**场景**: user-service 和 asset-service 的 Dockerfile runner 阶段执行 `npm ci --omit=dev --legacy-peer-deps`，报 exit code 127。
+
+**根因**: `npm ci` 触发根 `package.json` 的 `prepare` 脚本（`husky install`），但 `--omit=dev` 模式下不安装 devDependencies（husky 是 devDependency），导致 `husky` 命令不存在，exit code 127（command not found）。
+
+**修复**: 移除 runner 阶段的 `npm ci`，改为直接从 builder 阶段 COPY `node_modules`：
+
+```dockerfile
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/X-service/dist ./apps/X-service/dist
+```
+
+**优势**: runner 镜像不需要重新安装依赖，直接复用 builder 已安装的 node_modules，减少构建时间和镜像层。
+
+**陷阱**: notification-service 之前也用 `npm ci --omit=dev`，但因包管理问题部分包未安装。统一改为 COPY node_modules 后全部通过。
+
+**置信度**: 10/10（user-service + asset-service 验证修复）
+**来源**: observed
+**关联 commit**: `abf5b64`
+**关联文件**: [apps/user-service/Dockerfile](file:///d:/Data/projects/ReelClone/apps/user-service/Dockerfile), [apps/asset-service/Dockerfile](file:///d:/Data/projects/ReelClone/apps/asset-service/Dockerfile)
+
+---
+
+### L-060 [pitfall] media-worker 声明 @reelclone/common 为 peerDependency 但未声明 common 所需的传递 peerDependencies
+
+**场景**: media-worker 的 `tsc` 编译报 `error TS2307: Cannot find module '@nestjs/passport'`、`'passport-jwt'`、`'@nestjs/jwt'`。
+
+**根因**: `tsc -p apps/media-worker/tsconfig.json` 解析 `@reelclone/common` 的 path alias 到 `libs/common/src/`，common 的源码 import 了 `@nestjs/passport`、`@nestjs/jwt`、`passport-jwt`。但 media-worker 的 `package.json` 只声明了 `@reelclone/common` 为 peerDependency，未声明 common 所需的传递依赖。其他 10 个服务都有这些声明（因为它们直接使用了这些模块）。
+
+**修复**: 在 media-worker 的 `package.json` 中添加缺失依赖：
+
+```json
+"dependencies": {
+  "@nestjs/jwt": "^10.0.0",
+  "@nestjs/passport": "^10.0.0",
+  "passport-jwt": "^4.0.1"
+},
+"devDependencies": {
+  "@types/passport-jwt": "^4.0.1"
+}
+```
+
+**模式**: 当 service 声明 lib 为 peerDependency 时，如果 tsc 通过 path alias 解析 lib 源码，则 service 必须同时声明 lib 源码中的所有运行时依赖。这是 npm peerDependencies 设计上不处理传递依赖的固有限制。
+
+**预防**: 新增 service 时，检查其引用的所有 `@reelclone/*` lib 的 `package.json` dependencies，将缺失的传递依赖添加到 service 的 `package.json`。可通过 `grep -r "from '@" libs/*/src/ | grep -v "@reelclone"` 列出 lib 的外部依赖。
+
+**置信度**: 10/10（media-worker 编译通过 + CI 验证）
+**来源**: observed
+**关联 commit**: `abf5b64`
+**关联文件**: [apps/media-worker/package.json](file:///d:/Data/projects/ReelClone/apps/media-worker/package.json)
+
+---
+
+## Skillify 检查（Docker 修复批次）
+
+| 候选模式                                   | 出现次数 | 是否生成 skill         |
+| ------------------------------------------ | -------- | ---------------------- |
+| tsc path alias 内联编译 (L-058)            | 9 服务   | ❌ TypeScript 通用知识 |
+| npm ci --omit=dev prepare 脚本陷阱 (L-059) | 3 服务   | ❌ npm 通用知识        |
+| 传递 peerDependencies 缺失 (L-060)         | 1 服务   | ❌ npm monorepo 知识   |
+
+**结论**: 本次无 skillify 候选。3 条 learning 都是底层工具链知识，不构成可复用 skill。
+
+---
+
+## 过期检测（Docker 修复批次）
+
+- L-001 ~ L-057: 引用文件均存在，无 STALE 条目
+- L-058 ~ L-060: 本次新增，无过期检测需求
