@@ -10,6 +10,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core'
 import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   AuthStrategyModule,
+  RateLimitGuard,
   redisConfig,
   ServiceConfigModule,
   ServiceJwtModule,
@@ -62,6 +63,8 @@ import { UserModule } from './user/user.module'
   providers: [
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
+    // RateLimitGuard 需作为 provider 注册（main.ts 通过 app.get(RateLimitGuard) 使用）
+    RateLimitGuard,
   ],
 })
 export class AppModule {}
