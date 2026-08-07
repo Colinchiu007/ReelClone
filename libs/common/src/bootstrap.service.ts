@@ -147,9 +147,9 @@ export async function bootstrapService(options: BootstrapOptions): Promise<void>
     await configure(app)
   }
 
-  // 7. Swagger 文档（非生产环境挂载）
+  // 7. Swagger 文档（非生产环境挂载，可通过 SWAGGER_ENABLED=false 跳过）
   const nodeEnv = process.env.NODE_ENV || 'development'
-  if (swagger && nodeEnv !== 'production') {
+  if (swagger && nodeEnv !== 'production' && process.env.SWAGGER_ENABLED !== 'false') {
     // 动态导入避免 @reelclone/common → @reelclone/swagger 循环依赖
     const { createSwaggerConfig, setupSwagger } = await import('@reelclone/swagger')
     const swaggerConfig = createSwaggerConfig({

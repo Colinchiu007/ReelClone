@@ -289,6 +289,8 @@ jobs:
           export REDIS_PREFIX=reelclone:
           export VIDEO_DOWNLOADER=mock
           export ORDER_EXPIRE_MINUTES=30
+          # 跳过 Swagger（tsx 运行时 parameter-metadata-accessor 有兼容问题）
+          export SWAGGER_ENABLED=false
 
           # ==== 启动 9 个微服务（不启动 media-worker — E2E 用 TEMPORAL_MOCK_MODE） ====
           mkdir -p /tmp/e2e-logs
