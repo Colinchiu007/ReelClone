@@ -14,11 +14,13 @@
  *
  * user-service 等需要检查用户状态的服务：
  * ```typescript
- * AuthStrategyModule.forRoot({ userStatusCheck: true })
+ * AuthStrategyModule.forRoot({
+ *   userStatusCheck: true,
+ *   imports: [UserModule],  // 导入提供 USER_STATUS_CHECKER 的模块
+ * })
  * ```
- * 需在服务模块中提供 USER_STATUS_CHECKER token。
  */
-import { DynamicModule, Module, Provider } from '@nestjs/common'
+import { type DynamicModule, Module, Provider, type Type } from '@nestjs/common'
 import { PassportModule } from '@nestjs/passport'
 import {
   AccessTokenStrategy,
@@ -29,7 +31,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { REDIS_CLIENT } from '../guards/rate-limit.guard'
 
 export interface AuthStrategyModuleOptions {
-  /** Redis 注入 token（默认 REDIS_CLIENT） */
+  /** Redis 注入 token（默认 common REDIS_CLIENT，由 RedisBridgeModule 桥接） */
   redisToken?: string | symbol
   /** 是否检查 tokenVersion（默认 true） */
   checkTokenVersion?: boolean
@@ -37,6 +39,8 @@ export interface AuthStrategyModuleOptions {
   checkSessionFamily?: boolean
   /** 是否检查用户状态 FROZEN/DELETED（默认 false，仅 user-service 启用） */
   userStatusCheck?: boolean
+  /** 额外导入的模块（如 UserModule，用于提供 USER_STATUS_CHECKER） */
+  imports?: Array<DynamicModule | Type<any>>
 }
 
 @Module({})
@@ -53,6 +57,7 @@ export class AuthStrategyModule {
 
     const strategyProvider: Provider = {
       provide: AccessTokenStrategy,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       useFactory: (redis: any, ...args: any[]) => {
         const userStatusChecker: UserStatusChecker | undefined = enableUserStatusCheck
           ? args[0]
@@ -70,7 +75,7 @@ export class AuthStrategyModule {
 
     return {
       module: AuthStrategyModule,
-      imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
+      imports: [PassportModule.register({ defaultStrategy: 'jwt' }), ...(options?.imports ?? [])],
       providers: [strategyProvider, JwtAuthGuard],
       exports: [PassportModule, JwtAuthGuard, AccessTokenStrategy],
     }

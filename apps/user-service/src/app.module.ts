@@ -44,8 +44,10 @@ import { UserModule } from './user/user.module'
     // JWT 鉴权（共享 AccessTokenStrategy + 用户状态检查）
     // userStatusCheck 启用后，策略会通过 USER_STATUS_CHECKER 检查 FROZEN/DELETED 状态
     // Redis 由 RedisBridgeModule 自动桥接（database REDIS_CLIENT -> common REDIS_CLIENT）
+    // imports: [UserModule] 使 USER_STATUS_CHECKER 在 AuthStrategyModule 上下文中可用
     AuthStrategyModule.forRoot({
       userStatusCheck: true,
+      imports: [UserModule],
     }),
 
     // JWT 模块
