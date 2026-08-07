@@ -96,7 +96,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth-service, user-service, asset-service, workbench-service, benchmark-service, template-service, billing-service, order-service, notification-service, admin-service, media-worker]
+        service:
+          [
+            auth-service,
+            user-service,
+            asset-service,
+            workbench-service,
+            benchmark-service,
+            template-service,
+            billing-service,
+            order-service,
+            notification-service,
+            admin-service,
+            media-worker,
+          ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,3 +147,221 @@ jobs:
 
       - name: Build Taro weapp
         run: npm run build:miniprogram
+
+  # ============================================================
+  # E2E Tests — 启动基础设施 + 全部微服务（Mock 模式）+ 端到端测试
+  # 依赖 lint-test（需先通过 lint/typecheck/unit test/build）
+  # 在所有分支运行（不限于 master/main），确保 PR 也能验证 E2E
+  # ============================================================
+  e2e-test:
+    name: E2E Tests
+    needs: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # -------------------- 启动基础设施 --------------------
+      - name: Start infrastructure (PostgreSQL + Redis + Temporal)
+        run: docker compose -f docker/docker-compose.yml up -d
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in $(seq 1 30); do
+            if docker exec reelclone-postgres pg_isready -U reelclone > /dev/null 2>&1; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::PostgreSQL failed to start within 60s"
+          docker compose -f docker/docker-compose.yml logs postgres
+          exit 1
+
+      - name: Wait for Redis
+        run: |
+          echo "Waiting for Redis..."
+          for i in $(seq 1 20); do
+            if docker exec reelclone-redis redis-cli ping > /dev/null 2>&1; then
+              echo "Redis is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Redis failed to start within 40s"
+          docker compose -f docker/docker-compose.yml logs redis
+          exit 1
+
+      - name: Wait for Temporal
+        run: |
+          echo "Waiting for Temporal..."
+          for i in $(seq 1 60); do
+            if docker exec reelclone-temporal tctl cluster health > /dev/null 2>&1; then
+              echo "Temporal is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          # Temporal 非阻塞 — TEMPORAL_MOCK_MODE=true 时服务不需要真实 Temporal
+          echo "::warning::Temporal not ready within 120s, continuing with TEMPORAL_MOCK_MODE=true"
+          exit 0
+
+      # -------------------- 数据库迁移 --------------------
+      - name: Run database migrations
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: '5432'
+          DATABASE_USER: reelclone
+          DATABASE_PASSWORD: reelclone_dev
+        run: npm run migration:run
+
+      # -------------------- 构建所有服务 --------------------
+      - name: Build services
+        run: npm run build
+
+      # -------------------- 启动微服务 + 等待就绪 + 运行 E2E --------------------
+      # 合并为单步：GitHub Actions 每步独立 shell，跨步后台进程会被 kill
+      - name: Start services and run E2E tests
+        run: |
+          set -e
+
+          # ==== 公共环境变量（Mock 模式） ====
+          export NODE_ENV=development
+          export DATABASE_HOST=localhost
+          export DATABASE_PORT=5432
+          export DATABASE_USER=reelclone
+          export DATABASE_PASSWORD=reelclone_dev
+          export REDIS_HOST=localhost
+          export REDIS_PORT=6379
+          export JWT_SECRET=reelclone_dev_secret_at_least_32_chars_long
+          export JWT_EXPIRES_IN=1h
+          export JWT_REFRESH_EXPIRES_IN=7d
+          export JWT_ISSUER=reelclone
+          export JWT_AUDIENCE=reelclone-client
+          export INTERNAL_API_KEY=reelclone_test_internal_key
+
+          # Mock 模式（跳过真实第三方调用）
+          export WECHAT_MOCK_MODE=true
+          export SMS_MOCK_MODE=true
+          export WECHAT_PAY_MOCK_MODE=true
+          export TEMPORAL_MOCK_MODE=true
+          export TEMPORAL_ADDRESS=localhost:7233
+          export TEMPORAL_NAMESPACE=reelclone
+          export TEMPORAL_TLS_ENABLED=false
+
+          # 服务间调用 URL（localhost，同机进程）
+          export AUTH_SERVICE_URL=http://localhost:3001
+          export USER_SERVICE_URL=http://localhost:3002
+          export ASSET_SERVICE_URL=http://localhost:3003
+          export BENCHMARK_SERVICE_URL=http://localhost:3004
+          export TEMPLATE_SERVICE_URL=http://localhost:3005
+          export BILLING_SERVICE_URL=http://localhost:3006
+          export WORKBENCH_SERVICE_URL=http://localhost:3007
+          export NOTIFICATION_SERVICE_URL=http://localhost:3008
+          export ORDER_SERVICE_URL=http://localhost:3009
+
+          # 占位配置（Mock 模式下不实际调用，但 ConfigService.getOrThrow 需要值存在）
+          export WECHAT_APPID=test_appid
+          export WECHAT_SECRET=test_secret
+          export WECHAT_PAY_MCHID=test_mchid
+          export WECHAT_PAY_APIV3_KEY=test_apiv3_key_placeholder
+          export WECHAT_PAY_PRIVATE_KEY=test_key_placeholder
+          export WECHAT_PAY_CERT_SERIAL=test_serial
+          export WECHAT_PAY_APPID=test_appid
+          export WECHAT_PAY_NOTIFY_URL=http://localhost:3009/api/v1/webhooks/wechat-pay
+          export OSS_ACCESS_KEY_ID=test_key
+          export OSS_ACCESS_KEY_SECRET=test_secret
+          export OSS_BUCKET=reelclone-test
+          export OSS_REGION=oss-cn-hangzhou
+          export OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
+          export SEEDANCE_API_KEYS=test_key
+          export LLM_API_KEY=test_key
+          export LLM_PROVIDER=openai
+          export LLM_BASE_URL=http://localhost:8080/v1
+          export LLM_MODEL=gpt-4o-mini
+          export SMS_ACCESS_KEY_ID=test_key
+          export SMS_ACCESS_KEY_SECRET=test_secret
+          export SMS_SIGN_NAME=ReelClone
+          export NEW_USER_BONUS_POINTS=100
+          export LOG_LEVEL=warn
+          export REDIS_PREFIX=reelclone:
+          export VIDEO_DOWNLOADER=mock
+          export ORDER_EXPIRE_MINUTES=30
+
+          # ==== 启动 9 个微服务（不启动 media-worker — E2E 用 TEMPORAL_MOCK_MODE） ====
+          mkdir -p /tmp/e2e-logs
+          SERVICE_PIDS=""
+          for pair in \
+            "auth-service 3001" "user-service 3002" "asset-service 3003" \
+            "benchmark-service 3004" "template-service 3005" "billing-service 3006" \
+            "workbench-service 3007" "notification-service 3008" "order-service 3009"; do
+            svc=$(echo "$pair" | cut -d' ' -f1)
+            port=$(echo "$pair" | cut -d' ' -f2)
+            node "apps/$svc/dist/main.js" > "/tmp/e2e-logs/$svc.log" 2>&1 &
+            pid=$!
+            SERVICE_PIDS="$SERVICE_PIDS $pid"
+            echo "Started $svc on port $port (PID: $pid)"
+          done
+
+          # Trap：脚本退出时 kill 所有服务进程
+          trap 'echo "Stopping services..."; kill $SERVICE_PIDS 2>/dev/null || true' EXIT
+
+          # ==== 等待所有服务就绪（/readyz 端点） ====
+          echo ""
+          echo "Waiting for services to be ready..."
+          for pair in \
+            "auth-service 3001" "user-service 3002" "asset-service 3003" \
+            "benchmark-service 3004" "template-service 3005" "billing-service 3006" \
+            "workbench-service 3007" "notification-service 3008" "order-service 3009"; do
+            svc=$(echo "$pair" | cut -d' ' -f1)
+            port=$(echo "$pair" | cut -d' ' -f2)
+            printf "  %-22s : " "$svc"
+            ready=false
+            for i in $(seq 1 45); do
+              if curl -sf "http://localhost:$port/readyz" > /dev/null 2>&1; then
+                echo "ready"
+                ready=true
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ready" = false ]; then
+              echo "FAILED (90s timeout)"
+              echo "::error::$svc failed to start within 90s"
+              echo "--- $svc logs (last 60 lines) ---"
+              tail -n 60 "/tmp/e2e-logs/$svc.log" 2>/dev/null || echo "(no logs)"
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "All 9 services are ready. Running E2E tests..."
+
+          # ==== 运行 E2E 测试 ====
+          # E2E_SKIP_HEALTH_CHECK=true：CI 已通过 /readyz 检查，跳过 setup.ts 的服务健康检查
+          E2E_SKIP_HEALTH_CHECK=true npm run test:e2e
+
+      # -------------------- 上传日志（失败时） --------------------
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-service-logs
+          path: /tmp/e2e-logs/
+          retention-days: 3
+
+      # -------------------- 清理基础设施 --------------------
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v
