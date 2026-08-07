@@ -220,11 +220,8 @@ jobs:
           DATABASE_PASSWORD: reelclone_dev
         run: npm run migration:run
 
-      # -------------------- 构建所有服务 --------------------
-      - name: Build services
-        run: npm run build
-
       # -------------------- 启动微服务 + 等待就绪 + 运行 E2E --------------------
+      # 使用 tsx 直接运行 TS 源码（与 nx serve 一致），避免 path alias 运行时解析问题
       # 合并为单步：GitHub Actions 每步独立 shell，跨步后台进程会被 kill
       - name: Start services and run E2E tests
         run: |
@@ -302,8 +299,8 @@ jobs:
             "workbench-service 3007" "notification-service 3008" "order-service 3009"; do
             svc=$(echo "$pair" | cut -d' ' -f1)
             port=$(echo "$pair" | cut -d' ' -f2)
-            # tsc outDir=./dist + rootDir=../.. → 输出路径含完整相对路径
-            node "apps/$svc/dist/apps/$svc/src/main.js" > "/tmp/e2e-logs/$svc.log" 2>&1 &
+            # 使用 tsx 直接运行 TS 源码（与 nx serve 一致）
+            npx tsx "apps/$svc/src/main.ts" > "/tmp/e2e-logs/$svc.log" 2>&1 &
             pid=$!
             SERVICE_PIDS="$SERVICE_PIDS $pid"
             echo "Started $svc on port $port (PID: $pid)"
