@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-} from 'typeorm'
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
 
 /**
  * 分账明细实体
@@ -20,9 +14,11 @@ export class ProfitSharingItem {
   id: string
 
   /** 关联分账记录 ID */
+  @Column({ type: 'uuid' })
   recordId: string
 
   /** 关联接收方 ID */
+  @Column({ type: 'uuid' })
   receiverId: string
 
   /** 接收方名称（冗余，便于查询展示） */
