@@ -84,3 +84,7 @@ export {
   type ExternalResourcePolicy,
   type ExternalResourcePolicyOptions,
 } from './external-resource/external-resource-policy'
+
+// -------------------- 启动工厂 --------------------
+export { bootstrapService } from './bootstrap.service'
+export type { BootstrapOptions, SwaggerBootstrapOptions } from './bootstrap.service'

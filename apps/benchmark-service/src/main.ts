@@ -5,58 +5,17 @@
  * 全局前缀：api/v1
  * 全局组件：ValidationPipe + ResponseInterceptor + AllExceptionsFilter + JwtAuthGuard
  */
-import { NestFactory } from '@nestjs/core'
-import { Logger } from '@nestjs/common'
-import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor, failClosedStartupCheck } from '@reelclone/common'
-import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
+import { bootstrapService } from '@reelclone/common'
 import { AppModule } from './app.module'
 
-async function bootstrap(): Promise<void> {
-  failClosedStartupCheck()
-
-  const app = await NestFactory.create(AppModule)
-
-  // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['livez', 'readyz'],
-  })
-
-  // 全局 Pipe：参数校验
-  app.useGlobalPipes(AppValidationPipe)
-
-  // 全局拦截器：统一响应格式
-  app.useGlobalInterceptors(new ResponseInterceptor())
-
-  // 全局异常过滤器：统一错误响应
-  app.useGlobalFilters(new AllExceptionsFilter())
-
-  // CORS（小程序走 HTTPS 网关，此处允许同源调试）
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  })
-
-  // Swagger 文档（非生产环境挂载）
-  const nodeEnv = process.env.NODE_ENV || 'development'
-  if (nodeEnv !== 'production') {
-    const swaggerConfig = createSwaggerConfig({
-      title: 'Benchmark Service API',
-      description: '对标服务：视频下载与分析',
-      version: '0.1.0',
-      tag: 'benchmark',
-    })
-    setupSwagger(app, swaggerConfig, '/api/docs')
-  }
-
-  const port = parseInt(process.env.PORT || '3004', 10)
-  await app.listen(port)
-
-  const logger = new Logger('benchmark-service')
-  logger.log(`benchmark-service listening on http://localhost:${port}`)
-  if (nodeEnv !== 'production') {
-    logger.log(`  → Swagger UI:  http://localhost:${port}/api/docs`)
-    logger.log(`  → OpenAPI JSON: http://localhost:${port}/api/docs-json`)
-  }
-}
-
-void bootstrap()
+void bootstrapService({
+  name: 'benchmark-service',
+  defaultPort: 3004,
+  module: AppModule,
+  swagger: {
+    title: 'Benchmark Service API',
+    description: '对标服务：视频下载与分析',
+    version: '0.1.0',
+    tag: 'benchmark',
+  },
+})

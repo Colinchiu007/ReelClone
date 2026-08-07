@@ -12,61 +12,19 @@
  *    所有 /admin/* 业务端点应在 Controller 级别声明 @Roles('ADMIN', 'SUPER_ADMIN')
  *  - 健康检查 /api/v1/admin/health 标记 @Public()，无需鉴权
  */
-import { NestFactory } from '@nestjs/core'
-import { Logger } from '@nestjs/common'
-import { AllExceptionsFilter, AppValidationPipe, ResponseInterceptor, failClosedStartupCheck } from '@reelclone/common'
-import { createSwaggerConfig, setupSwagger } from '@reelclone/swagger'
+import { bootstrapService } from '@reelclone/common'
 import { AppModule } from './app.module'
 
-async function bootstrap(): Promise<void> {
-  failClosedStartupCheck()
-
-  // 关闭启动日志噪声：仅保留 error / warn / log，过滤 debug / verbose
-  const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log'],
-  })
-
-  // 全局前缀（/livez、/readyz 健康检查端点排除，不依赖业务前缀）
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['livez', 'readyz'],
-  })
-
-  // 全局 Pipe：参数校验
-  app.useGlobalPipes(AppValidationPipe)
-
-  // 全局拦截器：统一响应格式
-  app.useGlobalInterceptors(new ResponseInterceptor())
-
-  // 全局异常过滤器：统一错误响应
-  app.useGlobalFilters(new AllExceptionsFilter())
-
-  // CORS（admin-web 走独立域名/端口，此处允许跨域）
-  app.enableCors({
-    origin: true,
-    credentials: true,
-  })
-
-  // Swagger 文档（非生产环境挂载）
-  const nodeEnv = process.env.NODE_ENV || 'development'
-  if (nodeEnv !== 'production') {
-    const swaggerConfig = createSwaggerConfig({
-      title: 'Admin Service API',
-      description: '运营后台：用户/模板/订单/对账管理',
-      version: '0.1.0',
-      tag: 'admin',
-    })
-    setupSwagger(app, swaggerConfig, '/api/docs')
-  }
-
-  const port = parseInt(process.env.ADMIN_SERVICE_PORT || '3011', 10)
-  await app.listen(port)
-
-  const logger = new Logger('admin-service')
-  logger.log(`admin-service listening on http://localhost:${port}`)
-  if (nodeEnv !== 'production') {
-    logger.log(`  → Swagger UI:  http://localhost:${port}/api/docs`)
-    logger.log(`  → OpenAPI JSON: http://localhost:${port}/api/docs-json`)
-  }
-}
-
-void bootstrap()
+void bootstrapService({
+  name: 'admin-service',
+  defaultPort: 3011,
+  module: AppModule,
+  logger: ['error', 'warn', 'log'],
+  portEnvVar: 'ADMIN_SERVICE_PORT',
+  swagger: {
+    title: 'Admin Service API',
+    description: '运营后台：用户/模板/订单/对账管理',
+    version: '0.1.0',
+    tag: 'admin',
+  },
+})
