@@ -7,16 +7,9 @@
  */
 import { Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
-import {
-  DatabaseModule,
-  RedisModule,
-  REDIS_CLIENT as DB_REDIS_CLIENT,
-  DATABASE_CONNECTIONS,
-} from '@reelclone/database'
+import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
   AuthStrategyModule,
-  RateLimitGuard,
-  REDIS_CLIENT as COMMON_REDIS_CLIENT,
   redisConfig,
   ServiceConfigModule,
   ServiceJwtModule,
@@ -50,9 +43,9 @@ import { UserModule } from './user/user.module'
 
     // JWT 鉴权（共享 AccessTokenStrategy + 用户状态检查）
     // userStatusCheck 启用后，策略会通过 USER_STATUS_CHECKER 检查 FROZEN/DELETED 状态
+    // Redis 由 RedisBridgeModule 自动桥接（database REDIS_CLIENT -> common REDIS_CLIENT）
     AuthStrategyModule.forRoot({
       userStatusCheck: true,
-      redisToken: COMMON_REDIS_CLIENT,
     }),
 
     // JWT 模块
@@ -67,14 +60,6 @@ import { UserModule } from './user/user.module'
   providers: [
     // HTTP 指标拦截器（自动记录请求总数/耗时到 Prometheus）
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
-    // RateLimitGuard 需注入 common 的 REDIS_CLIENT
-    RateLimitGuard,
-    // 桥接：将 database 的 REDIS_CLIENT 暴露为 common 的 REDIS_CLIENT
-    // （两个库各自用 Symbol() 定义了 REDIS_CLIENT，Symbol 是唯一的，需手动桥接）
-    {
-      provide: COMMON_REDIS_CLIENT,
-      useExisting: DB_REDIS_CLIENT,
-    },
   ],
 })
 export class AppModule {}

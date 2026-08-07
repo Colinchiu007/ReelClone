@@ -26,6 +26,7 @@ import {
   type UserStatusChecker,
 } from './access-token.strategy'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard'
+import { REDIS_CLIENT } from '../guards/rate-limit.guard'
 
 export interface AuthStrategyModuleOptions {
   /** Redis 注入 token（默认 REDIS_CLIENT） */
@@ -41,7 +42,7 @@ export interface AuthStrategyModuleOptions {
 @Module({})
 export class AuthStrategyModule {
   static forRoot(options?: AuthStrategyModuleOptions): DynamicModule {
-    const redisToken = options?.redisToken ?? 'REDIS_CLIENT'
+    const redisToken = options?.redisToken ?? REDIS_CLIENT
     const enableUserStatusCheck = options?.userStatusCheck ?? false
 
     // 当 userStatusCheck 启用时，额外注入 USER_STATUS_CHECKER
