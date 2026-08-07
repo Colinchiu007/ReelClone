@@ -18,6 +18,9 @@ env:
   NODE_VERSION: 20
   # Nx 在 CI 中关闭 daemon，避免守护进程开销与缓存锁问题
   NX_DAEMON: false
+  # 禁用 Nx 本地缓存：不同 runner 机器 ID 不一致会导致缓存完整性校验失败
+  # build 仅需 ~1s（tsc 编译），缓存收益小于其带来的不稳定性
+  NX_CACHE_ENABLED: false
 
 jobs:
   lint-test:
@@ -43,17 +46,8 @@ jobs:
       - name: Verify openapi-typescript version
         run: npx openapi-typescript --version
 
-      # Nx 本地缓存：覆盖 home 目录与工作区两种可能的缓存位置
-      # key 按 commit 唯一，保证每次运行都能写入增量缓存；restore-keys 回退到最近的 OS 缓存
-      - name: Restore Nx cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.nx
-            .nx
-          key: nx-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            nx-${{ runner.os }}-
+      # Nx 缓存已禁用（NX_CACHE_ENABLED=false），无需恢复缓存步骤
+      # 不同 runner 机器 ID 不一致会导致缓存完整性校验失败
 
       - name: Lint
         run: npm run lint
