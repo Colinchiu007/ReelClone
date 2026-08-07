@@ -36,6 +36,7 @@ export class ProfitSharingRecord {
   id: string
 
   /** 关联订单 ID（main 库 orders.id） */
+  @Column({ type: 'uuid' })
   orderId: string
 
   /** 订单号（冗余，便于查询） */

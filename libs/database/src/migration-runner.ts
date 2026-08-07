@@ -13,6 +13,10 @@ import { AddGenerationExecutions1700000000014 } from './migrations/main/0010_add
 import { AddUserPackageOrderIdUnique1700000000015 } from './migrations/main/0011_add_user_package_order_id_unique'
 import { AddSmsCodeProviderMessageId1700000000016 } from './migrations/main/0012_add_sms_code_provider_message_id'
 import { AddOrderPaymentEvents1700000000017 } from './migrations/main/0013_add_order_payment_events'
+import { EnhanceBillingOutboxLeaseBackoff1700000000014 } from './migrations/main/0014_enhance_billing_outbox_lease_backoff'
+import { AddTokenVersionToUser1722600000000 } from './migrations/main/0015_add_token_version_to_user'
+import { AddProfitSharingTables1722700000000 } from './migrations/main/0016_add_profit_sharing_tables'
+import { AddAssetReviewFields1722800000000 } from './migrations/main/0017_add_asset_review_fields'
 import { InitBilling1700000000001 } from './migrations/billing/0001_init_billing'
 import { AddRewardType1700000000008 } from './migrations/billing/0002_add_reward_type'
 import { AddFreezeReference1700000000010 } from './migrations/billing/0003_add_freeze_reference'
@@ -64,6 +68,10 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
         AddUserPackageOrderIdUnique1700000000015,
         AddSmsCodeProviderMessageId1700000000016,
         AddOrderPaymentEvents1700000000017,
+        EnhanceBillingOutboxLeaseBackoff1700000000014,
+        AddTokenVersionToUser1722600000000,
+        AddProfitSharingTables1722700000000,
+        AddAssetReviewFields1722800000000,
       ]),
     ),
   },
