@@ -20,11 +20,12 @@
  * })
  * ```
  */
-import { DynamicModule, Module, Provider } from '@nestjs/common'
+import { DynamicModule, Global, Module, Provider } from '@nestjs/common'
 import { OBS_REDIS_CLIENT } from '@reelclone/observability'
 import { REDIS_CLIENT as DB_REDIS_CLIENT } from '@reelclone/database'
 import { REDIS_CLIENT as COMMON_REDIS_CLIENT } from '@reelclone/common'
 
+@Global()
 @Module({})
 export class RedisBridgeModule {
   static forRoot(): DynamicModule {
