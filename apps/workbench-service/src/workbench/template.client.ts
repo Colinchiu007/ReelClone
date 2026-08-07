@@ -47,9 +47,7 @@ export class TemplateClient {
 
   constructor(private readonly configService: ConfigService) {
     const baseUrl =
-      this.configService.get<string>('TEMPLATE_SERVICE_URL') ||
-      process.env.TEMPLATE_SERVICE_URL ||
-      'http://localhost:3004'
+      this.configService.get<string>('TEMPLATE_SERVICE_URL') || process.env.TEMPLATE_SERVICE_URL
     const apiKey =
       this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
 

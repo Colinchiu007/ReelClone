@@ -51,7 +51,7 @@ import { WorkbenchModule } from './workbench/workbench.module'
     TemporalModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        address: config.get<string>('TEMPORAL_ADDRESS') || 'localhost:7233',
+        address: config.get<string>('TEMPORAL_ADDRESS'),
         namespace: config.get<string>('TEMPORAL_NAMESPACE') || 'reelclone',
         mockMode: config.get<string>('TEMPORAL_MOCK_MODE') === 'true',
       }),
