@@ -308,7 +308,8 @@ jobs:
             "workbench-service 3007" "notification-service 3008" "order-service 3009"; do
             svc=$(echo "$pair" | cut -d' ' -f1)
             port=$(echo "$pair" | cut -d' ' -f2)
-            node "apps/$svc/dist/main.js" > "/tmp/e2e-logs/$svc.log" 2>&1 &
+            # tsc outDir=./dist + rootDir=../.. → 输出路径含完整相对路径
+            node "apps/$svc/dist/apps/$svc/src/main.js" > "/tmp/e2e-logs/$svc.log" 2>&1 &
             pid=$!
             SERVICE_PIDS="$SERVICE_PIDS $pid"
             echo "Started $svc on port $port (PID: $pid)"
