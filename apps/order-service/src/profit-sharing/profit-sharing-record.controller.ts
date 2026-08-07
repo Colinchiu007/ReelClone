@@ -11,13 +11,6 @@
 import { Controller, Get, Param, Post, Query } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Roles } from '@reelclone/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import {
-  DATABASE_CONNECTIONS,
-  ProfitSharingRecord,
-  ProfitSharingItem,
-} from '@reelclone/database'
 import { ProfitSharingService } from './profit-sharing.service'
 import { ListRecordsDto } from './dto/list-records.dto'
 
@@ -26,10 +19,6 @@ import { ListRecordsDto } from './dto/list-records.dto'
 @Roles('ADMIN', 'SUPER_ADMIN')
 export class ProfitSharingRecordController {
   constructor(
-    @InjectRepository(ProfitSharingRecord, DATABASE_CONNECTIONS.MAIN)
-    private readonly recordRepo: Repository<ProfitSharingRecord>,
-    @InjectRepository(ProfitSharingItem, DATABASE_CONNECTIONS.MAIN)
-    private readonly itemRepo: Repository<ProfitSharingItem>,
     private readonly profitSharingService: ProfitSharingService,
   ) {}
 
@@ -40,24 +29,7 @@ export class ProfitSharingRecordController {
   @Get()
   @ApiOperation({ summary: '分账记录列表（分页 + 筛选）' })
   async findAll(@Query() dto: ListRecordsDto) {
-    const page = dto.page ?? 1
-    const pageSize = dto.pageSize ?? 20
-
-    const qb = this.recordRepo.createQueryBuilder('r')
-
-    if (dto.status) {
-      qb.andWhere('r.status = :status', { status: dto.status })
-    }
-    if (dto.orderNo) {
-      qb.andWhere('r.orderNo = :orderNo', { orderNo: dto.orderNo })
-    }
-
-    qb.orderBy('r.createdAt', 'DESC')
-    qb.skip((page - 1) * pageSize).take(pageSize)
-
-    const [list, total] = await qb.getManyAndCount()
-
-    return { list, page, pageSize, total }
+    return this.profitSharingService.listRecords(dto)
   }
 
   /**
@@ -67,17 +39,7 @@ export class ProfitSharingRecordController {
   @Get(':id')
   @ApiOperation({ summary: '分账记录详情（含明细）' })
   async findOne(@Param('id') id: string) {
-    const record = await this.recordRepo.findOne({ where: { id } })
-    if (!record) {
-      return null
-    }
-
-    const items = await this.itemRepo.find({
-      where: { recordId: id },
-      order: { createdAt: 'ASC' },
-    })
-
-    return { ...record, items }
+    return this.profitSharingService.getRecordDetail(id)
   }
 
   /**

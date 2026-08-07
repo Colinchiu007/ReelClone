@@ -32,6 +32,7 @@ import {
   ProfitSharingStatus,
   ProfitSharingItem,
 } from '@reelclone/database'
+import { ListRecordsDto } from './dto/list-records.dto'
 
 /** 发起分账参数 */
 export interface InitiateProfitSharingParams {
@@ -211,6 +212,55 @@ export class ProfitSharingService {
         { status: 'FAILED', failReason: errMsg },
       )
     }
+  }
+
+  // -------------------- 管理后台查询 --------------------
+
+  /**
+   * 分账记录列表（分页 + status / orderNo 筛选）
+   */
+  async listRecords(dto: ListRecordsDto): Promise<{
+    list: ProfitSharingRecord[]
+    page: number
+    pageSize: number
+    total: number
+  }> {
+    const page = dto.page ?? 1
+    const pageSize = dto.pageSize ?? 20
+
+    const qb = this.recordRepo.createQueryBuilder('r')
+
+    if (dto.status) {
+      qb.andWhere('r.status = :status', { status: dto.status })
+    }
+    if (dto.orderNo) {
+      qb.andWhere('r.orderNo = :orderNo', { orderNo: dto.orderNo })
+    }
+
+    qb.orderBy('r.createdAt', 'DESC')
+    qb.skip((page - 1) * pageSize).take(pageSize)
+
+    const [list, total] = await qb.getManyAndCount()
+
+    return { list, page, pageSize, total }
+  }
+
+  /**
+   * 分账记录详情（含明细项）
+   * 找不到时返回 null
+   */
+  async getRecordDetail(id: string): Promise<(ProfitSharingRecord & { items: ProfitSharingItem[] }) | null> {
+    const record = await this.recordRepo.findOne({ where: { id } })
+    if (!record) {
+      return null
+    }
+
+    const items = await this.itemRepo.find({
+      where: { recordId: id },
+      order: { createdAt: 'ASC' },
+    })
+
+    return { ...record, items }
   }
 
   // -------------------- 回调处理 --------------------

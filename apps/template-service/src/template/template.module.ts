@@ -9,6 +9,7 @@
  * 提供:
  *  - TemplateService:  模板列表/详情 + 用户上传视频转模板 + 积分奖励触发
  *  - FavoriteService:  收藏/取消收藏/收藏列表
+ *  - IndustryService:  用户行业偏好读写（main 库 user.industryPreferences）
  *  - BillingClient:    调用 billing-service /api/v1/points/reward（积分奖励）
  *
  * 控制器:
@@ -23,6 +24,7 @@ import { TemplateService } from './template.service'
 import { FavoriteService } from './favorite.service'
 import { TemplateController } from './template.controller'
 import { IndustryController } from './industry.controller'
+import { IndustryService } from './industry.service'
 import { BillingClient } from './billing.client'
 import { RewardReconciliationService } from './reward-reconciliation.service'
 import { RewardReconciliationCron } from './reward-reconciliation.cron'
@@ -42,6 +44,7 @@ import { UploadReconciliationCron } from './upload-reconciliation.cron'
   providers: [
     TemplateService,
     FavoriteService,
+    IndustryService,
     BillingClient,
     RewardReconciliationService,
     RewardReconciliationCron,

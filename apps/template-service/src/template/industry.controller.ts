@@ -11,11 +11,9 @@
  */
 import { Controller, Get, Post, Body } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { User, DATABASE_CONNECTIONS } from '@reelclone/database'
-import { CurrentUser, BusinessException } from '@reelclone/common'
+import { CurrentUser } from '@reelclone/common'
 import { IndustryPreferenceDto } from './dto/industry-preference.dto'
+import { IndustryService } from './industry.service'
 
 /** 可选行业列表（参考） */
 export const INDUSTRIES = [
@@ -44,10 +42,7 @@ export const INDUSTRIES = [
 @ApiTags('template-industry')
 @Controller('users/industry-preferences')
 export class IndustryController {
-  constructor(
-    @InjectRepository(User, DATABASE_CONNECTIONS.MAIN)
-    private readonly userRepo: Repository<User>,
-  ) {}
+  constructor(private readonly industryService: IndustryService) {}
 
   /**
    * 获取当前用户的行业偏好
@@ -56,11 +51,7 @@ export class IndustryController {
   @Get()
   @ApiOperation({ summary: '获取当前用户的行业偏好' })
   async getPreferences(@CurrentUser('userId') userId: string): Promise<{ industries: string[] }> {
-    const user = await this.userRepo.findOne({ where: { id: userId } })
-    if (!user) {
-      throw BusinessException.notFound('用户')
-    }
-    return { industries: user.industryPreferences ?? [] }
+    return this.industryService.getPreferences(userId)
   }
 
   /**
@@ -74,14 +65,6 @@ export class IndustryController {
     @CurrentUser('userId') userId: string,
     @Body() dto: IndustryPreferenceDto,
   ): Promise<{ industries: string[] }> {
-    const user = await this.userRepo.findOne({ where: { id: userId } })
-    if (!user) {
-      throw BusinessException.notFound('用户')
-    }
-
-    user.industryPreferences = dto.industries
-    await this.userRepo.save(user)
-
-    return { industries: user.industryPreferences }
+    return this.industryService.setPreferences(userId, dto.industries)
   }
 }
