@@ -301,8 +301,9 @@ jobs:
             "workbench-service 3007" "notification-service 3008" "order-service 3009"; do
             svc=$(echo "$pair" | cut -d' ' -f1)
             port=$(echo "$pair" | cut -d' ' -f2)
-            # 使用 tsx 直接运行 TS 源码（与 nx serve 一致）
-            npx tsx "apps/$svc/src/main.ts" > "/tmp/e2e-logs/$svc.log" 2>&1 &
+            # 使用 ts-node（支持 emitDecoratorMetadata，NestJS DI 需要）
+            # tsx 基于 esbuild，不支持 emitDecoratorMetadata，会导致依赖注入失败
+            npx ts-node --transpile-only -r tsconfig-paths/register "apps/$svc/src/main.ts" > "/tmp/e2e-logs/$svc.log" 2>&1 &
             pid=$!
             SERVICE_PIDS="$SERVICE_PIDS $pid"
             echo "Started $svc on port $port (PID: $pid)"
