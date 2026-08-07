@@ -11,9 +11,9 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { ConfigService } from '@nestjs/config'
 import Redis from 'ioredis'
 import { AdminUserService } from './admin-user.service'
+import { BillingClient } from '../billing.client'
 import { ListUsersDto } from './dto/list-users.dto'
 import { UpdateUserStatusDto } from './dto/update-user-status.dto'
 import { UpdateUserRoleDto } from './dto/update-user-role.dto'
@@ -81,6 +81,7 @@ describe('AdminUserService', () => {
   let service: AdminUserService
   let userRepo: jest.Mocked<Repository<User>>
   let redis: jest.Mocked<Redis>
+  let billingClient: jest.Mocked<BillingClient>
 
   beforeEach(async () => {
     userRepo = {
@@ -91,20 +92,18 @@ describe('AdminUserService', () => {
 
     redis = createRedisMock()
 
-    const configService = {
-      get: jest.fn((key: string) => {
-        if (key === 'BILLING_SERVICE_URL') return 'http://localhost:3006'
-        if (key === 'INTERNAL_API_KEY') return 'test-api-key'
-        return undefined
-      }),
-    }
+    billingClient = {
+      grant: jest.fn(),
+      deduct: jest.fn(),
+      reconcile: jest.fn(),
+    } as unknown as jest.Mocked<BillingClient>
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminUserService,
         { provide: getRepositoryToken(User, 'main'), useValue: userRepo },
         { provide: REDIS_CLIENT, useValue: redis },
-        { provide: ConfigService, useValue: configService },
+        { provide: BillingClient, useValue: billingClient },
       ],
     }).compile()
 
@@ -297,27 +296,16 @@ describe('AdminUserService', () => {
       const user = createUser()
       ;(userRepo.findOne as jest.Mock).mockResolvedValue(user)
 
-      const mockPost = jest.fn().mockResolvedValue({
-        data: {
-          code: ErrorCode.SUCCESS,
-          message: 'success',
-          data: {
-            success: true,
-            balance: 200,
-            transactionId: 'tx-001',
-          },
-        },
+      billingClient.grant.mockResolvedValue({
+        success: true,
+        balance: 200,
+        transactionId: 'tx-001',
       })
-      // 替换私有 httpClient 的 post 方法
-      ;(service as unknown as { httpClient: { post: jest.Mock } }).httpClient = {
-        post: mockPost,
-      }
 
       const dto: GrantPointsDto = { amount: 100, reason: '客诉补偿' }
       const result = await service.grantPoints('user-1', dto, 'admin-1')
 
-      expect(mockPost).toHaveBeenCalledWith(
-        '/api/v1/points/grant',
+      expect(billingClient.grant).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-1',
           amount: 100,
@@ -346,16 +334,9 @@ describe('AdminUserService', () => {
       const user = createUser()
       ;(userRepo.findOne as jest.Mock).mockResolvedValue(user)
 
-      const mockPost = jest.fn().mockResolvedValue({
-        data: {
-          code: ErrorCode.INTERNAL_ERROR,
-          message: 'billing 内部错误',
-          data: null,
-        },
-      })
-      ;(service as unknown as { httpClient: { post: jest.Mock } }).httpClient = {
-        post: mockPost,
-      }
+      billingClient.grant.mockRejectedValue(
+        new BusinessException(ErrorCode.INTERNAL_ERROR, 'billing 内部错误'),
+      )
 
       const dto: GrantPointsDto = { amount: 100, reason: '补偿' }
       await expect(service.grantPoints('user-1', dto, 'admin-1')).rejects.toThrow(BusinessException)
@@ -365,10 +346,9 @@ describe('AdminUserService', () => {
       const user = createUser()
       ;(userRepo.findOne as jest.Mock).mockResolvedValue(user)
 
-      const mockPost = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'))
-      ;(service as unknown as { httpClient: { post: jest.Mock } }).httpClient = {
-        post: mockPost,
-      }
+      billingClient.grant.mockRejectedValue(
+        new BusinessException(ErrorCode.INTERNAL_ERROR, '服务暂时不可用，请稍后重试'),
+      )
 
       const dto: GrantPointsDto = { amount: 100, reason: '补偿' }
       await expect(service.grantPoints('user-1', dto, 'admin-1')).rejects.toThrow(BusinessException)

@@ -15,9 +15,9 @@
  *  - Header: x-api-key: {INTERNAL_API_KEY}
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { BusinessException, ErrorCode } from '@reelclone/common'
 import { REDIS_CLIENT } from '@reelclone/database'
 import Redis from 'ioredis'
+import { BillingClient, type ReconcileSummary } from '../billing.client'
 
 /** 对账结果列表项（与 billing-service ReconciliationResult 对齐） */
 export interface ReconcileResultItem {
@@ -30,24 +30,6 @@ export interface ReconcileResultItem {
   isConsistent: boolean
 }
 
-/** 对账结果摘要（与 billing-service ReconciliationSummary 对齐） */
-export interface ReconcileSummary {
-  totalUsers: number
-  inconsistentCount: number
-  results: ReconcileResultItem[]
-  date?: string
-  startedAt: string
-  finishedAt: string
-}
-
-/** billing-service 统一响应体（ApiResponse 包裹） */
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-  traceId?: string
-}
-
 /** Redis Key 前缀 */
 const REDIS_KEY_PREFIX = 'reconcile:results'
 /** TTL 7 天 */
@@ -56,15 +38,11 @@ const TTL_SECONDS = 7 * 24 * 60 * 60
 @Injectable()
 export class AdminReconcileService {
   private readonly logger = new Logger(AdminReconcileService.name)
-  private readonly billingServiceUrl: string
-  private readonly internalApiKey: string
 
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {
-    this.billingServiceUrl = (
-      process.env.BILLING_SERVICE_URL ?? 'http://billing-service:3006'
-    ).replace(/\/$/, '')
-    this.internalApiKey = process.env.INTERNAL_API_KEY ?? ''
-  }
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly billingClient: BillingClient,
+  ) {}
 
   // -------------------- 查看对账结果 --------------------
 
@@ -107,55 +85,9 @@ export class AdminReconcileService {
    * @param operatorId 操作者 ID（用于日志）
    */
   async triggerReconcile(body: { scope: string }, operatorId: string): Promise<ReconcileSummary> {
-    if (!this.internalApiKey) {
-      throw new BusinessException(
-        ErrorCode.INTERNAL_ERROR,
-        'INTERNAL_API_KEY 未配置，无法调用 billing-service',
-      )
-    }
+    this.logger.log(`管理员 ${operatorId} 触发对账 scope=${body.scope}`)
 
-    const url = `${this.billingServiceUrl}/api/v1/billing/reconcile`
-    this.logger.log(`管理员 ${operatorId} 触发对账 scope=${body.scope} url=${url}`)
-
-    let summary: ReconcileSummary
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.internalApiKey,
-        },
-        body: JSON.stringify({ scope: body.scope }),
-      })
-
-      if (!resp.ok) {
-        const text = await resp.text().catch(() => '')
-        throw new BusinessException(
-          ErrorCode.INTERNAL_ERROR,
-          `billing-service 对账失败: HTTP ${resp.status} ${text}`,
-          { scope: body.scope, status: resp.status },
-        )
-      }
-
-      const payload = (await resp.json()) as ApiResponse<ReconcileSummary>
-      if (payload.code !== ErrorCode.SUCCESS) {
-        throw new BusinessException(
-          payload.code as ErrorCode,
-          payload.message || 'billing-service 对账失败',
-          { scope: body.scope },
-        )
-      }
-      summary = payload.data
-    } catch (err) {
-      if (err instanceof BusinessException) {
-        throw err
-      }
-      this.logger.error(`调用 billing-service 对账失败: ${(err as Error).message}`)
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, '计费服务暂时不可用，请稍后重试', {
-        scope: body.scope,
-        message: (err as Error).message,
-      })
-    }
+    const summary = await this.billingClient.reconcile({ scope: body.scope })
 
     // 缓存对账结果到 Redis（TTL 7 天）
     await this.cacheResults(summary)

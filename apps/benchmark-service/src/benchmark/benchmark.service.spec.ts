@@ -14,7 +14,7 @@ import { Benchmark, BenchmarkPlatform, BenchmarkStatus } from '@reelclone/databa
 import { PromptEngineService, type CloneSuggestion } from '@reelclone/ai'
 import { DataSource, ObjectLiteral, Repository } from 'typeorm'
 import { BenchmarkService } from './benchmark.service'
-import { BillingClient } from './billing-client'
+import { BillingClient } from './billing.client'
 import { TemporalAdapter } from './temporal-adapter'
 import { CreateBenchmarkDto } from './dto/create-benchmark.dto'
 import { ListBenchmarksDto } from './dto/list-benchmarks.dto'

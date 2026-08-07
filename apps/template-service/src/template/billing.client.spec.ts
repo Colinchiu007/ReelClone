@@ -30,19 +30,29 @@ jest.mock('axios', () => ({
  * 创建 ConfigService Mock
  * - 默认 maxRetries=0（不重试），保证现有测试行为不变
  * - 重试/熔断测试可通过 overrides 覆盖
+ * - getOrThrow 用于必填配置（BILLING_SERVICE_URL / INTERNAL_API_KEY）
+ * - get 用于可选配置（重试/熔断参数，带默认值）
  */
 function createConfigService(overrides: Record<string, string> = {}): jest.Mocked<ConfigService> {
+  const getConfig = (key: string) => {
+    const defaults: Record<string, string> = {
+      BILLING_SERVICE_URL: 'http://billing-test:3006',
+      INTERNAL_API_KEY: 'test-api-key',
+      BILLING_CLIENT_MAX_RETRIES: '0', // 默认不重试
+      BILLING_CLIENT_RETRY_DELAY_MS: '1', // 测试用极小延迟
+      BILLING_CLIENT_CB_THRESHOLD: '5',
+      BILLING_CLIENT_CB_COOLDOWN_MS: '30',
+    }
+    return overrides[key] ?? defaults[key] ?? null
+  }
   return {
-    get: jest.fn((key: string) => {
-      const defaults: Record<string, string> = {
-        BILLING_SERVICE_URL: 'http://billing-test:3006',
-        INTERNAL_API_KEY: 'test-api-key',
-        BILLING_CLIENT_MAX_RETRIES: '0', // 默认不重试
-        BILLING_CLIENT_RETRY_DELAY_MS: '1', // 测试用极小延迟
-        BILLING_CLIENT_CB_THRESHOLD: '5',
-        BILLING_CLIENT_CB_COOLDOWN_MS: '30',
+    get: jest.fn(getConfig),
+    getOrThrow: jest.fn((key: string) => {
+      const val = getConfig(key)
+      if (val === null || val === undefined) {
+        throw new Error(`config key ${key} not found`)
       }
-      return overrides[key] ?? defaults[key] ?? null
+      return val
     }),
   } as unknown as jest.Mocked<ConfigService>
 }
@@ -83,28 +93,13 @@ describe('BillingClient', () => {
     })
   })
 
-  it('环境变量缺失时使用 fallback 默认值', () => {
-    configService.get.mockReturnValue(null)
-    // 模拟 process.env 也没有
-    const prevUrl = process.env.BILLING_SERVICE_URL
-    const prevKey = process.env.INTERNAL_API_KEY
-    delete process.env.BILLING_SERVICE_URL
-    delete process.env.INTERNAL_API_KEY
+  it('必填配置缺失时 fail-closed 抛出错误', () => {
+    const badConfig = createConfigService()
+    badConfig.getOrThrow.mockImplementation((key: string) => {
+      throw new Error(`config key ${key} not found`)
+    })
 
-    new BillingClient(configService)
-
-    expect(axios.create).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        baseURL: 'http://localhost:3006',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    )
-
-    // 恢复环境变量
-    if (prevUrl) process.env.BILLING_SERVICE_URL = prevUrl
-    if (prevKey) process.env.INTERNAL_API_KEY = prevKey
+    expect(() => new BillingClient(badConfig)).toThrow('BILLING_SERVICE_URL')
   })
 
   // -------------------- reward --------------------

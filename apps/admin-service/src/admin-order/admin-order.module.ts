@@ -14,13 +14,14 @@ import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AuditLogModule } from '@reelclone/platform-data'
 import { DATABASE_CONNECTIONS, Order, Package } from '@reelclone/database'
+import { BillingClient } from '../billing.client'
 import { AdminOrderController } from './admin-order.controller'
 import { AdminOrderService } from './admin-order.service'
 
 @Module({
   imports: [TypeOrmModule.forFeature([Order, Package], DATABASE_CONNECTIONS.MAIN), AuditLogModule],
   controllers: [AdminOrderController],
-  providers: [AdminOrderService],
+  providers: [AdminOrderService, BillingClient],
   exports: [AdminOrderService],
 })
 export class AdminOrderModule {}

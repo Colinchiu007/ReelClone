@@ -45,13 +45,8 @@ export class BillingClient {
   private readonly client: InternalHttpClient
 
   constructor(private readonly configService: ConfigService) {
-    const baseUrl =
-      this.configService.get<string>('BILLING_SERVICE_URL') || process.env.BILLING_SERVICE_URL
-    if (!baseUrl) {
-      throw new Error('BILLING_SERVICE_URL is not configured (fail-closed)')
-    }
-    const apiKey =
-      this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
+    const baseUrl = this.configService.getOrThrow<string>('BILLING_SERVICE_URL')
+    const apiKey = this.configService.getOrThrow<string>('INTERNAL_API_KEY')
 
     this.client = new InternalHttpClient({ baseUrl, apiKey })
   }

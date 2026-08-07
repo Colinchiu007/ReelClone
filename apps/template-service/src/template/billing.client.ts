@@ -62,29 +62,16 @@ export class BillingClient {
   private readonly client: InternalHttpClient
 
   constructor(private readonly configService: ConfigService) {
-    const baseUrl =
-      this.configService.get<string>('BILLING_SERVICE_URL') || process.env.BILLING_SERVICE_URL
-    if (!baseUrl) {
-      throw new Error('BILLING_SERVICE_URL is not configured (fail-closed)')
-    }
-    const apiKey =
-      this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
+    const baseUrl = this.configService.getOrThrow<string>('BILLING_SERVICE_URL')
+    const apiKey = this.configService.getOrThrow<string>('INTERNAL_API_KEY')
 
-    // template-service 使用更宽松的重试和熔断参数
-    const maxRetries = Number(
-      this.configService.get<string>('BILLING_CLIENT_MAX_RETRIES') ??
-        process.env.BILLING_CLIENT_MAX_RETRIES ??
-        3,
-    )
+    // template-service 使用更宽松的重试和熔断参数（带默认值）
+    const maxRetries = Number(this.configService.get<string>('BILLING_CLIENT_MAX_RETRIES') ?? 3)
     const failureThreshold = Number(
-      this.configService.get<string>('BILLING_CLIENT_CB_THRESHOLD') ??
-        process.env.BILLING_CLIENT_CB_THRESHOLD ??
-        5,
+      this.configService.get<string>('BILLING_CLIENT_CB_THRESHOLD') ?? 5,
     )
     const cooldownMs = Number(
-      this.configService.get<string>('BILLING_CLIENT_CB_COOLDOWN_MS') ??
-        process.env.BILLING_CLIENT_CB_COOLDOWN_MS ??
-        30_000,
+      this.configService.get<string>('BILLING_CLIENT_CB_COOLDOWN_MS') ?? 30_000,
     )
 
     this.client = new InternalHttpClient({

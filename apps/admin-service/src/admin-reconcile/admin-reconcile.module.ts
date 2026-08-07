@@ -10,12 +10,13 @@
  * 注意：此模块需在 app.module.ts 中统一注册（后续步骤完成）。
  */
 import { Module } from '@nestjs/common'
+import { BillingClient } from '../billing.client'
 import { AdminReconcileController } from './admin-reconcile.controller'
 import { AdminReconcileService } from './admin-reconcile.service'
 
 @Module({
   controllers: [AdminReconcileController],
-  providers: [AdminReconcileService],
+  providers: [AdminReconcileService, BillingClient],
   exports: [AdminReconcileService],
 })
 export class AdminReconcileModule {}

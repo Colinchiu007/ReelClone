@@ -8,6 +8,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { User, DATABASE_CONNECTIONS } from '@reelclone/database'
+import { BillingClient } from '../billing.client'
 import { AdminUserController } from './admin-user.controller'
 import { AdminUserService } from './admin-user.service'
 
@@ -17,7 +18,7 @@ import { AdminUserService } from './admin-user.service'
     TypeOrmModule.forFeature([User], DATABASE_CONNECTIONS.MAIN),
   ],
   controllers: [AdminUserController],
-  providers: [AdminUserService],
+  providers: [AdminUserService, BillingClient],
   exports: [AdminUserService],
 })
 export class AdminUserModule {}

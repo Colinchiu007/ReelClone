@@ -11,14 +11,13 @@
  * 数据源：main 库的 users 表（通过 @InjectRepository(User, 'main') 注入）
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomUUID } from 'crypto'
 import { Repository } from 'typeorm'
 import Redis from 'ioredis'
-import axios, { AxiosError, type AxiosInstance } from 'axios'
 import { User, UserRole, UserStatus, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@reelclone/database'
 import { BusinessException, ErrorCode } from '@reelclone/common'
+import { BillingClient } from '../billing.client'
 import { ListUsersDto } from './dto/list-users.dto'
 import { UpdateUserStatusDto } from './dto/update-user-status.dto'
 import { UpdateUserRoleDto } from './dto/update-user-role.dto'
@@ -29,22 +28,6 @@ const PASSWORD_CHANGED_KEY_PREFIX = 'user:password-changed'
 
 /** Token 最长有效期 7 天（与 refresh token 对齐） */
 const BLACKLIST_TTL_SECONDS = 7 * 24 * 60 * 60
-
-/** billing-service 响应体（ApiResponse 包裹） */
-interface BillingApiResponse<T> {
-  code: number
-  message: string
-  data: T
-  traceId?: string
-}
-
-/** billing-service 内部操作 data 结构 */
-interface BillingOperationData {
-  success: boolean
-  frozenAmount?: number
-  balance: number
-  transactionId: string
-}
 
 /** 用户信息（不含 password） */
 type SafeUser = Omit<User, 'password'>
@@ -66,30 +49,13 @@ interface GrantPointsResult {
 @Injectable()
 export class AdminUserService {
   private readonly logger = new Logger(AdminUserService.name)
-  private readonly httpClient: AxiosInstance
 
   constructor(
     @InjectRepository(User, DATABASE_CONNECTIONS.MAIN)
     private readonly userRepository: Repository<User>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    private readonly configService: ConfigService,
-  ) {
-    const baseUrl =
-      this.configService.get<string>('BILLING_SERVICE_URL') ||
-      process.env.BILLING_SERVICE_URL ||
-      'http://localhost:3006'
-    const apiKey =
-      this.configService.get<string>('INTERNAL_API_KEY') || process.env.INTERNAL_API_KEY || ''
-
-    this.httpClient = axios.create({
-      baseURL: baseUrl,
-      timeout: 10_000,
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-    })
-  }
+    private readonly billingClient: BillingClient,
+  ) {}
 
   // -------------------- 列表查询 --------------------
 
@@ -286,7 +252,7 @@ export class AdminUserService {
     // 前端重试或双击不会重复发放积分
     const idempotencyKey = `admin-grant:${operatorId}:${id}:${adjustmentId}`
 
-    const data = await this.post<BillingOperationData>('/api/v1/points/grant', {
+    const data = await this.billingClient.grant({
       userId: id,
       amount: dto.amount,
       idempotencyKey,
@@ -325,51 +291,5 @@ export class AdminUserService {
   private sanitizeUser(user: User): SafeUser {
     const { password: _, ...rest } = user
     return rest
-  }
-
-  /**
-   * 统一 POST 请求封装
-   *
-   * - 解析 ApiResponse 包裹，提取 data
-   * - billing-service 返回业务错误码时抛出对应 BusinessException
-   * - 网络错误等抛出 INTERNAL_ERROR
-   */
-  private async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    try {
-      const response = await this.httpClient.post<BillingApiResponse<T>>(path, body)
-      const resp = response.data
-
-      // billing-service 返回业务错误码
-      if (resp.code !== ErrorCode.SUCCESS) {
-        throw new BusinessException(
-          resp.code as ErrorCode,
-          resp.message || 'billing-service 调用失败',
-        )
-      }
-
-      return resp.data
-    } catch (err) {
-      // 已是 BusinessException，直接抛出
-      if (err instanceof BusinessException) {
-        throw err
-      }
-
-      // Axios 错误：尝试解析 billing-service 返回的 ApiResponse
-      const axiosErr = err as AxiosError<BillingApiResponse<unknown>>
-      const respData = axiosErr.response?.data
-      if (respData && typeof respData.code === 'number') {
-        throw new BusinessException(
-          respData.code as ErrorCode,
-          respData.message || 'billing-service 调用失败',
-        )
-      }
-
-      // 网络错误等
-      this.logger.error(`调用 billing-service 失败: ${path} ${(err as Error).message}`)
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, '计费服务暂时不可用，请稍后重试', {
-        path,
-        message: (err as Error).message,
-      })
-    }
   }
 }

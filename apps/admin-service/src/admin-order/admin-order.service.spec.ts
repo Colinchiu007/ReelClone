@@ -10,7 +10,9 @@
  *    - 积分扣回失败 → 订单保持 PAID + PARTIAL 审计日志
  *    - 套餐不存在时扣回 0 积分
  */
-import { BusinessException } from '@reelclone/common'
+import { ConfigService } from '@nestjs/config'
+import axios, { type AxiosInstance } from 'axios'
+import { BusinessException, ErrorCode } from '@reelclone/common'
 import { AuditLogService } from '@reelclone/platform-data'
 import {
   Order,
@@ -21,9 +23,18 @@ import {
   PaymentMethod,
 } from '@reelclone/database'
 import { ObjectLiteral, Repository } from 'typeorm'
+import { BillingClient } from '../billing.client'
 import { AdminOrderService } from './admin-order.service'
 import { ListOrdersDto } from './dto/list-orders.dto'
 import { RefundOrderDto } from './dto/refund-order.dto'
+
+// -------------------- Mock axios --------------------
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    create: jest.fn(),
+  },
+}))
 
 // -------------------- Mock 工具 --------------------
 
@@ -77,16 +88,6 @@ function createMockPackage(overrides: Partial<Package> = {}): Package {
   } as Package
 }
 
-/** 构造 Mock fetch Response */
-function mockFetchResponse(ok: boolean, body: unknown): Response {
-  return {
-    ok,
-    status: ok ? 200 : 500,
-    json: jest.fn(async () => body),
-    text: jest.fn(async () => (typeof body === 'string' ? body : JSON.stringify(body))),
-  } as unknown as Response
-}
-
 /** 构造 Mock AuditLogService */
 function mockAuditLogService(): jest.Mocked<AuditLogService> {
   return {
@@ -95,44 +96,55 @@ function mockAuditLogService(): jest.Mocked<AuditLogService> {
   } as unknown as jest.Mocked<AuditLogService>
 }
 
+/** 构造 Mock 成功响应（InternalHttpClient 自动解包 ApiResponse） */
+function mockSuccessResponse<T>(data: T) {
+  return { data: { code: ErrorCode.SUCCESS, message: 'ok', data } }
+}
+
+/** 构造 Mock 业务错误响应（HTTP 200 但 code 非 SUCCESS） */
+function mockBusinessErrorResponse(code: number, message: string) {
+  return { data: { code, message, data: null } }
+}
+
 describe('AdminOrderService', () => {
   let service: AdminOrderService
   let orderRepo: jest.Mocked<Repository<Order>>
   let packageRepo: jest.Mocked<Repository<Package>>
   let auditLog: jest.Mocked<AuditLogService>
-  let fetchMock: jest.MockedFunction<typeof fetch>
-  const envBackup: Record<string, string | undefined> = {}
+  let billingClient: jest.Mocked<BillingClient>
+  let orderClientPost: jest.Mock
 
   beforeEach(() => {
     orderRepo = mockRepo<Order>()
     packageRepo = mockRepo<Package>()
     auditLog = mockAuditLogService()
 
-    // 备份并设置环境变量
-    envBackup.BILLING_SERVICE_URL = process.env.BILLING_SERVICE_URL
-    envBackup.ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL
-    envBackup.INTERNAL_API_KEY = process.env.INTERNAL_API_KEY
-    process.env.BILLING_SERVICE_URL = 'http://billing-service:3006'
-    process.env.ORDER_SERVICE_URL = 'http://order-service:3005'
-    process.env.INTERNAL_API_KEY = 'test-internal-key'
+    billingClient = {
+      grant: jest.fn(),
+      deduct: jest.fn(),
+      reconcile: jest.fn(),
+    } as unknown as jest.Mocked<BillingClient>
 
-    // mock 全局 fetch
-    fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>
-    global.fetch = fetchMock
+    // mock axios.create 返回带 post/get 的 mock 实例（供 InternalHttpClient 使用）
+    orderClientPost = jest.fn()
+    ;(axios.create as jest.Mock).mockReturnValue({
+      post: orderClientPost,
+      get: jest.fn(),
+    } as unknown as AxiosInstance)
 
-    service = new AdminOrderService(orderRepo, packageRepo, auditLog)
+    const configService = {
+      getOrThrow: jest.fn((key: string) => {
+        if (key === 'ORDER_SERVICE_URL') return 'http://order-service:3005'
+        if (key === 'INTERNAL_API_KEY') return 'test-internal-key'
+        throw new Error(`config key ${key} not found`)
+      }),
+    } as unknown as jest.Mocked<ConfigService>
+
+    service = new AdminOrderService(orderRepo, packageRepo, auditLog, billingClient, configService)
   })
 
   afterEach(() => {
     jest.clearAllMocks()
-    // 恢复环境变量
-    for (const [k, v] of Object.entries(envBackup)) {
-      if (v === undefined) {
-        delete process.env[k]
-      } else {
-        process.env[k] = v
-      }
-    }
   })
 
   // -------------------- findAll --------------------
@@ -256,10 +268,10 @@ describe('AdminOrderService', () => {
       orderRepo.findOne.mockResolvedValueOnce(order)
       packageRepo.findOne.mockResolvedValue(pkg)
       orderRepo.save.mockResolvedValue(createMockOrder({ id: 'o1', status: OrderStatus.REFUNDED }))
-      // 第 1 次 fetch：微信退款（order-service）
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(true, { code: 0 }))
-      // 第 2 次 fetch：扣积分（billing）
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(true, { code: 0 }))
+      // 微信退款成功（order-service）
+      orderClientPost.mockResolvedValueOnce(mockSuccessResponse(null))
+      // 扣积分成功（billing-service，通过 BillingClient mock）
+      billingClient.deduct.mockResolvedValueOnce(undefined)
 
       const result = await service.refund('o1', dto, 'admin-001')
 
@@ -267,21 +279,22 @@ describe('AdminOrderService', () => {
       expect(result.pointsDeducted).toBe(true)
       expect(result.wechatRefundInitiated).toBe(true)
       expect(orderRepo.save).toHaveBeenCalled()
-      expect(fetchMock).toHaveBeenCalledTimes(2)
 
-      // 第 1 次调用：order-service 微信退款
-      const refundCall = fetchMock.mock.calls[0]
-      expect(refundCall[0]).toBe('http://order-service:3005/api/v1/orders/o1/refund')
-      const refundBody = JSON.parse((refundCall[1] as RequestInit).body as string)
-      expect(refundBody.reason).toBe('用户投诉，要求退款')
+      // order-service 微信退款调用
+      expect(orderClientPost).toHaveBeenCalledWith(
+        '/api/v1/orders/o1/refund',
+        { reason: '用户投诉，要求退款' },
+        expect.any(Object), // axiosConfig with x-request-id header
+      )
 
-      // 第 2 次调用：billing 扣积分（amount = 100 + 20 = 120）
-      const billingCall = fetchMock.mock.calls[1]
-      expect(billingCall[0]).toBe('http://billing-service:3006/api/v1/points/deduct')
-      const billingBody = JSON.parse((billingCall[1] as RequestInit).body as string)
-      expect(billingBody.amount).toBe(120)
-      expect(billingBody.userId).toBe('user-001')
-      expect(billingBody.idempotencyKey).toBe('order:o1:refund')
+      // billing 扣积分（amount = 100 + 20 = 120）
+      expect(billingClient.deduct).toHaveBeenCalledWith({
+        userId: 'user-001',
+        amount: 120,
+        idempotencyKey: 'order:o1:refund',
+        orderId: 'o1',
+        description: '订单 o1 退款扣回积分: 用户投诉，要求退款',
+      })
 
       // 审计日志记录 SUCCESS
       expect(auditLog.record).toHaveBeenCalledWith(
@@ -321,15 +334,18 @@ describe('AdminOrderService', () => {
       const pkg = createMockPackage({ points: 100, bonusPoints: 20 })
       orderRepo.findOne.mockResolvedValueOnce(order)
       packageRepo.findOne.mockResolvedValue(pkg)
-      // 微信退款失败
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(false, 'order-service down'))
+      // 微信退款失败（HTTP 200 但业务码非 SUCCESS，不触发重试）
+      orderClientPost.mockResolvedValueOnce(
+        mockBusinessErrorResponse(ErrorCode.INTERNAL_ERROR, 'order-service down'),
+      )
 
       await expect(service.refund('o1', dto, 'admin-001')).rejects.toThrow(BusinessException)
 
       // 订单未被标记为 REFUNDED
       expect(orderRepo.save).not.toHaveBeenCalled()
-      // 只调用了 1 次 fetch（微信退款），未调用扣积分
-      expect(fetchMock).toHaveBeenCalledTimes(1)
+      // 只调用了 1 次 orderClientPost（微信退款），未调用扣积分
+      expect(orderClientPost).toHaveBeenCalledTimes(1)
+      expect(billingClient.deduct).not.toHaveBeenCalled()
       // 审计日志记录 FAILURE
       expect(auditLog.record).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -345,9 +361,11 @@ describe('AdminOrderService', () => {
       orderRepo.findOne.mockResolvedValueOnce(order)
       packageRepo.findOne.mockResolvedValue(pkg)
       // 微信退款成功
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(true, { code: 0 }))
+      orderClientPost.mockResolvedValueOnce(mockSuccessResponse(null))
       // 扣积分失败
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(false, 'billing down'))
+      billingClient.deduct.mockRejectedValueOnce(
+        new BusinessException(ErrorCode.INTERNAL_ERROR, 'billing down'),
+      )
 
       const result = await service.refund('o1', dto, 'admin-001')
 
@@ -370,15 +388,18 @@ describe('AdminOrderService', () => {
       orderRepo.findOne.mockResolvedValueOnce(order)
       packageRepo.findOne.mockResolvedValue(null)
       orderRepo.save.mockResolvedValue(createMockOrder({ id: 'o1', status: OrderStatus.REFUNDED }))
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(true, { code: 0 }))
-      fetchMock.mockResolvedValueOnce(mockFetchResponse(true, { code: 0 }))
+      orderClientPost.mockResolvedValueOnce(mockSuccessResponse(null))
+      billingClient.deduct.mockResolvedValueOnce(undefined)
 
       const result = await service.refund('o1', dto, 'admin-001')
 
       expect(result.order.status).toBe(OrderStatus.REFUNDED)
       // billing 扣积分 amount = 0
-      const billingBody = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string)
-      expect(billingBody.amount).toBe(0)
+      expect(billingClient.deduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 0,
+        }),
+      )
     })
   })
 })

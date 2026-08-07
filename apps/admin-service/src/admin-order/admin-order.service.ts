@@ -14,9 +14,11 @@
  *  6. 记录审计日志（action=ORDER_REFUND，含操作者/原因/各步骤结果）
  */
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { BusinessException, ErrorCode } from '@reelclone/common'
+import { InternalHttpClient } from '@reelclone/http-client'
 import { AuditLogService } from '@reelclone/platform-data'
 import {
   DATABASE_CONNECTIONS,
@@ -25,6 +27,7 @@ import {
   Package,
   PaymentMethod,
 } from '@reelclone/database'
+import { BillingClient } from '../billing.client'
 import { ListOrdersDto } from './dto/list-orders.dto'
 import { RefundOrderDto } from './dto/refund-order.dto'
 
@@ -60,13 +63,8 @@ export interface RefundResult {
 @Injectable()
 export class AdminOrderService {
   private readonly logger = new Logger(AdminOrderService.name)
-
-  /** billing-service 基础地址 */
-  private readonly billingServiceUrl: string
-  /** order-service 基础地址 */
-  private readonly orderServiceUrl: string
-  /** 内部 API Key */
-  private readonly internalApiKey: string
+  /** order-service 客户端（用于发起微信退款） */
+  private readonly orderClient: InternalHttpClient
 
   constructor(
     @InjectRepository(Order, DATABASE_CONNECTIONS.MAIN)
@@ -74,15 +72,16 @@ export class AdminOrderService {
     @InjectRepository(Package, DATABASE_CONNECTIONS.MAIN)
     private readonly packageRepo: Repository<Package>,
     private readonly auditLog: AuditLogService,
+    private readonly billingClient: BillingClient,
+    configService: ConfigService,
   ) {
-    this.billingServiceUrl = (
-      process.env.BILLING_SERVICE_URL ?? 'http://billing-service:3006'
-    ).replace(/\/$/, '')
-    this.orderServiceUrl = (process.env.ORDER_SERVICE_URL ?? 'http://order-service:3005').replace(
-      /\/$/,
-      '',
-    )
-    this.internalApiKey = process.env.INTERNAL_API_KEY ?? ''
+    const orderServiceUrl = configService.getOrThrow<string>('ORDER_SERVICE_URL')
+    const apiKey = configService.getOrThrow<string>('INTERNAL_API_KEY')
+
+    this.orderClient = new InternalHttpClient({
+      baseUrl: orderServiceUrl,
+      apiKey,
+    })
   }
 
   // -------------------- 订单列表 --------------------
@@ -287,36 +286,17 @@ export class AdminOrderService {
     orderId: string,
     reason: string,
   ): Promise<void> {
-    if (!this.internalApiKey) {
-      throw new Error('INTERNAL_API_KEY 未配置，无法调用 billing-service')
-    }
+    this.logger.log(
+      `调用 billing-service /deduct: userId=${userId} amount=${amount} orderId=${orderId}`,
+    )
 
-    const url = `${this.billingServiceUrl}/api/v1/points/deduct`
-    const body = {
+    await this.billingClient.deduct({
       userId,
       amount,
       idempotencyKey: `order:${orderId}:refund`,
       orderId,
       description: `订单 ${orderId} 退款扣回积分: ${reason}`,
-    }
-
-    this.logger.log(
-      `调用 billing-service /deduct: userId=${userId} amount=${amount} orderId=${orderId}`,
-    )
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.internalApiKey,
-      },
-      body: JSON.stringify(body),
     })
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '')
-      throw new Error(`billing-service deduct 失败: HTTP ${resp.status} ${text}`)
-    }
   }
 
   /**
@@ -326,27 +306,8 @@ export class AdminOrderService {
    * Headers: x-api-key: ${INTERNAL_API_KEY}
    */
   private async invokeWechatRefund(orderId: string, reason: string): Promise<void> {
-    if (!this.internalApiKey) {
-      throw new Error('INTERNAL_API_KEY 未配置，无法调用 order-service')
-    }
-
-    const url = `${this.orderServiceUrl}/api/v1/orders/${orderId}/refund`
-    const body = { reason }
-
     this.logger.log(`调用 order-service /refund: orderId=${orderId} reason=${reason}`)
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.internalApiKey,
-      },
-      body: JSON.stringify(body),
-    })
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '')
-      throw new Error(`order-service refund 失败: HTTP ${resp.status} ${text}`)
-    }
+    await this.orderClient.post(`/api/v1/orders/${orderId}/refund`, { reason })
   }
 }
