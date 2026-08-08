@@ -37,8 +37,10 @@ import { BenchmarkModule } from './benchmark/benchmark.module'
     LoggerModule.forRoot({ serviceName: 'benchmark-service' }),
     HealthModule.forRoot(),
     MetricsModule.forRoot(),
-    // 数据库（benchmark 连接）
-    DatabaseModule.forRoot({ connections: [DATABASE_CONNECTIONS.BENCHMARK] }),
+    // 数据库（benchmark + main 连接，main 供 SystemConfig 读取）
+    DatabaseModule.forRoot({
+      connections: [DATABASE_CONNECTIONS.MAIN, DATABASE_CONNECTIONS.BENCHMARK],
+    }),
     // Redis
     RedisModule.forRoot(),
     // Redis 桥接：将 database 的 REDIS_CLIENT 暴露为 observability 的 OBS_REDIS_CLIENT
