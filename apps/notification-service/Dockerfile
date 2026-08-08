@@ -33,6 +33,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3008
 
 # 复制编译产物（libs 已内联编译到 service dist）
 COPY --from=builder /app/package.json ./package.json

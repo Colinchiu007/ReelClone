@@ -29,6 +29,7 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3001
 
 # 拷贝运行时所需的 node_modules、编译产物与源码（便于 ts-node 回退）
 COPY --from=builder /app/node_modules ./node_modules

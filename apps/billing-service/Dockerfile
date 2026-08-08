@@ -27,6 +27,7 @@ FROM node:20-alpine AS prod
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3006
 
 # 复制 package.json 与已编译产物（libs 已内联编译到 service dist）
 COPY --from=builder /app/package.json ./package.json
@@ -34,5 +35,8 @@ COPY --from=builder /app/apps/billing-service/dist ./apps/billing-service/dist
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3006
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:3006/health || exit 1
 
 CMD ["node", "apps/billing-service/dist/main.js"]
