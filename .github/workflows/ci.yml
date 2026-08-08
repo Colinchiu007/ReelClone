@@ -284,13 +284,15 @@ jobs:
           export SMS_ACCESS_KEY_ID=test_key
           export SMS_ACCESS_KEY_SECRET=test_secret
           export SMS_SIGN_NAME=ReelClone
-          export NEW_USER_BONUS_POINTS=100
+          export NEW_USER_BONUS_POINTS=2000
           export LOG_LEVEL=warn
           export REDIS_PREFIX=reelclone:
           export VIDEO_DOWNLOADER=mock
           export ORDER_EXPIRE_MINUTES=30
           # 跳过 Swagger（tsx 运行时 parameter-metadata-accessor 有兼容问题）
           export SWAGGER_ENABLED=false
+          # 启用 OSS Mock 模式（CI 无真实 OSS 凭证）
+          export OSS_MOCK=true
 
           # ==== 启动 9 个微服务（不启动 media-worker — E2E 用 TEMPORAL_MOCK_MODE） ====
           mkdir -p /tmp/e2e-logs

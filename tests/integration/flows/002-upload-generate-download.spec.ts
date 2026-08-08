@@ -115,6 +115,8 @@ describe('用户路径2: 素材上传 → 生成视频 → 下载作品', () => 
   })
 
   test('5. 轮询等待作品完成（Mock 模式立即完成）', async () => {
+    // 守卫：前置 test 4 失败时 workId 为 undefined，跳过避免级联错误
+    expect(workId).toBeTruthy()
     // Mock 模式下 Temporal 工作流立即完成，作品状态应迅速变为 COMPLETED
     const work = await poll({
       fn: () =>
@@ -146,6 +148,8 @@ describe('用户路径2: 素材上传 → 生成视频 → 下载作品', () => 
   })
 
   test('6. 查看作品详情获取下载 URL（GET /works/:id）', async () => {
+    // 守卫：前置 test 失败时 workId 为 undefined，跳过避免级联错误
+    expect(workId).toBeTruthy()
     const work = await workbenchClient.get<{
       id: string
       status: string
