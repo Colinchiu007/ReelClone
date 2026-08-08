@@ -19,7 +19,7 @@
 - [x] benchmark/billing-client.ts 重命名为 billing.client.ts ✅ `73849b6`
 - [x] admin-service 从 axios 迁移到 InternalHttpClient ✅ `73849b6`
 - [x] 10/11 个 main.ts 使用 bootstrapService() 工厂函数（media-worker 豁免）✅ `e66f5d5`
-- [x] CI 包含 E2E 测试作业（docker-compose + test:e2e）
+- [x] CI 包含 E2E 测试作业（9 服务全部启动，59/95 测试通过）
 - [ ] database 库 14 个实体有单元测试
 - [ ] 11 个 Dockerfile 使用统一模板（Node 20-alpine）
 - [ ] template-service Dockerfile 从 Node 18 升级到 Node 20

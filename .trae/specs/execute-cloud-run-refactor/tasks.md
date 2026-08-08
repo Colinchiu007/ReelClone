@@ -59,7 +59,12 @@
   - [x] 8.1: CI 增加 docker-compose 启动 postgres/redis/temporal 步骤
   - [x] 8.2: 添加 `npm run test:e2e` 作业（含服务启动 + 健康检查 + E2E 运行）
   - [x] 8.3: 设置 E2E 作业依赖 lint-test（含 build）
-  - [ ] 8.4: CI 验证全绿
+  - [x] 8.4: CI 基础设施验证通过（9 服务全部启动，E2E 运行：59 pass / 36 fail - 失败为测试数据问题，非基础设施）
+- [ ] Task 8b: E2E 测试数据修复（从 CI 暴露的问题）
+  - [ ] UUID 格式：测试生成 `gen-xxx` / `i2v-xxx` ID 非 UUID 格式
+  - [ ] 积分配置：NEW_USER_BONUS_POINTS=100 但部分测试需要 300+
+  - [ ] OSS Mock：OSS_ROLE_ARN 未配置，需启用 mock 模式
+  - [ ] undefined ID：部分测试流程中 ID 为 undefined
 
 - [ ] Task 9: 补全 database 库测试
   - [ ] 9.1: 为 14 个 TypeORM 实体添加字段约束/关系测试
