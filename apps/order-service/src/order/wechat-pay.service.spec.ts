@@ -6,6 +6,7 @@
  *  - createPaymentParams: 返回结构、paySign='mock_sign'、package 含 prepay_id
  *  - verifyAndDecryptCallback: Mock 适配器验签通过 + 解密返回明文 JSON
  */
+import { ConfigService } from '@nestjs/config'
 import { MockWechatPayAdapter } from '@reelclone/adapters-wechat'
 import { WechatPayService } from './wechat-pay.service'
 
@@ -15,7 +16,9 @@ describe('WechatPayService', () => {
 
   beforeEach(() => {
     adapter = new MockWechatPayAdapter()
-    service = new WechatPayService(adapter)
+    service = new WechatPayService(adapter, {
+      get: jest.fn().mockReturnValue(undefined),
+    } as unknown as ConfigService)
   })
 
   afterEach(() => {

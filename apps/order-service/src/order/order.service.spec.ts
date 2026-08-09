@@ -15,6 +15,7 @@ jest.mock('../profit-sharing/profit-sharing.service', () => ({
   })),
 }))
 
+import { ConfigService } from '@nestjs/config'
 import { BusinessException } from '@reelclone/common'
 import {
   Order,
@@ -199,6 +200,7 @@ describe('OrderService', () => {
       wechatPay,
       billingClient,
       { initiateProfitSharing: jest.fn().mockResolvedValue(undefined) } as never,
+      { get: jest.fn().mockReturnValue(undefined) } as unknown as ConfigService,
     )
   })
 

@@ -24,9 +24,9 @@
 - [x] 11 个 Dockerfile 使用统一模板（Node 20-alpine + HEALTHCHECK + ENV PORT）
 - [x] template-service Dockerfile 从 Node 18 升级到 Node 20
 - [ ] 所有 Dockerfile CMD 路径统一为 apps/SERVICE/dist/main.js
-- [ ] 根 .env.example 作为权威配置模板
-- [ ] DATABASE_PASSWORD / JWT_SECRET 默认值统一
-- [ ] test:integration 脚本可执行
+- [x] 根 .env.example 作为权威配置模板
+- [x] DATABASE_PASSWORD / JWT_SECRET 默认值统一
+- [x] test:integration 脚本可执行
 - [ ] Docker 镜像体积 < 400MB
 - [ ] Temporal 部署方案文档输出
 

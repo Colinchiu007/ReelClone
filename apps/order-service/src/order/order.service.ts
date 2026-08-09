@@ -19,6 +19,7 @@
  *  - 订单不存在 → 事件落库（orderId=null），返回 processed=false
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import Redis from 'ioredis'
 import { DataSource, Repository } from 'typeorm'
@@ -120,6 +121,7 @@ export class OrderService {
     private readonly wechatPay: WechatPayService,
     private readonly billingClient: BillingClient,
     private readonly profitSharingService: ProfitSharingService,
+    private readonly configService: ConfigService,
   ) {}
 
   // -------------------- 创建订单 --------------------
@@ -699,8 +701,8 @@ export class OrderService {
   ): string | null {
     // Mock 模式跳过 appid/mchid 校验（Mock 适配器不返回这些字段）
     if (!this.wechatPay.isMockMode()) {
-      const expectedAppId = process.env.WECHAT_PAY_APPID ?? ''
-      const expectedMchId = process.env.WECHAT_PAY_MCHID ?? ''
+      const expectedAppId = this.configService.get<string>('WECHAT_PAY_APPID') ?? ''
+      const expectedMchId = this.configService.get<string>('WECHAT_PAY_MCHID') ?? ''
 
       if (result.appid && result.appid !== expectedAppId) {
         return `appid 不匹配: expected=${expectedAppId} actual=${result.appid}`

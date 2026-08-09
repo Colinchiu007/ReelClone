@@ -12,6 +12,7 @@
  *  - isMockMode() 基于适配器的 isMock 属性，供外部可观测性使用
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import axios from 'axios'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
@@ -83,7 +84,10 @@ export class WechatPayService {
   /** 商户私钥缓存（createPaymentParams 真实模式用） */
   private privateKeyCache: Buffer | null = null
 
-  constructor(@Inject(WECHAT_PAY_ADAPTER) private readonly adapter: IWechatPayAdapter) {
+  constructor(
+    @Inject(WECHAT_PAY_ADAPTER) private readonly adapter: IWechatPayAdapter,
+    private readonly configService: ConfigService,
+  ) {
     if (adapter.isMock) {
       this.logger.warn('微信支付运行于 Mock 适配器模式（test profile）')
     }
@@ -179,7 +183,7 @@ export class WechatPayService {
     if (this.privateKeyCache) {
       return this.privateKeyCache
     }
-    const privateKeyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH ?? ''
+    const privateKeyPath = this.configService.get<string>('WECHAT_PAY_PRIVATE_KEY_PATH') ?? ''
     if (!privateKeyPath) {
       throw new Error('微信支付真实模式未配置 WECHAT_PAY_PRIVATE_KEY_PATH')
     }
@@ -202,10 +206,10 @@ export class WechatPayService {
     openid: string
   }): Promise<WechatPaymentParams> {
     const privateKey = this.getPrivateKey()
-    const appId = process.env.WECHAT_PAY_APPID ?? ''
-    const mchId = process.env.WECHAT_PAY_MCHID ?? ''
-    const serialNo = process.env.WECHAT_PAY_SERIAL_NO ?? ''
-    const notifyUrl = process.env.WECHAT_PAY_NOTIFY_URL ?? ''
+    const appId = this.configService.get<string>('WECHAT_PAY_APPID') ?? ''
+    const mchId = this.configService.get<string>('WECHAT_PAY_MCHID') ?? ''
+    const serialNo = this.configService.get<string>('WECHAT_PAY_SERIAL_NO') ?? ''
+    const notifyUrl = this.configService.get<string>('WECHAT_PAY_NOTIFY_URL') ?? ''
 
     // 金额：元 → 分
     const total = Math.round(params.amount * 100)
