@@ -21,8 +21,8 @@
 - [x] 10/11 个 main.ts 使用 bootstrapService() 工厂函数（media-worker 豁免）✅ `e66f5d5`
 - [x] CI 包含 E2E 测试作业（9 服务全部启动，59/95 测试通过）
 - [x] database 库 25 个实体有单元测试（172 个测试，含 @Index->@Column 回归守卫）
-- [ ] 11 个 Dockerfile 使用统一模板（Node 20-alpine）
-- [ ] template-service Dockerfile 从 Node 18 升级到 Node 20
+- [x] 11 个 Dockerfile 使用统一模板（Node 20-alpine + HEALTHCHECK + ENV PORT）
+- [x] template-service Dockerfile 从 Node 18 升级到 Node 20
 - [ ] 所有 Dockerfile CMD 路径统一为 apps/SERVICE/dist/main.js
 - [ ] 根 .env.example 作为权威配置模板
 - [ ] DATABASE_PASSWORD / JWT_SECRET 默认值统一
