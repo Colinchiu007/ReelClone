@@ -33,12 +33,12 @@
 ## Phase 3: P2 一致性
 
 - [ ] auth-service adminLogin 使用 BusinessException
-- [ ] AllExceptionsFilter 统一用 APP_FILTER 注册
-- [ ] order.service.ts 无 process.env 直接访问
-- [ ] 文件命名统一为 billing.client.ts
-- [ ] asset/template main.ts 无 console.log
-- [ ] CURRENT_ARCHITECTURE.md 更新（common→database + 云托管）
-- [ ] template.client.ts 使用 InternalHttpClient
+- [x] AllExceptionsFilter 统一用 APP_FILTER 注册
+- [x] order.service.ts 无 process.env 直接访问
+- [x] 文件命名统一为 billing.client.ts
+- [x] asset/template main.ts 无 console.log
+- [ ] CURRENT_ARCHITECTURE.md 更新（common->database + 云托管）
+- [x] template.client.ts 使用 InternalHttpClient
 - [ ] admin-web 有 jest 配置和页面渲染测试
 - [ ] oss 库有单元测试
 
