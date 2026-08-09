@@ -6,13 +6,7 @@
  *  2. refreshToken   用 Refresh Token 换发新的 Token 对
  *  3. logout         将当前 Token 的 jti 加入 Redis 黑名单（剩余 TTL 内有效）
  */
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -251,23 +245,23 @@ export class AuthService {
 
     // 2. 用户不存在 / 未设置密码 → 统一返回"账号或密码错误"（避免信息泄露）
     if (!user || !user.password) {
-      throw new UnauthorizedException('账号或密码错误')
+      throw BusinessException.unauthorized('账号或密码错误')
     }
 
     // 3. 角色校验：仅 ADMIN / SUPER_ADMIN 允许通过此端点登录
     if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('需要管理员权限')
+      throw BusinessException.forbidden('需要管理员权限')
     }
 
     // 4. 状态校验：非 ACTIVE 拒绝登录
     if (user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException('账号已被冻结')
+      throw BusinessException.forbidden('账号已被冻结')
     }
 
     // 5. 密码校验
     const isPasswordValid = await bcrypt.compare(dto.password, user.password)
     if (!isPasswordValid) {
-      throw new UnauthorizedException('账号或密码错误')
+      throw BusinessException.unauthorized('账号或密码错误')
     }
 
     // 6. 更新登录时间
