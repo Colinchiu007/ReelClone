@@ -7,10 +7,10 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  moduleFileExtensions: ['js', 'json', 'ts'],
+  moduleFileExtensions: ['ts', 'js', 'json'],
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.base.json' }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.base.json', isolatedModules: true }],
   },
   collectCoverageFrom: [
     'apps/**/src/**/*.ts',
@@ -38,9 +38,15 @@ module.exports = {
     '/build/',
     '/tests/integration/',
     '/apps/miniprogram/',
+    // 防止加载 libs/*/dist 中的旧编译产物（根因：TS 模块解析可能命中 dist/.js）
+    '/libs/[^/]+/dist/',
+    '/libs/[^/]+/build/',
   ],
   moduleNameMapper: {
     '^@reelclone/(common|database|platform-data|ai|temporal|oss|observability|swagger|adapters-wechat|adapters-sms|http-client|capability)(|/.*)$':
       '<rootDir>/libs/$1/src/$2',
   },
+  // ali-oss 6.23+ 在 lib/ 中同时发布 .ts 源文件，ts-jest 默认不转换 node_modules
+  // 启用 isolatedModules 跳过类型检查后可安全转换
+  transformIgnorePatterns: ['/node_modules/(?!ali-oss)'],
 }

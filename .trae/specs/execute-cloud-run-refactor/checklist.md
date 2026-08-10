@@ -32,7 +32,7 @@
 
 ## Phase 3: P2 一致性
 
-- [ ] auth-service adminLogin 使用 BusinessException
+- [x] auth-service adminLogin 使用 BusinessException
 - [x] AllExceptionsFilter 统一用 APP_FILTER 注册
 - [x] order.service.ts 无 process.env 直接访问
 - [x] 文件命名统一为 billing.client.ts
@@ -41,6 +41,8 @@
 - [x] template.client.ts 使用 InternalHttpClient
 - [ ] admin-web 有 jest 配置和页面渲染测试
 - [ ] oss 库有单元测试
+- [x] libs/database/src 无编译产物（清理 156 个 .js/.d.ts 文件）
+- [x] jest.config.js 修复编译产物加载（moduleFileExtensions 顺序 + transformIgnorePatterns for ali-oss）
 
 ## Phase 4: P3 锦上添花
 
@@ -49,13 +51,15 @@
 - [ ] 小程序 taroStorage 提取到 stores/storage.ts
 - [ ] admin-web 有 ListPage 通用组件
 - [ ] 手写类型迁移到 generated 类型
-- [ ] libs/database/src 无编译产物
-- [ ] tsconfig 启用 allowImportingTsExtensions
+- [x] libs/database/src 无编译产物（清理 156 个 .js/.d.ts 文件）
+- [x] tsconfig 启用 allowImportingTsExtensions
 - [ ] 生产代码无 any 类型
 - [ ] 条件编译规范化 + H5 配置预置
 
 ## 最终验证
 
+- [x] Typecheck 全绿 (2026-08-10)
+- [x] Unit test 全绿 (102 套件 / 1559 测试, 2026-08-10)
 - [ ] CI Lint · Typecheck · Test · Build 全绿
 - [ ] CI Docker build 11/11 全绿
 - [ ] CI Mini Program build 全绿

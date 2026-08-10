@@ -26,11 +26,10 @@ import { Test, type TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import type { Repository } from 'typeorm'
 import { ConfigService } from '@nestjs/config'
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
+import { BusinessException, ErrorCode } from '@reelclone/common'
 import * as bcrypt from 'bcrypt'
 import type { Redis } from 'ioredis'
 import { User, UserStatus, UserRole, REDIS_CLIENT } from '@reelclone/database'
-import { BusinessException, ErrorCode } from '@reelclone/common'
 import { AuthService } from './auth.service'
 import { WechatService, type WechatSession } from './wechat.service'
 import { JwtCustomService, type JwtPayload } from './jwt.service'
@@ -341,15 +340,15 @@ describe('AuthService', () => {
       })
     })
 
-    it('用户不存在：抛 UnauthorizedException', async () => {
+    it('用户不存在：抛 BusinessException(UNAUTHORIZED)', async () => {
       userRepo.findOne.mockResolvedValueOnce(null)
 
-      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(UnauthorizedException)
+      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(BusinessException)
       expect(bcryptCompare).not.toHaveBeenCalled()
       expect(jwtService.signTokenPair).not.toHaveBeenCalled()
     })
 
-    it('用户未设置密码：抛 UnauthorizedException', async () => {
+    it('用户未设置密码：抛 BusinessException(UNAUTHORIZED)', async () => {
       const noPwdUser = mockUser({
         mobile: '13800138000',
         password: null,
@@ -357,11 +356,11 @@ describe('AuthService', () => {
       })
       userRepo.findOne.mockResolvedValueOnce(noPwdUser)
 
-      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(UnauthorizedException)
+      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(BusinessException)
       expect(bcryptCompare).not.toHaveBeenCalled()
     })
 
-    it('密码错误：抛 UnauthorizedException', async () => {
+    it('密码错误：抛 BusinessException(UNAUTHORIZED)', async () => {
       const admin = mockUser({
         mobile: '13800138000',
         password: hashedPassword,
@@ -371,12 +370,12 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValueOnce(admin)
       bcryptCompare.mockResolvedValueOnce(false)
 
-      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(UnauthorizedException)
+      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(BusinessException)
       expect(jwtService.signTokenPair).not.toHaveBeenCalled()
       expect(userRepo.save).not.toHaveBeenCalled()
     })
 
-    it('非管理员：抛 ForbiddenException', async () => {
+    it('非管理员：抛 BusinessException(FORBIDDEN)', async () => {
       const normalUser = mockUser({
         mobile: '13800138000',
         password: hashedPassword,
@@ -385,13 +384,13 @@ describe('AuthService', () => {
       })
       userRepo.findOne.mockResolvedValueOnce(normalUser)
 
-      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(ForbiddenException)
+      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(BusinessException)
       // 角色校验在密码校验之前，bcrypt 不应被调用
       expect(bcryptCompare).not.toHaveBeenCalled()
       expect(jwtService.signTokenPair).not.toHaveBeenCalled()
     })
 
-    it('账号冻结：抛 ForbiddenException', async () => {
+    it('账号冻结：抛 BusinessException(FORBIDDEN)', async () => {
       const frozenAdmin = mockUser({
         mobile: '13800138000',
         password: hashedPassword,
@@ -400,7 +399,7 @@ describe('AuthService', () => {
       })
       userRepo.findOne.mockResolvedValueOnce(frozenAdmin)
 
-      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(ForbiddenException)
+      await expect(service.adminLogin(dto)).rejects.toBeInstanceOf(BusinessException)
       // 状态校验在密码校验之前，bcrypt 不应被调用
       expect(bcryptCompare).not.toHaveBeenCalled()
       expect(jwtService.signTokenPair).not.toHaveBeenCalled()
