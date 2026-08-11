@@ -215,7 +215,8 @@ describe('GenerationService', () => {
       expect(workRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           modelConfig: expect.objectContaining({
-            freezeId: expect.stringContaining('mock-freeze-'),
+            // mockFreezeId 是 uuidv4() 生成的 UUID（满足 generation_executions.reservation_id 的 uuid 列约束）
+            freezeId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
           }),
         }),
       )
@@ -241,12 +242,12 @@ describe('GenerationService', () => {
 
       await expect(service.create('user-1', makeDto())).rejects.toThrow('task database unavailable')
 
-      // Mock 模式下使用 mock reservation 释放，而非真实 freezeId
+      // Mock 模式下使用 mock reservation 释放，freezeId 为 UUID 格式
       expect(billingClient.release).toHaveBeenCalledWith(
         'user-1',
         expect.any(Number),
         expect.stringMatching(/:release$/),
-        expect.stringContaining('mock-freeze-'),
+        expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
         'v2',
       )
       expect(workRepo.update).toHaveBeenCalledWith(

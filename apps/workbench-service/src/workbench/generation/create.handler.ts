@@ -189,8 +189,9 @@ export class GenerationCreateHandler {
 
       // 冻结积分
       // P0-5: Mock 模式跳过真实 billing 冻结，使用 mock reservation（避免冻结真实积分）
+      // mockFreezeId 必须是 UUID 格式，因为 GenerationExecution.reservation_id 是 uuid 列
       if (this.isMockMode()) {
-        const mockFreezeId = `mock-freeze-${work.id}`
+        const mockFreezeId = uuidv4()
         const reservation = createBillingReservation(points, idempotencyKey, mockFreezeId)
         work.modelConfig = {
           ...work.modelConfig,
@@ -276,14 +277,16 @@ export class GenerationCreateHandler {
       })
 
       const executionRepo = this.dataSource.getRepository(GenerationExecution)
+      const freezeId = (work.modelConfig.freezeId as string) ?? work.id
       const execution = executionRepo.create({
         id: executionId,
         workId: work.id,
         taskId: task.id,
         requestFingerprint,
         workflowId: executionWorkflowId,
-        billingOperationId: idempotencyKey,
-        reservationId: (work.modelConfig.freezeId as string) ?? '',
+        // billingOperationId 引用 CreditOperation.id（异步投影创建，此处用 reservation UUID 占位）
+        billingOperationId: freezeId,
+        reservationId: freezeId,
         stage: GenerationExecutionStage.INITIATED,
         attempt: 0,
         metadata: { generationType: dto.generationType, points },
