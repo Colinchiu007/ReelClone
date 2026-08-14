@@ -222,6 +222,7 @@ export function buildCreateOrderPayload(
 export function buildWechatPayCallbackPayload(
   orderNo: string,
   transactionId?: string,
+  amountTotal?: number,
 ): {
   headers: Record<string, string>
   body: unknown
@@ -240,7 +241,7 @@ export function buildWechatPayCallbackPayload(
           transaction_id: transactionId ?? randomString('tx'),
           trade_state: 'SUCCESS',
           success_time: new Date().toISOString(),
-          amount: { total: 9900, currency: 'CNY' },
+          amount: { total: amountTotal ?? 9900, currency: 'CNY' },
         }),
         nonce: randomString('nonce'),
         associated_data: '',

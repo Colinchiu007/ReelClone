@@ -33,8 +33,14 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
   let userId: string
   let initialPoints: number
 
-  let packages: Array<{ id: string; name: string; points: number; bonusPoints: number }>
-  let selectedPackage: { id: string; points: number; bonusPoints: number }
+  let packages: Array<{
+    id: string
+    name: string
+    price: number
+    points: number
+    bonusPoints: number
+  }>
+  let selectedPackage: { id: string; price: number; points: number; bonusPoints: number }
   let orderId: string
   let orderNo: string
 
@@ -125,7 +131,11 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
   })
 
   test('4. 模拟支付回调（POST /webhooks/wechat-pay，Mock 模式直接 PAID）', async () => {
-    const callbackPayload = buildWechatPayCallbackPayload(orderNo)
+    const callbackPayload = buildWechatPayCallbackPayload(
+      orderNo,
+      undefined,
+      Math.round(selectedPackage.price * 100),
+    )
 
     // webhook 端点是公开的，无需 JWT
     const result = await orderClient.post<{ code: string; message: string }>(
@@ -159,7 +169,11 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
     const expectedTotalPoints = initialPoints + selectedPackage.points + selectedPackage.bonusPoints
 
     // 重复发送同一回调（相同 transactionId）
-    const callbackPayload = buildWechatPayCallbackPayload(orderNo)
+    const callbackPayload = buildWechatPayCallbackPayload(
+      orderNo,
+      undefined,
+      Math.round(selectedPackage.price * 100),
+    )
     await orderClient.post('/webhooks/wechat-pay', callbackPayload.body, {
       headers: callbackPayload.headers,
     })

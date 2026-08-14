@@ -37,7 +37,7 @@ describe('订单 API（order-service）', () => {
     points: number
     bonusPoints: number
   }>
-  let selectedPackage: { id: string; points: number; bonusPoints: number }
+  let selectedPackage: { id: string; price: number; points: number; bonusPoints: number }
 
   beforeAll(async () => {
     packages = (await seedPackages()) as typeof packages
@@ -194,7 +194,11 @@ describe('订单 API（order-service）', () => {
         buildCreateOrderPayload(selectedPackage.id),
       )
 
-      const callback = buildWechatPayCallbackPayload(created.orderNo)
+      const callback = buildWechatPayCallbackPayload(
+        created.orderNo,
+        undefined,
+        Math.round(selectedPackage.price * 100),
+      )
       const result = await orderClient.post<{ code: string }>(
         '/webhooks/wechat-pay',
         callback.body,
@@ -216,7 +220,11 @@ describe('订单 API（order-service）', () => {
         buildCreateOrderPayload(selectedPackage.id),
       )
 
-      const callback = buildWechatPayCallbackPayload(created.orderNo)
+      const callback = buildWechatPayCallbackPayload(
+        created.orderNo,
+        undefined,
+        Math.round(selectedPackage.price * 100),
+      )
 
       // 第一次回调
       await orderClient.post('/webhooks/wechat-pay', callback.body, {
