@@ -170,9 +170,14 @@ export class ApiClient {
       )
     }
 
-    // 业务异常
-    if (body.code !== 0) {
+    // 业务异常（code 为数字且非 0 时才视为错误；webhook 返回字符串 code 如 'SUCCESS'）
+    if (typeof body.code === 'number' && body.code !== 0) {
       throw new ApiError(body.code, body.message, response.status, body, body.traceId)
+    }
+
+    // webhook 响应（code 为字符串如 'SUCCESS'）直接返回完整 body
+    if (typeof body.code === 'string') {
+      return body as T
     }
 
     return body.data
