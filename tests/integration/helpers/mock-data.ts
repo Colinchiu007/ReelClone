@@ -7,34 +7,34 @@
 
 /** 生成随机字符串（用于保证测试隔离） */
 export function randomString(prefix = 'test'): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** 生成随机手机号（13/15/18 开头） */
 export function randomMobile(): string {
-  const prefixes = ['138', '139', '150', '188', '199'];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const suffix = Math.floor(10000000 + Math.random() * 89999999).toString();
-  return `${prefix}${suffix}`;
+  const prefixes = ['138', '139', '150', '188', '199']
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
+  const suffix = Math.floor(10000000 + Math.random() * 89999999).toString()
+  return `${prefix}${suffix}`
 }
 
 /** 生成唯一幂等键 */
 export function randomIdempotencyKey(biz = 'test'): string {
-  return `${biz}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${biz}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** 生成随机 OSS Key（模拟直传后返回的 key） */
 export function randomOssKey(fileType: 'image' | 'video' | 'audio' = 'image'): string {
-  const ext = fileType === 'image' ? 'png' : fileType === 'video' ? 'mp4' : 'mp3';
-  return `${fileType}/test-user/${randomString('file')}.${ext}`;
+  const ext = fileType === 'image' ? 'png' : fileType === 'video' ? 'mp4' : 'mp3'
+  return `${fileType}/test-user/${randomString('file')}.${ext}`
 }
 
 // -------------------- 微信登录 --------------------
 
 export interface MockWechatLoginPayload {
-  code?: string;
-  nickname?: string;
-  avatarUrl?: string;
+  code?: string
+  nickname?: string
+  avatarUrl?: string
 }
 
 /** 构造微信登录请求体 */
@@ -46,22 +46,22 @@ export function buildWechatLoginPayload(
     nickname: `测试用户${Math.floor(Math.random() * 1000)}`,
     avatarUrl: 'https://example.com/avatar.png',
     ...override,
-  };
+  }
 }
 
 // -------------------- 生成任务 --------------------
 
 export interface MockGenerationPayload {
-  generationType?: string;
-  prompt?: string;
-  model?: string;
-  resolution?: string;
-  aspectRatio?: string;
-  duration?: number;
-  referenceImages?: string[];
-  firstFrame?: string;
-  lastFrame?: string;
-  idempotencyKey?: string;
+  generationType?: string
+  prompt?: string
+  model?: string
+  resolution?: string
+  aspectRatio?: string
+  duration?: number
+  referenceImages?: string[]
+  firstFrame?: string
+  lastFrame?: string
+  idempotencyKey?: string
 }
 
 /** 构造文本生成任务请求体 */
@@ -73,7 +73,7 @@ export function buildTextGenerationPayload(
     prompt: '一只柴犬在草地上奔跑，阳光明媚',
     idempotencyKey: randomIdempotencyKey('gen'),
     ...override,
-  };
+  }
 }
 
 /** 构造文生视频任务请求体 */
@@ -88,7 +88,7 @@ export function buildTextToVideoPayload(
     duration: 5,
     idempotencyKey: randomIdempotencyKey('t2v'),
     ...override,
-  };
+  }
 }
 
 /** 构造图生视频（首帧）任务请求体 */
@@ -105,7 +105,7 @@ export function buildImageToVideoPayload(
     duration: 5,
     idempotencyKey: randomIdempotencyKey('i2v'),
     ...override,
-  };
+  }
 }
 
 /** 构造 3D 建模任务请求体 */
@@ -118,27 +118,25 @@ export function build3DModelingPayload(
     referenceImages: [randomOssKey('image')],
     idempotencyKey: randomIdempotencyKey('3d'),
     ...override,
-  };
+  }
 }
 
 // -------------------- 资产 --------------------
 
 export interface MockAssetPayload {
-  ossKey?: string;
-  name?: string;
-  type?: 'IMAGE' | 'VIDEO' | 'AUDIO';
-  size?: number;
-  mimeType?: string;
-  duration?: number;
-  thumbnailKey?: string;
-  avatarGroupId?: string;
+  ossKey?: string
+  name?: string
+  type?: 'IMAGE' | 'VIDEO' | 'AUDIO'
+  size?: number
+  mimeType?: string
+  duration?: number
+  thumbnailKey?: string
+  avatarGroupId?: string
 }
 
 /** 构造创建资产记录请求体 */
-export function buildAssetPayload(
-  override: MockAssetPayload = {},
-): MockAssetPayload {
-  const fileType = override.type?.toLowerCase() ?? 'image';
+export function buildAssetPayload(override: MockAssetPayload = {}): MockAssetPayload {
+  const fileType = override.type?.toLowerCase() ?? 'image'
   return {
     ossKey: randomOssKey(fileType as 'image' | 'video' | 'audio'),
     name: `测试${fileType}_${Date.now()}.png`,
@@ -146,7 +144,7 @@ export function buildAssetPayload(
     size: 1024 * 256,
     mimeType: 'image/png',
     ...override,
-  };
+  }
 }
 
 /** 构造上传凭证请求体 */
@@ -154,19 +152,19 @@ export function buildUploadTokenPayload(
   fileType: 'image' | 'video' | 'audio' = 'image',
   fileName?: string,
 ): { fileType: string; fileName: string } {
-  const ext = fileType === 'image' ? 'png' : fileType === 'video' ? 'mp4' : 'mp3';
+  const ext = fileType === 'image' ? 'png' : fileType === 'video' ? 'mp4' : 'mp3'
   return {
     fileType,
     fileName: fileName ?? `测试文件_${Date.now()}.${ext}`,
-  };
+  }
 }
 
 // -------------------- 真人形象组 --------------------
 
 export interface MockAvatarGroupPayload {
-  name?: string;
-  description?: string;
-  authorizationKey?: string;
+  name?: string
+  description?: string
+  authorizationKey?: string
 }
 
 /** 构造创建真人形象组请求体 */
@@ -177,32 +175,30 @@ export function buildAvatarGroupPayload(
     name: `形象组_${randomString('ag')}`,
     description: '集成测试自动创建的形象组',
     ...override,
-  };
+  }
 }
 
 // -------------------- 对标解析 --------------------
 
 export interface MockBenchmarkPayload {
-  sourceUrl?: string;
-  idempotencyKey?: string;
+  sourceUrl?: string
+  idempotencyKey?: string
 }
 
 /** 构造对标解析请求体 */
-export function buildBenchmarkPayload(
-  override: MockBenchmarkPayload = {},
-): MockBenchmarkPayload {
+export function buildBenchmarkPayload(override: MockBenchmarkPayload = {}): MockBenchmarkPayload {
   return {
     sourceUrl: 'https://www.douyin.com/video/7234567890123456789',
     idempotencyKey: randomIdempotencyKey('bench'),
     ...override,
-  };
+  }
 }
 
 // -------------------- 订单 / 支付 --------------------
 
 export interface MockCreateOrderPayload {
-  packageId?: string;
-  idempotencyKey?: string;
+  packageId?: string
+  idempotencyKey?: string
 }
 
 /** 构造创建订单请求体 */
@@ -214,7 +210,7 @@ export function buildCreateOrderPayload(
     packageId,
     idempotencyKey: randomIdempotencyKey('order'),
     ...override,
-  };
+  }
 }
 
 /**
@@ -227,8 +223,8 @@ export function buildWechatPayCallbackPayload(
   orderNo: string,
   transactionId?: string,
 ): {
-  headers: Record<string, string>;
-  body: unknown;
+  headers: Record<string, string>
+  body: unknown
 } {
   return {
     headers: {
@@ -246,19 +242,21 @@ export function buildWechatPayCallbackPayload(
           success_time: new Date().toISOString(),
           amount: { total: 9900, currency: 'CNY' },
         }),
+        nonce: randomString('nonce'),
+        associated_data: '',
       },
     },
-  };
+  }
 }
 
 // -------------------- 内部 API（billing） --------------------
 
 export interface MockFreezePointsPayload {
-  userId?: string;
-  amount?: number;
-  idempotencyKey?: string;
-  workId?: string;
-  description?: string;
+  userId?: string
+  amount?: number
+  idempotencyKey?: string
+  workId?: string
+  description?: string
 }
 
 /** 构造冻结积分请求体（内部 API） */
@@ -272,7 +270,7 @@ export function buildFreezePointsPayload(
     idempotencyKey: randomIdempotencyKey('freeze'),
     description: '集成测试冻结积分',
     ...override,
-  };
+  }
 }
 
 /** 构造赠送积分请求体（内部 API） */
@@ -283,12 +281,12 @@ export function buildGrantPointsPayload(
   packageId: string,
   override: Partial<MockFreezePointsPayload> = {},
 ): {
-  userId: string;
-  amount: number;
-  idempotencyKey: string;
-  orderId: string;
-  packageId: string;
-  description?: string;
+  userId: string
+  amount: number
+  idempotencyKey: string
+  orderId: string
+  packageId: string
+  description?: string
 } {
   return {
     userId,
@@ -298,5 +296,5 @@ export function buildGrantPointsPayload(
     packageId,
     description: '集成测试赠送积分',
     ...override,
-  };
+  }
 }

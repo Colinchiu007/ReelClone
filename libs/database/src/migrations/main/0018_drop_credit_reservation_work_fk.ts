@@ -17,12 +17,20 @@ export class DropCreditReservationWorkFk1700000000018 implements MigrationInterf
     await queryRunner.query(
       `ALTER TABLE "credit_reservations" DROP CONSTRAINT IF EXISTS "fk_credit_reservations_work"`,
     )
+    await queryRunner.query(
+      `ALTER TABLE "billing_projection_outbox" DROP CONSTRAINT IF EXISTS "fk_billing_projection_outbox_work"`,
+    )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TABLE "credit_reservations"
         ADD CONSTRAINT "fk_credit_reservations_work" FOREIGN KEY ("work_id")
+        REFERENCES "works" ("id") ON DELETE RESTRICT`,
+    )
+    await queryRunner.query(
+      `ALTER TABLE "billing_projection_outbox"
+        ADD CONSTRAINT "fk_billing_projection_outbox_work" FOREIGN KEY ("work_id")
         REFERENCES "works" ("id") ON DELETE RESTRICT`,
     )
   }

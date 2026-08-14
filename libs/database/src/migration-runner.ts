@@ -17,6 +17,7 @@ import { EnhanceBillingOutboxLeaseBackoff1700000000014 } from './migrations/main
 import { AddTokenVersionToUser1722600000000 } from './migrations/main/0015_add_token_version_to_user'
 import { AddProfitSharingTables1722700000000 } from './migrations/main/0016_add_profit_sharing_tables'
 import { AddAssetReviewFields1722800000000 } from './migrations/main/0017_add_asset_review_fields'
+import { DropCreditReservationWorkFk1700000000018 } from './migrations/main/0018_drop_credit_reservation_work_fk'
 import { InitBilling1700000000001 } from './migrations/billing/0001_init_billing'
 import { AddRewardType1700000000008 } from './migrations/billing/0002_add_reward_type'
 import { AddFreezeReference1700000000010 } from './migrations/billing/0003_add_freeze_reference'
@@ -72,6 +73,7 @@ const dataSources: Array<{ name: string; ds: DataSource }> = [
         AddTokenVersionToUser1722600000000,
         AddProfitSharingTables1722700000000,
         AddAssetReviewFields1722800000000,
+        DropCreditReservationWorkFk1700000000018,
       ]),
     ),
   },
