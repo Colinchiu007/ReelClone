@@ -467,7 +467,8 @@ const entities: EntitySpec[] = [
     cols: {
       id: { type: 'uuid', primary: true },
       operationId: { type: 'varchar' },
-      creditOperationId: { type: 'uuid' },
+      // 0019: 迁移改为 nullable（order-service 先写意图，grant 执行后才有权威操作可关联）
+      creditOperationId: { type: 'uuid', nullable: true },
       status: { type: 'varchar', length: 30 },
       attempts: { type: 'int' },
       nextAttemptAt: { type: 'timestamptz', nullable: true },

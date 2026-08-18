@@ -640,7 +640,8 @@ export class OrderService {
       const outbox = manager.create(CreditOperationOutbox, {
         id: uuidv4(),
         operationId,
-        creditOperationId: undefined,
+        // B5: 初始为空，billing-service 执行 grant 后才有权威 CreditOperation 可关联
+        creditOperationId: null,
         status: OutboxStatus.PENDING,
         attempts: 0,
         nextAttemptAt: null,

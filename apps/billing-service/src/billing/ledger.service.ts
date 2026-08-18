@@ -4,15 +4,23 @@
  * 职责：
  *  1. 在 main 库单一事务中执行积分操作（避免跨库不一致）
  *  2. 使用 SELECT ... FOR UPDATE 悲观锁锁定用户行
- *  3. 写入 CreditOperation 权威记录 + CreditOperationOutbox（main 库同事务）
- *  4. 更新 User.currentPoints / totalPoints（main 库同事务）
- *  5. outbox 由后续 consumer（B5）投递到 billing 库 PointTransaction
+ *  3. 写入 CreditOperation 权威记录 + 更新 User.currentPoints / totalPoints（main 库同事务）
+ *  4. 事务提交后即时投影 PointTransaction 到 billing 库（B6 模式，幂等）
+ *
+ * 投影说明（B6）：
+ *  - CreditOperationOutbox 的投影消费者（B5）从未落地，LedgerService 之前写入的
+ *    outbox 无消费者处理，反而被 order-service 的 grant 消费者误领并标 DEAD。
+ *  - 因此各操作不再写 CreditOperationOutbox，改为 main 库事务提交后直接投影
+ *    PointTransaction（幂等键唯一索引保证重放安全）。
+ *  - 跨库无法共享事务：投影失败仅记录 warn 不回滚 main 库（权威数据优先），
+ *    由对账服务按 CreditOperation 补齐缺失的 PointTransaction。
+ *  - order-service 支付回调写入的 CreditOperationOutbox（含 idempotencyKey 的
+ *    grant 意图）不受影响，仍由其 OutboxConsumer 消费。
  *
  * 迁移说明（Track B2）：
- *  - FREEZE/RELEASE/GRANT/REWARD/CONSUME 全部走 CreditOperation + outbox
- *  - 删除 direct dual-write（不再在写操作中直接写 billing 库 PointTransaction）
+ *  - FREEZE/RELEASE/GRANT/REWARD/CONSUME 走 CreditOperation + 即时投影
  *  - SETTLE 保留旧版路径（仅用于历史 PointTransaction 冻结的结算）
- *  - writeTransaction 保留供 CreditReservationService 投影使用
+ *  - writeTransaction 保留供投影与 CreditReservationService 使用
  *
  * 字段约定：
  *  - CreditOperation.amount：GRANT/REWARD/RELEASE 为正，FREEZE/CONSUME 为负
@@ -25,13 +33,11 @@ import { DataSource, EntityManager } from 'typeorm'
 import { BusinessException } from '@reelclone/common'
 import {
   CreditOperation,
-  CreditOperationOutbox,
   CreditOperationStatus,
   CreditOperationType,
   CreditReservation,
   CreditReservationStatus,
   DATABASE_CONNECTIONS,
-  OutboxStatus,
   PointTransaction,
   PointTransactionType,
   User,
@@ -242,17 +248,20 @@ export class LedgerService {
   }
 
   /**
-   * 在 main 库事务内创建 CreditOperation + CreditOperationOutbox。
+   * 在 main 库事务内创建 CreditOperation 权威记录。
+   *
+   * B6: 不再写 CreditOperationOutbox（其投影消费者未落地，孤儿记录会被
+   * order-service 的 grant 消费者误领并标 DEAD）。billing 库投影改为
+   * 各操作在事务提交后调用 projectToBilling 即时完成。
    *
    * 幂等性：先按 (userId, type, idempotencyKey, requestFingerprint) 查找已有记录，
    * 存在则直接返回（不重复创建），保证同事务内余额更新与操作记录原子提交。
    */
-  private async createOperationAndOutbox(
+  private async createOperation(
     manager: EntityManager,
     params: CreateOperationParams,
   ): Promise<CreditOperation> {
     const operationRepo = manager.getRepository(CreditOperation)
-    const outboxRepo = manager.getRepository(CreditOperationOutbox)
 
     // 幂等：按唯一索引字段查找已有操作
     const existing = await operationRepo.findOne({
@@ -280,33 +289,28 @@ export class LedgerService {
       status: CreditOperationStatus.CONFIRMED,
       metadata: params.metadata ?? null,
     })
-    const saved = await operationRepo.save(operation)
+    return operationRepo.save(operation)
+  }
 
-    await outboxRepo.save(
-      outboxRepo.create({
-        operationId: saved.operationId,
-        creditOperationId: saved.id,
-        status: OutboxStatus.PENDING,
-        attempts: 0,
-        nextAttemptAt: null,
-        lastError: null,
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        eventPayload: {
-          operationId: saved.operationId,
-          creditOperationId: saved.id,
-          userId: saved.userId,
-          type: saved.type,
-          amount: saved.amount,
-          relatedOrderId: saved.relatedOrderId,
-          relatedTemplateId: saved.relatedTemplateId,
-          relatedWorkId: saved.relatedWorkId,
-          metadata: saved.metadata,
-        } as Record<string, unknown>,
-      }),
-    )
-
-    return saved
+  /**
+   * B6: 将已提交的 main 库权威操作投影为 billing 库 PointTransaction。
+   *
+   * 必须在 main 库事务提交后调用（投影的是已提交的事实）。
+   * 幂等：先按 idempotencyKey 查找已存在流水（唯一索引兜底）。
+   * 失败仅记录 warn 不抛出——main 库权威数据已落库，由对账服务补齐。
+   */
+  private async projectToBilling(params: WriteTransactionParams): Promise<void> {
+    try {
+      const existing = await this.findByIdempotencyKey(params.idempotencyKey)
+      if (existing) {
+        return
+      }
+      await this.writeTransaction(params)
+    } catch (err) {
+      this.logger.warn(
+        `${params.type} billing 库投影失败（对账服务兜底）userId=${params.userId} idempotencyKey=${params.idempotencyKey}: ${(err as Error).message}`,
+      )
+    }
   }
 
   /**
@@ -385,11 +389,12 @@ export class LedgerService {
   /**
    * 冻结积分（V2 CreditOperation 架构）
    *
-   * 逻辑（main 库单事务）：
+   * 逻辑（main 库单事务 + 提交后投影）：
    *  - 悲观锁锁定 User
    *  - 校验 currentPoints >= amount
    *  - currentPoints -= amount
-   *  - 写入 CreditOperation(FREEZE) + CreditOperationOutbox(PENDING)
+   *  - 写入 CreditOperation(FREEZE)
+   *  - 事务提交后投影 PointTransaction(FREEZE) 到 billing 库（B6）
    *
    * @returns freezeId（= CreditOperation.id）、balance、frozen、operation
    */
@@ -454,8 +459,8 @@ export class LedgerService {
       user.currentPoints = newBalance
       await manager.getRepository(User).save(user)
 
-      // 5. 写入 CreditOperation + outbox（同事务）
-      const op = await this.createOperationAndOutbox(manager, {
+      // 5. 写入 CreditOperation（同事务）
+      const op = await this.createOperation(manager, {
         userId,
         type: CreditOperationType.FREEZE,
         amount: -amount,
@@ -472,7 +477,18 @@ export class LedgerService {
       return { balance: newBalance, operation: op }
     })
 
-    // 5. 计算冻结后余额（FREEZE 后冻结 += amount）
+    // B6: main 库事务已提交，投影 FREEZE 流水到 billing 库（失败由对账兜底）
+    await this.projectToBilling({
+      userId,
+      type: PointTransactionType.FREEZE,
+      amount: -amount,
+      balanceAfter: balance,
+      idempotencyKey,
+      description: description || `冻结 ${amount} 积分`,
+      workId: workId ?? null,
+    })
+
+    // 6. 计算冻结后余额（FREEZE 后冻结 += amount）
     const frozen = await this.getFrozenBalance(userId)
 
     return {
@@ -544,7 +560,8 @@ export class LedgerService {
    *  - 校验 freezeId 对应的 FREEZE 流水存在且属于该用户（billing 库，历史冻结）
    *  - 悲观锁锁定 User（main 库事务）
    *  - currentPoints += amount（返还到可用余额）
-   *  - 写入 CreditOperation(RELEASE) + CreditOperationOutbox(PENDING)（同事务）
+   *  - 写入 CreditOperation(RELEASE)（同事务）
+   *  - 事务提交后投影 PointTransaction(RELEASE) 到 billing 库（B6）
    *
    * 注意：freeze 验证仍查 PointTransaction（历史冻结记录），
    * 新冻结走 CreditReservationService（reservationMode=true）。
@@ -569,7 +586,7 @@ export class LedgerService {
       await this.lockOpenFreeze(manager, freezeId, userId, amount)
     })
 
-    // 2. 更新余额 + 写入 CreditOperation + outbox（main 库单事务）
+    // 2. 更新余额 + 写入 CreditOperation（main 库单事务）
     const { balance, operation } = await this.mainDataSource.transaction(async (manager) => {
       // 幂等检查：先查是否已有操作，避免重放时重复返还余额
       const existing = await this.findExistingOperation(
@@ -591,7 +608,7 @@ export class LedgerService {
       user.currentPoints = newBalance
       await manager.getRepository(User).save(user)
 
-      const op = await this.createOperationAndOutbox(manager, {
+      const op = await this.createOperation(manager, {
         userId,
         type: CreditOperationType.RELEASE,
         amount: +amount,
@@ -608,6 +625,17 @@ export class LedgerService {
       return { balance: newBalance, operation: op }
     })
 
+    // B6: main 库事务已提交，投影 RELEASE 流水到 billing 库（失败由对账兜底）
+    await this.projectToBilling({
+      userId,
+      type: PointTransactionType.RELEASE,
+      amount: +amount,
+      balanceAfter: balance,
+      idempotencyKey,
+      description: description || `释放 ${amount} 积分（freeze: ${freezeId}）`,
+      freezeId,
+    })
+
     const frozen = await this.getFrozenBalance(userId)
 
     return {
@@ -622,11 +650,12 @@ export class LedgerService {
   /**
    * 赠送积分（V2 CreditOperation 架构）
    *
-   * 逻辑（main 库单事务）：
+   * 逻辑（main 库单事务 + 提交后投影）：
    *  - 悲观锁锁定 User
    *  - currentPoints += amount
    *  - totalPoints += amount
-   *  - 写入 CreditOperation(GRANT) + CreditOperationOutbox(PENDING)
+   *  - 写入 CreditOperation(GRANT)
+   *  - 事务提交后投影 PointTransaction(GRANT) 到 billing 库（B6）
    */
   async grant(params: {
     userId: string
@@ -669,7 +698,7 @@ export class LedgerService {
       user.totalPoints += amount
       await manager.getRepository(User).save(user)
 
-      const op = await this.createOperationAndOutbox(manager, {
+      const op = await this.createOperation(manager, {
         userId,
         type: CreditOperationType.GRANT,
         amount: +amount,
@@ -687,6 +716,17 @@ export class LedgerService {
       return { balance: newBalance, operation: op }
     })
 
+    // B6: main 库事务已提交，投影 GRANT 流水到 billing 库（失败由对账兜底）
+    await this.projectToBilling({
+      userId,
+      type: PointTransactionType.GRANT,
+      amount: +amount,
+      balanceAfter: balance,
+      idempotencyKey,
+      description: description || `套餐赠送 ${amount} 积分（package: ${packageId}）`,
+      orderId,
+    })
+
     const frozen = await this.getFrozenBalance(userId)
 
     return {
@@ -701,13 +741,13 @@ export class LedgerService {
   /**
    * 奖励积分（V2 CreditOperation 架构）
    *
-   * 逻辑（main 库单事务 + billing 库即时投影）：
+   * 逻辑（main 库单事务 + 提交后投影）：
    *  - 悲观锁锁定 User
    *  - currentPoints += amount
    *  - totalPoints += amount
-   *  - 写入 CreditOperation(REWARD) + CreditOperationOutbox(PENDING)
-   *  - B6: 同时投影 PointTransaction(REWARD) 到 billing 库
-   *    （CreditOperationOutbox 尚无消费者投影，对账 countRewardsByTemplateId 依赖 PointTransaction）
+   *  - 写入 CreditOperation(REWARD)
+   *  - 事务提交后投影 PointTransaction(REWARD) 到 billing 库（B6，
+   *    对账 countRewardsByTemplateId 依赖 PointTransaction）
    */
   async reward(params: {
     userId: string
@@ -747,7 +787,7 @@ export class LedgerService {
       user.totalPoints += amount
       await manager.getRepository(User).save(user)
 
-      const op = await this.createOperationAndOutbox(manager, {
+      const op = await this.createOperation(manager, {
         userId,
         type: CreditOperationType.REWARD,
         amount: +amount,
@@ -761,31 +801,18 @@ export class LedgerService {
         },
       })
 
-      // B6: 即时投影到 billing 库 PointTransaction
-      //     对账服务 countRewardsByTemplateId 查询 PointTransaction(REWARD)，
-      //     CreditOperationOutbox 尚无消费者，需在此处即时投影。
-      //     注意：writeTransaction 未传 manager（跨库不能共享事务），
-      //     若 billing 库写入失败不应阻塞 main 库事务，由对账服务兜底。
-      try {
-        await this.writeTransaction({
-          userId,
-          type: PointTransactionType.REWARD,
-          amount: +amount,
-          balanceAfter: newBalance,
-          templateId,
-          idempotencyKey,
-          description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
-        })
-      } catch (err) {
-        // billing 库投影失败：main 库 CreditOperation + outbox 已写入，
-        // 对账服务会在下次运行时补齐 PointTransaction。
-        // 不抛出异常，避免回滚 main 库事务导致用户积分丢失。
-        this.logger.warn(
-          `REWARD billing 库投影失败（对账服务兜底）userId=${userId} templateId=${templateId}: ${(err as Error).message}`,
-        )
-      }
-
       return { balance: newBalance, operation: op }
+    })
+
+    // B6: main 库事务已提交，投影 REWARD 流水到 billing 库（失败由对账兜底）
+    await this.projectToBilling({
+      userId,
+      type: PointTransactionType.REWARD,
+      amount: +amount,
+      balanceAfter: balance,
+      templateId,
+      idempotencyKey,
+      description: description || `模板奖励 ${amount} 积分（template: ${templateId}）`,
     })
 
     const frozen = await this.getFrozenBalance(userId)
@@ -802,11 +829,12 @@ export class LedgerService {
   /**
    * 直接消费积分（V2 CreditOperation 架构）
    *
-   * 逻辑（main 库单事务）：
+   * 逻辑（main 库单事务 + 提交后投影）：
    *  - 悲观锁锁定 User
    *  - 校验 currentPoints >= amount
    *  - currentPoints -= amount
-   *  - 写入 CreditOperation(CONSUME) + CreditOperationOutbox(PENDING)
+   *  - 写入 CreditOperation(CONSUME)
+   *  - 事务提交后投影 PointTransaction(CONSUME) 到 billing 库（B6）
    */
   async consume(params: {
     userId: string
@@ -852,7 +880,7 @@ export class LedgerService {
       user.currentPoints = newBalance
       await manager.getRepository(User).save(user)
 
-      const op = await this.createOperationAndOutbox(manager, {
+      const op = await this.createOperation(manager, {
         userId,
         type: CreditOperationType.CONSUME,
         amount: -amount,
@@ -867,6 +895,17 @@ export class LedgerService {
       })
 
       return { balance: newBalance, operation: op }
+    })
+
+    // B6: main 库事务已提交，投影 CONSUME 流水到 billing 库（失败由对账兜底）
+    await this.projectToBilling({
+      userId,
+      type: PointTransactionType.CONSUME,
+      amount: -amount,
+      balanceAfter: balance,
+      idempotencyKey,
+      description: description || `消费 ${amount} 积分`,
+      workId: workId ?? null,
     })
 
     const frozen = await this.getFrozenBalance(userId)

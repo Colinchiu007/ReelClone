@@ -131,7 +131,9 @@ export class OutboxConsumer implements OnModuleInit, OnModuleDestroy {
    */
   async claimBatch(limit: number): Promise<CreditOperationOutbox[]> {
     const leaseExpiresAt = new Date(Date.now() + LEASE_TTL_MS)
-    const rows: CreditOperationOutbox[] = await this.mainDataSource.query(
+    // 原生 SQL RETURNING * 返回 snake_case 列名，需映射为实体 camelCase 属性，
+    // 否则 eventPayload/id/attempts 等字段为 undefined，导致误判与 NaN 更新错误
+    const rows: Array<Record<string, unknown>> = await this.mainDataSource.query(
       `UPDATE credit_operation_outbox
        SET lease_owner = $1, lease_expires_at = $2, updated_at = NOW()
        WHERE id IN (
@@ -146,7 +148,20 @@ export class OutboxConsumer implements OnModuleInit, OnModuleDestroy {
        RETURNING *`,
       [this.ownerToken, leaseExpiresAt, limit],
     )
-    return rows
+    return rows.map((row) => ({
+      id: row.id as string,
+      operationId: row.operation_id as string,
+      creditOperationId: (row.credit_operation_id as string | null) ?? null,
+      status: row.status as OutboxStatus,
+      attempts: Number(row.attempts ?? 0),
+      nextAttemptAt: (row.next_attempt_at as Date | null) ?? null,
+      lastError: (row.last_error as string | null) ?? null,
+      leaseOwner: (row.lease_owner as string | null) ?? null,
+      leaseExpiresAt: (row.lease_expires_at as Date | null) ?? null,
+      eventPayload: row.event_payload as Record<string, unknown>,
+      createdAt: row.created_at as Date,
+      updatedAt: row.updated_at as Date,
+    }))
   }
 
   /**

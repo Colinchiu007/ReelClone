@@ -1,17 +1,19 @@
 /**
- * LedgerService 单元测试（V2 CreditOperation 架构）
+ * LedgerService 单元测试（V2 CreditOperation 架构 + B6 即时投影）
  *
  * 覆盖：
  *  - lockUser：悲观锁 + 用户不存在
  *  - getFrozenBalance：聚合查询
  *  - findByIdempotencyKey / findOperationByIdempotencyKey / findById
- *  - writeTransaction：流水写入（保留供投影使用）
- *  - freeze：成功（写 CreditOperation + outbox）/ 余额不足 / 幂等
+ *  - writeTransaction：流水写入（B6 投影使用）
+ *  - freeze：成功（CreditOperation + B6 投影 FREEZE 流水）/ 余额不足 / 幂等
  *  - settle：成功（保留旧版 PointTransaction 路径）/ 冻结流水不存在
- *  - release：成功（写 CreditOperation + outbox）/ 冻结流水不存在
- *  - grant：成功（写 CreditOperation + outbox，totalPoints 同步）
- *  - reward：成功（写 CreditOperation + outbox）
- *  - consume：成功（写 CreditOperation + outbox）/ 余额不足
+ *  - release：成功（CreditOperation + B6 投影 RELEASE 流水）/ 冻结流水不存在
+ *  - grant：成功（CreditOperation + B6 投影 GRANT 流水，totalPoints 同步）
+ *  - reward：成功（CreditOperation + B6 投影 REWARD 流水）/ 投影失败不阻塞
+ *  - consume：成功（CreditOperation + B6 投影 CONSUME 流水）/ 余额不足
+ *  - 全部操作不再写 CreditOperationOutbox（B6：孤儿 outbox 会被
+ *    order-service 消费者误领并标 DEAD）
  */
 import { BusinessException } from '@reelclone/common'
 import {
@@ -224,7 +226,7 @@ describe('LedgerService', () => {
   // -------------------- freeze --------------------
 
   describe('freeze', () => {
-    it('余额充足时写 CreditOperation + outbox 并扣减余额', async () => {
+    it('余额充足时写 CreditOperation 并扣减余额，投影 FREEZE 流水（B6）', async () => {
       const user: Partial<User> = { id: 'u1', currentPoints: 100, totalPoints: 100 }
       mainUserRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder(user) as never)
       mainUserRepo.save.mockResolvedValue(user as User)
@@ -254,10 +256,19 @@ describe('LedgerService', () => {
         }),
       )
       expect(operationRepo.save).toHaveBeenCalled()
-      expect(outboxRepo.create).toHaveBeenCalledWith(expect.objectContaining({ status: 'PENDING' }))
-      expect(outboxRepo.save).toHaveBeenCalled()
-      // 删除 direct dual-write：不应直接写 billing PointTransaction
-      expect(billingTxRepo.save).not.toHaveBeenCalled()
+      // B6: 不再写 CreditOperationOutbox（避免孤儿 outbox 被 order-service 消费者误标 DEAD）
+      expect(outboxRepo.create).not.toHaveBeenCalled()
+      expect(outboxRepo.save).not.toHaveBeenCalled()
+      // B6: main 库事务提交后即时投影 FREEZE 流水到 billing 库
+      expect(billingTxRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          type: PointTransactionType.FREEZE,
+          amount: -10,
+          balance: 90,
+          idempotencyKey: 'k1',
+        }),
+      )
     })
 
     it('余额不足时抛 BusinessException', async () => {
@@ -428,7 +439,7 @@ describe('LedgerService', () => {
   // -------------------- release --------------------
 
   describe('release', () => {
-    it('冻结余额充足时返还可用余额并写 CreditOperation + outbox', async () => {
+    it('冻结余额充足时返还可用余额并写 CreditOperation，投影 RELEASE 流水（B6）', async () => {
       const freezeTx: Partial<PointTransaction> = {
         id: 'f1',
         type: PointTransactionType.FREEZE,
@@ -468,7 +479,18 @@ describe('LedgerService', () => {
           amount: 10,
         }),
       )
-      expect(billingTxRepo.save).not.toHaveBeenCalled()
+      // B6: 不再写 CreditOperationOutbox
+      expect(outboxRepo.save).not.toHaveBeenCalled()
+      // B6: main 库事务提交后即时投影 RELEASE 流水到 billing 库
+      expect(billingTxRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          type: PointTransactionType.RELEASE,
+          amount: 10,
+          balance: 100,
+          idempotencyKey: 'k3',
+        }),
+      )
     })
 
     it('FREEZE 流水不存在时抛异常', async () => {
@@ -582,7 +604,7 @@ describe('LedgerService', () => {
   })
 
   describe('grant', () => {
-    it('应该增加 currentPoints 和 totalPoints，写 CreditOperation + outbox', async () => {
+    it('应该增加 currentPoints 和 totalPoints，写 CreditOperation，投影 GRANT 流水（B6）', async () => {
       const user: Partial<User> = { id: 'u1', currentPoints: 50, totalPoints: 100 }
       mainUserRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder(user) as never)
       mainUserRepo.save.mockResolvedValue(user as User)
@@ -612,14 +634,26 @@ describe('LedgerService', () => {
           relatedOrderId: 'o1',
         }),
       )
-      expect(billingTxRepo.save).not.toHaveBeenCalled()
+      // B6: 不再写 CreditOperationOutbox
+      expect(outboxRepo.save).not.toHaveBeenCalled()
+      // B6: main 库事务提交后即时投影 GRANT 流水到 billing 库
+      expect(billingTxRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          type: PointTransactionType.GRANT,
+          amount: 30,
+          balance: 80,
+          orderId: 'o1',
+          idempotencyKey: 'k4',
+        }),
+      )
     })
   })
 
   // -------------------- reward --------------------
 
   describe('reward', () => {
-    it('应该增加余额并写 CreditOperation + outbox，关联 templateId', async () => {
+    it('应该增加余额并写 CreditOperation，投影 REWARD 流水，关联 templateId（B6）', async () => {
       const user: Partial<User> = { id: 'u1', currentPoints: 80, totalPoints: 200 }
       mainUserRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder(user) as never)
       mainUserRepo.save.mockResolvedValue(user as User)
@@ -685,7 +719,7 @@ describe('LedgerService', () => {
   // -------------------- consume --------------------
 
   describe('consume', () => {
-    it('余额充足时直接扣减并写 CreditOperation + outbox', async () => {
+    it('余额充足时直接扣减并写 CreditOperation，投影 CONSUME 流水（B6）', async () => {
       const user: Partial<User> = { id: 'u1', currentPoints: 100, totalPoints: 100 }
       mainUserRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder(user) as never)
       mainUserRepo.save.mockResolvedValue(user as User)
@@ -709,7 +743,18 @@ describe('LedgerService', () => {
           amount: -20,
         }),
       )
-      expect(billingTxRepo.save).not.toHaveBeenCalled()
+      // B6: 不再写 CreditOperationOutbox
+      expect(outboxRepo.save).not.toHaveBeenCalled()
+      // B6: main 库事务提交后即时投影 CONSUME 流水到 billing 库
+      expect(billingTxRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          type: PointTransactionType.CONSUME,
+          amount: -20,
+          balance: 80,
+          idempotencyKey: 'k6',
+        }),
+      )
     })
 
     it('余额不足时抛 BusinessException', async () => {

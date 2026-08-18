@@ -38,9 +38,9 @@ export class CreditOperationOutbox {
   @Column({ type: 'varchar', name: 'operation_id' })
   operationId: string
 
-  /** CreditOperation 主键，对应 CreditOperation.id。 */
-  @Column({ type: 'uuid', name: 'credit_operation_id' })
-  creditOperationId: string
+  /** CreditOperation 主键，对应 CreditOperation.id（billing-service 执行 grant 后回填，初始为空）。 */
+  @Column({ type: 'uuid', name: 'credit_operation_id', nullable: true })
+  creditOperationId: string | null
 
   /** 投递状态。 */
   @Column({ type: 'varchar', length: 30, default: 'PENDING' })

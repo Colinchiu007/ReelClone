@@ -21,3 +21,5 @@ export { AddUserPackageOrderIdUnique1700000000015 } from './main/0011_add_user_p
 export { AddSmsCodeProviderMessageId1700000000016 } from './main/0012_add_sms_code_provider_message_id'
 export { AddOrderPaymentEvents1700000000017 } from './main/0013_add_order_payment_events'
 export { AddAssetReviewFields1722800000000 } from './main/0017_add_asset_review_fields'
+export { DropCreditReservationWorkFk1700000000018 } from './main/0018_drop_credit_reservation_work_fk'
+export { MakeCreditOperationOutboxOpIdNullable1700000000019 } from './main/0019_make_credit_operation_outbox_op_id_nullable'

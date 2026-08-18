@@ -51,6 +51,37 @@ function createOutbox(overrides: Partial<CreditOperationOutbox> = {}): CreditOpe
   } as CreditOperationOutbox
 }
 
+/**
+ * 构造一条 SQL UPDATE...RETURNING * 返回的 snake_case 原始行。
+ * claimBatch 会对原始行做 snake_case → camelCase 映射，
+ * mock DataSource.query 必须返回该格式（否则映射后字段全为 undefined）。
+ */
+function createOutboxRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'outbox-001',
+    operation_id: 'order-grant:order-001',
+    credit_operation_id: 'op-001',
+    status: OutboxStatus.PENDING,
+    attempts: 0,
+    next_attempt_at: null,
+    last_error: null,
+    lease_owner: null,
+    lease_expires_at: null,
+    event_payload: {
+      type: 'GRANT',
+      relatedOrderId: 'order-001',
+      userId: 'user-001',
+      packageId: 'pkg-001',
+      amount: 120,
+      idempotencyKey: 'order:order-001:grant',
+      orderNo: 'RC20250101000000123456',
+    },
+    created_at: new Date('2025-01-01'),
+    updated_at: new Date('2025-01-01'),
+    ...overrides,
+  }
+}
+
 /** 模拟 Repository（仅 update 路径用） */
 function mockRepo<T extends ObjectLiteral>(): jest.Mocked<Repository<T>> {
   return {
@@ -179,10 +210,10 @@ describe('OutboxConsumer (Task B5.4)', () => {
       expect(ownerA).not.toBe(ownerB)
     })
 
-    it('claim 返回的记录由 SQL UPDATE...RETURNING 投影', async () => {
-      const claimed = [createOutbox({ id: 'outbox-a' })]
+    it('claim 返回的记录由 SQL UPDATE...RETURNING 投影为 camelCase 实体', async () => {
+      const rows = [createOutboxRow({ id: 'outbox-a', attempts: 2 })]
       const { consumer, query } = createConsumer({
-        query: jest.fn().mockResolvedValue(claimed),
+        query: jest.fn().mockResolvedValue(rows),
       })
 
       const result = await consumer.claimBatch(50)
@@ -190,7 +221,13 @@ describe('OutboxConsumer (Task B5.4)', () => {
       const sql = query.mock.calls[0][0] as string
       expect(sql).toMatch(/UPDATE\s+credit_operation_outbox\s+SET\s+lease_owner/i)
       expect(sql).toMatch(/RETURNING\s+\*/i)
-      expect(result).toBe(claimed)
+      // RETURNING * 的 snake_case 行被映射为实体 camelCase 属性
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('outbox-a')
+      expect(result[0].operationId).toBe('order-grant:order-001')
+      expect(result[0].creditOperationId).toBe('op-001')
+      expect(result[0].attempts).toBe(2)
+      expect(result[0].eventPayload).toEqual(rows[0].event_payload)
     })
   })
 
@@ -363,8 +400,11 @@ describe('OutboxConsumer (Task B5.4)', () => {
   describe('processOnce — 端到端编排', () => {
     it('PENDING 记录被捞取并调用 billing（成功后标记 DELIVERED）', async () => {
       const claimed = [
-        createOutbox({ id: 'outbox-a' }),
-        createOutbox({ id: 'outbox-b', operationId: 'order-grant:order-002' }),
+        createOutboxRow({ id: 'outbox-a' }),
+        createOutboxRow({
+          id: 'outbox-b',
+          operation_id: 'order-grant:order-002',
+        }),
       ]
       const { consumer, query, outboxRepo, billingClient } = createConsumer({
         query: jest.fn().mockResolvedValue(claimed),
@@ -401,7 +441,7 @@ describe('OutboxConsumer (Task B5.4)', () => {
     })
 
     it('running 标志防并发：上一次未跑完不重启', async () => {
-      const claimed = [createOutbox()]
+      const claimed = [createOutboxRow()]
       const grant = jest
         .fn()
         .mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 50)))

@@ -37,6 +37,19 @@ export function getDbConfig(): DbConfig {
 
 /** main 库涉及的核心表（按清理顺序，先清理依赖方） */
 const MAIN_TABLES = [
+  // V2 积分账务表（外键 RESTRICT，必须先于 users/credit_operations/credit_reservations 清理）
+  'credit_operation_outbox',
+  'credit_operations',
+  'billing_projection_outbox',
+  'credit_reservations',
+  // 生成执行记录（逻辑关联 works / generation_tasks，无外键约束但需先清避免孤儿行）
+  'generation_executions',
+  // 支付事件（外键 SET NULL → orders，先清理保证彻底）
+  'order_payment_events',
+  // 分账表（无外键约束，按依赖顺序先 items 后 records/receivers）
+  'profit_sharing_items',
+  'profit_sharing_records',
+  'profit_sharing_receivers',
   'generation_tasks',
   'works',
   'notifications',
@@ -101,7 +114,27 @@ export async function cleanupUser(userId: string): Promise<void> {
   await withDb(async (ds) => {
     // main 库表（按外键依赖顺序删除）
     await ds.query(
+      'DELETE FROM generation_executions WHERE work_id IN (SELECT id FROM works WHERE user_id = $1)',
+      [userId],
+    )
+    await ds.query(
       'DELETE FROM generation_tasks WHERE work_id IN (SELECT id FROM works WHERE user_id = $1)',
+      [userId],
+    )
+    // V2 积分账务表（RESTRICT 外键，必须先于 users 删除；
+    // credit_operation_outbox 含 order-service 写入的 credit_operation_id=NULL 行，
+    // 通过 event_payload->>'userId' 一并清理）
+    await ds.query(
+      `DELETE FROM credit_operation_outbox
+       WHERE credit_operation_id IN (SELECT id FROM credit_operations WHERE user_id = $1)
+          OR event_payload->>'userId' = $1`,
+      [userId],
+    )
+    await ds.query('DELETE FROM credit_operations WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM billing_projection_outbox WHERE user_id = $1', [userId])
+    await ds.query('DELETE FROM credit_reservations WHERE user_id = $1', [userId])
+    await ds.query(
+      'DELETE FROM order_payment_events WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)',
       [userId],
     )
     await ds.query('DELETE FROM works WHERE user_id = $1', [userId])
@@ -176,6 +209,15 @@ export async function cleanupAllTables(): Promise<void> {
       .catch(() => {
         // 序列重置失败不影响测试（部分表可能用 uuid 无序列）
       })
+  })
+  // billing 库流水一并清理（本地重复运行时避免旧流水污染断言）
+  await withDb(
+    async (ds) => {
+      await ds.query('DELETE FROM point_transactions')
+    },
+    { ...getDbConfig(), database: process.env.DATABASE_BILLING_NAME ?? 'reelclone_billing' },
+  ).catch(() => {
+    // billing 库清理失败不阻断（可能未部署）
   })
 }
 
