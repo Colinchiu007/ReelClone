@@ -161,7 +161,8 @@ describe('GenerationService', () => {
       freeze: jest.fn().mockResolvedValue({
         frozenAmount: 900,
         balance: 100,
-        freezeId: 'freeze-tx-1',
+        // 真实 V2 freeze 返回 main 库 reservation ID（UUID）
+        freezeId: 'a1b2c3d4-e5f6-4111-8111-9f0e1d2c3b4a',
       }),
       settle: jest.fn().mockResolvedValue({ balance: 100, transactionId: 's1' }),
       release: jest.fn().mockResolvedValue({ balance: 100, transactionId: 'r1' }),
@@ -202,7 +203,7 @@ describe('GenerationService', () => {
   // -------------------- create --------------------
 
   describe('create', () => {
-    it('成功创建任务（Mock 模式）', async () => {
+    it('成功创建任务（Temporal Mock 模式，billing 走真实冻结）', async () => {
       const userId = 'user-1'
       const dto = makeDto()
 
@@ -210,13 +211,18 @@ describe('GenerationService', () => {
 
       // 应创建 Work
       expect(workRepo.save).toHaveBeenCalled()
-      // Mock 模式跳过真实 billing freeze
-      expect(billingClient.freeze).not.toHaveBeenCalled()
+      // TEMPORAL_MOCK_MODE 仅跳过媒体生成，billing 冻结仍走真实链路（E2E 主路径）
+      expect(billingClient.freeze).toHaveBeenCalledWith(
+        userId,
+        expect.any(Number),
+        expect.stringMatching(/:freeze$/),
+        expect.any(String),
+      )
       expect(workRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           modelConfig: expect.objectContaining({
-            // mockFreezeId 是 uuidv4() 生成的 UUID（满足 generation_executions.reservation_id 的 uuid 列约束）
-            freezeId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+            // 真实 V2 freeze 返回 main 库 reservation ID（UUID，满足 generation_executions.reservation_id 的 uuid 列约束）
+            freezeId: 'a1b2c3d4-e5f6-4111-8111-9f0e1d2c3b4a',
           }),
         }),
       )
@@ -237,12 +243,35 @@ describe('GenerationService', () => {
       await expect(service.create('user-1', makeDto())).rejects.toThrow('database unavailable')
     })
 
+    it('BILLING_MOCK_MODE=true 时跳过真实冻结，使用 mock reservation（UUID）', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'TEMPORAL_MOCK_MODE') return 'true'
+        if (key === 'BILLING_MOCK_MODE') return 'true'
+        return undefined
+      })
+
+      await service.create('user-1', makeDto())
+
+      // billing Mock 模式不调用真实 freeze
+      expect(billingClient.freeze).not.toHaveBeenCalled()
+      expect(workRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelConfig: expect.objectContaining({
+            // mockFreezeId 是 uuidv4() 生成的 UUID（满足 generation_executions.reservation_id 的 uuid 列约束）
+            freezeId: expect.stringMatching(
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+            ),
+          }),
+        }),
+      )
+    })
+
     it('任务持久化失败时释放已冻结积分并标记 Work 失败', async () => {
       taskRepo.save.mockRejectedValueOnce(new Error('task database unavailable'))
 
       await expect(service.create('user-1', makeDto())).rejects.toThrow('task database unavailable')
 
-      // Mock 模式下使用 mock reservation 释放，freezeId 为 UUID 格式
+      // 释放 freeze 返回的 reservation（UUID 格式）
       expect(billingClient.release).toHaveBeenCalledWith(
         'user-1',
         expect.any(Number),
@@ -708,7 +737,8 @@ describe('GenerationService', () => {
         expect.objectContaining({
           generationTaskId: expect.any(String),
           billingReservation: expect.objectContaining({
-            freezeId: 'freeze-tx-1',
+            // 重试重新冻结后使用新 freeze 返回的 reservation ID
+            freezeId: 'a1b2c3d4-e5f6-4111-8111-9f0e1d2c3b4a',
             billingMode: 'v2',
             settleIdempotencyKey: expect.stringMatching(/:settle$/),
             releaseIdempotencyKey: expect.stringMatching(/:release$/),

@@ -72,6 +72,15 @@ export class GenerationCreateHandler {
     return this.configService.get<string>('TEMPORAL_MOCK_MODE') === 'true'
   }
 
+  /**
+   * billing 冻结是否走 Mock（本地开发无 billing-service 时置 true）。
+   * 与 TEMPORAL_MOCK_MODE 解耦：E2E 环境仅 Temporal Mock（跳过媒体生成），
+   * billing 冻结必须走真实链路以验证积分扣减主路径。
+   */
+  private isBillingMockMode(): boolean {
+    return this.configService.get<string>('BILLING_MOCK_MODE') === 'true'
+  }
+
   private assertGenerationTypeSupported(type: GenerationType): void {
     if (!this.isMockMode() && !isVideoType(this.registry, type)) {
       throw BusinessException.validationError(
@@ -188,9 +197,9 @@ export class GenerationCreateHandler {
       }
 
       // 冻结积分
-      // P0-5: Mock 模式跳过真实 billing 冻结，使用 mock reservation（避免冻结真实积分）
+      // BILLING_MOCK_MODE=true 时跳过真实 billing 冻结，使用 mock reservation（本地开发无 billing-service）
       // mockFreezeId 必须是 UUID 格式，因为 GenerationExecution.reservation_id 是 uuid 列
-      if (this.isMockMode()) {
+      if (this.isBillingMockMode()) {
         const mockFreezeId = uuidv4()
         const reservation = createBillingReservation(points, idempotencyKey, mockFreezeId)
         work.modelConfig = {

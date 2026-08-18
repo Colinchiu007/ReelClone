@@ -242,15 +242,25 @@ describe('用户路径4: 购买套餐 → 积分到账 → 生成消费', () => 
   })
 
   test('10. 查询积分流水包含消费 / 冻结记录', async () => {
-    const transactions = await billingClient.get<{
-      list: Array<{
-        id: string
-        type: string
-        direction: string
-        amount: number
-      }>
-      total: number
-    }>('/points/transactions', { page: 1, pageSize: 50 })
+    // FREEZE 流水由冻结提交后异步投影到 billing 库，轮询等待投影完成
+    const transactions = await poll({
+      fn: () =>
+        billingClient.get<{
+          list: Array<{
+            id: string
+            type: string
+            direction: string
+            amount: number
+          }>
+          total: number
+        }>('/points/transactions', { page: 1, pageSize: 50 }),
+      predicate: (result) =>
+        result.list.some(
+          (t) => t.direction === 'OUT' || t.type === 'FREEZE' || t.type === 'CONSUME',
+        ),
+      timeout: 10000,
+      message: '未找到出账流水（FREEZE / CONSUME）',
+    })
 
     // 应包含一笔出账流水（FREEZE 或 CONSUME）
     const outcomeTx = transactions.list.find(
