@@ -1765,3 +1765,111 @@ COPY --from=builder /app/apps/X-service/dist ./apps/X-service/dist
 
 - L-001 ~ L-057: 引用文件均存在，无 STALE 条目
 - L-058 ~ L-060: 本次新增，无过期检测需求
+
+---
+
+## 2026-08-21 复盘批次（E2E 计费链路修复：支付回调 + 积分扣减 + 投影）
+
+### L-061 [pitfall] 环境 Mock 开关耦合导致 E2E 无法验证真实计费链路
+
+**场景**: E2E 测试 flows/004-purchase-consume 中"提交生成任务后积分未扣减"。`TEMPORAL_MOCK_MODE=true` 同时跳过媒体生成和 billing 积分冻结，导致 E2E 环境积分扣减主路径从未被真实执行。
+
+**根因**: 一个 Mock 开关承担了两个外部依赖（Temporal + billing-service）的控制职责，违反单一职责原则。E2E 需要的是"仅 Mock Temporal（跳过耗时的媒体生成），billing 走真实链路"的组合，但开关粒度不支持。
+
+**修复**: 引入独立的 `BILLING_MOCK_MODE`（默认 false），与 `TEMPORAL_MOCK_MODE` 解耦。E2E 环境只设 Temporal Mock；本地开发无 billing-service 时才置 `BILLING_MOCK_MODE=true`。Mock 分支生成的 freezeId 必须用 `uuidv4()`（因 `generation_executions.reservation_id` 是 uuid 列）。
+
+**预防**: 环境变量 Mock 开关遵循"一个外部依赖一个开关"原则。新增外部依赖时禁止复用已有 Mock 开关；E2E 验证的主路径（计费、支付）绝不能被任何 Mock 开关静默短路。
+
+**置信度**: 10/10（E2E flows/004 全绿 + 单测覆盖两种模式）
+**来源**: observed
+**关联 commit**: `39c0473`
+**关联文件**: [create.handler.ts](file:///d:/Data/projects/ReelClone/apps/workbench-service/src/workbench/generation/create.handler.ts), [.env.example](file:///d:/Data/projects/ReelClone/apps/workbench-service/.env.example)
+
+---
+
+### L-062 [pitfall] Outbox 表 NOT NULL 约束在"先占位后补值"写入模式下违约
+
+**场景**: 支付回调处理时 credit_operation_outbox 插入报 `null value in column "credit_operation_id" violates not-null constraint`。
+
+**根因**: 表结构沿用"写入时必填"假设，但业务流程是"先创建 outbox 记录、后异步回填 credit_operation_id"。列定义 NOT NULL 与实际写入时序冲突。
+
+**修复**: migration 0019 将 `credit_operation_id` 改为 nullable，同步更新 entity 定义；写入侧显式 `creditOperationId: null` 表达"待回填"语义，并注册到 migration-runner 显式列表。
+
+**预防**: Outbox/Saga 类表的关联 ID 列默认应允许 null（异步回填是常态），除非有明确的写入时序保证。新建 outbox 表时先问：这个字段在插入那一刻是否一定有值？
+
+**置信度**: 10/10（支付回调 E2E 通过）
+**来源**: observed
+**关联 commit**: `cfaa7e5`
+**关联文件**: [0019_make_credit_operation_outbox_op_id_nullable.ts](file:///d:/Data/projects/ReelClone/libs/database/src/migrations/main/0019_make_credit_operation_outbox_op_id_nullable.ts), [migration-runner.ts](file:///d:/Data/projects/ReelClone/libs/database/src/migration-runner.ts)
+
+---
+
+### L-063 [pitfall] 裸 SQL 查询结果 snake_case 未映射 camelCase，undefined 参与运算变 NaN
+
+**场景**: order-service OutboxConsumer claim 后报 `invalid input syntax for type integer: "NaN"`，BillingProjectionCron `claimed=2 projected=0 failed=2`。
+
+**根因**: `createQueryBuilder` 或裸 SQL `SELECT` 返回的行是 snake_case（`attempts` 等列名无前缀冲突时正常，但部分列如 `credit_operation_id` → `credit_operation_id` 与 entity 的 `creditOperationId` 不匹配），TypeORM 不会自动做 raw result → entity 的属性映射。undefined 值传入 `attempts + 1` 得 NaN，落库报错。
+
+**修复**: claimBatch 方法中对 raw 查询结果逐字段显式映射到 entity 属性（`credit_operation_id` → `creditOperationId` 等）。
+
+**预防**: 绕过 Repository API 的裸 SQL/getRawMany 查询，结果必须手动映射列名。TypeORM 的 raw 结果不做命名转换 — 这是与 find/select 等标准 API 的关键差异。写完后立即对映射后的对象做字段完整性断言。
+
+**置信度**: 10/10（投影 cron 恢复正常）
+**来源**: observed
+**关联 commit**: `cfaa7e5`
+**关联文件**: [outbox.consumer.ts](file:///d:/Data/projects/ReelClone/apps/order-service/src/order/outbox.consumer.ts)
+
+---
+
+### L-064 [pattern] 跨库投影采用"事务内直接投影"替代孤儿 Outbox（B6 模式）
+
+**场景**: billing 交易列表为空。LedgerService（FREEZE/RELEASE/GRANT 等）写 credit_operation_outbox，但没有任何消费者处理这些记录；order-service 的 OutboxConsumer 错误 claim 并将它们标记为 DEAD，形成"孤儿 outbox + 双写竞争"。
+
+**根因**: 两套服务对同一张 outbox 表有不同语义理解 — LedgerService 当"审计日志"写，order-service 当"待投影任务"消费。表成为共享可变状态，无清晰所有权。
+
+**模式（B6 REWARD 模式推广）**: 主库事务提交后，由写入方（LedgerService）直接调用 `projectToBilling()` 将 PointTransaction 投影到 billing 库，幂等检查（opId 已存在则跳过）。移除孤儿 outbox 写入，outbox 表归还 order-service 独占。适用条件：投影操作轻量、幂等键可用、写入方可直连目标库。
+
+**预防**: Outbox 表必须有唯一明确的消费者，写入前确认消费者存在。"写 outbox 但没人消费"是隐性数据黑洞 — 表面无错误，实际数据永远不流动。跨库投影选型：轻量场景直接投影（事务内），重计算/需重试场景才用 outbox。
+
+**置信度**: 9/10（E2E 交易列表出现 FREEZE/CONSUME 流水）
+**来源**: observed
+**关联 commit**: `cfaa7e5`
+**关联文件**: [ledger.service.ts](file:///d:/Data/projects/ReelClone/apps/billing-service/src/billing/ledger.service.ts)
+
+---
+
+### L-065 [pitfall] E2E teardown 未同步 V2 credit 表结构，外键约束阻断清理
+
+**场景**: E2E teardown 报 `update or delete on table "users" violates foreign key constraint "fk_credit_operations_user"`，测试数据残留污染后续用例。
+
+**根因**: db-helper 的 MAIN_TABLES 清理列表停留在 V1 schema，V2 新增的 credit_operations / credit_operation_outbox 等表不在列表中，其引用 users 的外键阻止了 users 删除。
+
+**修复**: MAIN_TABLES 加入 V2 credit 表，并按外键依赖顺序增加专项清理（credit_operation_outbox → credit_operations → ... → users）。
+
+**预防**: 每次新增带外键的表，同步更新 E2E 清理逻辑的表清单与删除顺序（子表先删）。可在 migration 文件头部注释中提醒"E2E db-helper 需同步"。清理顺序错误是静默失败 — 测试通过但数据残留，往往在数个用例之后才爆发。
+
+**置信度**: 10/10（E2E teardown 干净退出）
+**来源**: observed
+**关联 commit**: `cfaa7e5`
+**关联文件**: [db-helper.ts](file:///d:/Data/projects/ReelClone/tests/integration/helpers/db-helper.ts)
+
+---
+
+## Skillify 检查（E2E 计费链路修复批次）
+
+| 候选模式                        | 出现次数 | 是否生成 skill      |
+| ------------------------------- | -------- | ------------------- |
+| Mock 开关单一职责 (L-061)       | 2 依赖   | ❌ 配置设计原则     |
+| Outbox nullable 默认值 (L-062)  | 1 表     | ❌ DDL 设计知识     |
+| raw SQL 列名映射 (L-063)        | 1 处     | ❌ TypeORM 通用知识 |
+| 直接投影 vs outbox 选型 (L-064) | 1 库     | ❌ 架构模式知识     |
+| E2E 清理表同步 (L-065)          | 1 helper | ❌ 测试基建知识     |
+
+**结论**: 本次无 skillify 候选。5 条 learning 均为设计原则/工具链知识，出现频次低，沉淀在 learnings 库即可。
+
+---
+
+## 过期检测（E2E 计费链路修复批次）
+
+- L-001 ~ L-060: 引用文件均存在，无 STALE 条目
+- L-061 ~ L-065: 本次新增，无过期检测需求
