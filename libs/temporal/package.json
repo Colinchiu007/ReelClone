@@ -27,10 +27,14 @@
   },
   "peerDependencies": {
     "@reelclone/ai": "*",
+    "@reelclone/common": "*",
     "@reelclone/oss": "*"
   },
   "peerDependenciesMeta": {
     "@reelclone/ai": {
+      "optional": true
+    },
+    "@reelclone/common": {
       "optional": true
     },
     "@reelclone/oss": {

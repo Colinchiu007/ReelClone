@@ -6,7 +6,7 @@
  * 到各 lib 的 dist 产物。因此必须先按依赖拓扑编译 libs，再编译各服务。
  *
  * 4 层拓扑（依据各 lib src 中的 @reelclone 导入推导）：
- *   L1: common / database / swagger / oss / capability（无 @reelclone 依赖）
+ *   L1: database / swagger / oss / capability（无 @reelclone 依赖）+ common（仅动态依赖 swagger）
  *   L2: observability / http-client / adapters-sms / adapters-wechat / ai（依赖 common）
  *   L3: platform-data（依赖 common + database + observability）
  *   L4: temporal（依赖 ai + oss + common + database）
@@ -15,7 +15,8 @@ const { execSync } = require('child_process')
 const path = require('path')
 
 const ORDER = [
-  ['common', 'database', 'swagger', 'oss', 'capability'],
+  // common 动态导入 @reelclone/swagger，必须置于 swagger 之后编译
+  ['database', 'swagger', 'common', 'oss', 'capability'],
   ['observability', 'http-client', 'adapters-sms', 'adapters-wechat', 'ai'],
   ['platform-data'],
   ['temporal'],
