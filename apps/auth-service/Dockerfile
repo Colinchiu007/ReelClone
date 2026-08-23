@@ -1,45 +1,57 @@
 # ============================================================
-# ReelClone Auth Service Dockerfile
-# 多阶段构建：编译 → 运行
+# ReelClone auth-service Dockerfile
+# 微信云托管适配：
+#   - 多阶段构建（builder 编译 + runner 运行）
+#   - 无 HEALTHCHECK（云托管自动接管健康检查）
+#   - npm prune --production 移除开发依赖，控制镜像体积
+#   - CMD 统一为 apps/auth-service/dist/main.js（扁平编译产物）
+# 前置：根 package.json 提供 build:libs（按拓扑预编译共享库）。
+# 共享库通过 node_modules workspaces 软链解析到 libs/*/dist。
 # ============================================================
 
-# -------------------- Build Stage --------------------
+# -------------------- Stage 1: 构建 --------------------
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 复制 workspace 配置与依赖清单
+# 复制 workspace 根配置与构建脚本
 COPY package.json package-lock.json* ./
 COPY tsconfig.base.json ./
 COPY nx.json ./
+COPY scripts/ ./scripts/
 
-# 复用已有的 libs 与新建的 auth-service 源码
-COPY libs ./libs
-COPY apps/auth-service ./apps/auth-service
+# 复制 workspace 源码
+#   - libs 需完整复制以支持 @reelclone/* 解析
+#   - apps 需完整复制以满足 npm workspaces 声明（apps/*）
+COPY libs/ ./libs/
+COPY apps/ ./apps/
 
-# 安装依赖（含 peer 依赖冲突时使用 legacy-peer-deps）
+# 安装依赖（npm workspaces 自动创建 @reelclone/* 软链）
 RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
-# 编译 auth-service
-RUN npx tsc -p apps/auth-service/tsconfig.json
+# 按依赖拓扑预编译共享库（paths 空映射 → node_modules 解析 libs/dist）
+RUN npm run build:libs
 
-# -------------------- Production Stage --------------------
-FROM node:20-alpine AS production
+# 编译当前服务（扁平产物 apps/auth-service/dist/main.js）
+RUN npx tsc -p apps/auth-service/tsconfig.build.json
+
+# 移除开发依赖，减小运行镜像体积
+RUN npm prune --production --legacy-peer-deps
+
+# -------------------- Stage 2: 运行 --------------------
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3001
 
-# 拷贝运行时所需的 node_modules、编译产物与源码（便于 ts-node 回退）
+# node_modules（含 @reelclone/* workspaces 软链）
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/auth-service/dist ./dist
+# libs 产物（软链目标：node_modules/@reelclone/* -> ../../libs/*）
+COPY --from=builder /app/libs ./libs
+# 当前服务产物
+COPY --from=builder /app/apps/auth-service ./apps/auth-service
+# 根 package.json（workspaces 声明，Node 解析依赖）
 COPY --from=builder /app/package.json ./package.json
 
-EXPOSE 3001
-
-# 健康检查（可选，端点由 NestJS 实现）
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3001/api/v1/auth/health || exit 1
-
-CMD ["node", "dist/apps/auth-service/src/main.js"]
+CMD ["node", "apps/auth-service/dist/main.js"]

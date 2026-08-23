@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone 对象存储库：阿里云 OSS 上传、下载、签名 URL、STS Token 签发与小程序直传凭证",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest --config jest.config.js --passWithNoTests"
   },
   "dependencies": {

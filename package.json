@@ -21,6 +21,8 @@
     "test:e2e:flows": "cd tests/integration && jest --config jest.config.js --testPathPattern=flows",
     "test:e2e:api": "cd tests/integration && jest --config jest.config.js --testPathPattern=api",
     "build": "nx run-many -t build --all",
+    "build:libs": "node scripts/build-libs.js",
+    "build:services": "nx run-many -t build --all --projects='apps/*'",
     "build:miniprogram": "nx run capability:build && nx run miniprogram:build:weapp",
     "build:admin": "nx run admin-web:build",
     "migration:run": "ts-node --transpile-only -r tsconfig-paths/register libs/database/src/migration-runner.ts",

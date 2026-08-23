@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone Temporal 工作流库：工作流定义、Activity、Worker",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "test:watch": "jest --watch",
     "worker:start": "ts-node -P tsconfig.json src/worker/temporal.worker.ts"

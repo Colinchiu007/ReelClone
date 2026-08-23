@@ -30,7 +30,7 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -p libs/platform-data/tsconfig.json",
+        "command": "tsc -p libs/platform-data/tsconfig.build.json",
         "cwd": "{workspaceRoot}"
       },
       "outputs": ["{projectRoot}/dist"]

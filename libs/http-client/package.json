@@ -1,0 +1,24 @@
+{
+  "name": "@reelclone/http-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone 内部 HTTP 客户端库：InternalHttpClient、熔断器",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest --config jest.config.js --passWithNoTests"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "uuid": "^8.3.2"
+  },
+  "peerDependencies": {
+    "@reelclone/common": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  }
+}

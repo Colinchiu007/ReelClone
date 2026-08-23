@@ -23,7 +23,7 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -p apps/template-service/tsconfig.json",
+        "command": "tsc -p apps/template-service/tsconfig.build.json",
         "cwd": "{workspaceRoot}"
       },
       "outputs": ["{projectRoot}/dist"]

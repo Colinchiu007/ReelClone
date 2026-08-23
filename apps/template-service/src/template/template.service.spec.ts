@@ -21,8 +21,7 @@ import {
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
 import { TemporalService } from '@reelclone/temporal'
-import { BusinessException, ErrorCode } from '@reelclone/common'
-import { CacheService } from '@reelclone/common/cache/cache.service'
+import { BusinessException, CacheService, ErrorCode } from '@reelclone/common'
 import { TemplateService } from './template.service'
 import { ListTemplatesDto } from './dto/list-templates.dto'
 import { UploadTemplateDto } from './dto/upload-template.dto'

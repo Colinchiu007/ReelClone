@@ -9,7 +9,7 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -p tsconfig.json",
+        "command": "tsc -p tsconfig.build.json",
         "cwd": "libs/oss"
       },
       "outputs": ["{projectRoot}/dist"]

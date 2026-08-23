@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone SMS 适配器：SmsAdapter 契约 + Aliyun/Tencent/Mock 实现 + 按 SMS_PROVIDER 绑定的 DI 模块（fail closed）",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit -p tsconfig.spec.json",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {

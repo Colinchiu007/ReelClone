@@ -1,0 +1,20 @@
+{
+  "name": "@reelclone/capability",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ReelClone 能力注册库：CapabilityRegistry、生成类型枚举、能力默认配置",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest --config jest.config.js --passWithNoTests"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4"
+  }
+}

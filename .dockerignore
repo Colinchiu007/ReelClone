@@ -1,0 +1,80 @@
+# ============================================================
+# ReelClone .dockerignore
+# 减小 Docker 构建上下文体积，加速镜像构建。
+# 注意：不可排除 Dockerfile COPY 引用的路径：
+#   package.json / package-lock.json / tsconfig.base.json / nx.json
+#   scripts/ libs/ apps/
+# ============================================================
+
+# ==================== 版本控制 ====================
+.git
+.gitignore
+.gitattributes
+
+# ==================== Node.js ====================
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==================== 构建产物 ====================
+**/dist/
+build/
+out/
+*.tsbuildinfo
+.cache/
+.tmp/
+tmp/
+dist-taro/
+h5/
+.weapp/
+taro-build/
+
+# ==================== 测试与覆盖率 ====================
+coverage/
+*.lcov
+.nyc_output/
+.e2e-logs/
+*-test-output.txt
+apps/miniprogram/src/types/generated/
+apps/admin-web/src/types/generated/
+
+# ==================== 环境变量（敏感信息） ====================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# ==================== 文档与本地目录 ====================
+01-docs/
+02-design/
+03-engineering/
+.trae/
+.vscode/
+.idea/
+.history/
+__pycache__/
+_tmp_*
+
+# ==================== CI / 工具 ====================
+.github/
+tools/
+scripts/test/
+*.ps1
+*.bat
+
+# ==================== 缓存 ====================
+.nx/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.taro-cache/
+.swc/

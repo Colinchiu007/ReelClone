@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone Swagger/OpenAPI 共享配置库：DocumentBuilder 工厂、JWT Bearer 鉴权、分页/内部 API 装饰器",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {

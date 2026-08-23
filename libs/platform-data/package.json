@@ -3,8 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone 数据库依赖层：AuditLog、ConfigStore、RedisBridge",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit -p tsconfig.spec.json",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest --config jest.config.js --passWithNoTests"
+  },
   "peerDependencies": {
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",

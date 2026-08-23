@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "description": "ReelClone AI 能力库：Seedance 视频 AI、LLM 适配、Key 轮询、提示词管理",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {

@@ -19,8 +19,7 @@ import {
   TemplateStatus,
 } from '@reelclone/database'
 import { TemporalService } from '@reelclone/temporal'
-import { BusinessException, ErrorCode } from '@reelclone/common'
-import { CacheService } from '@reelclone/common/cache/cache.service'
+import { BusinessException, CacheService, ErrorCode } from '@reelclone/common'
 import { ListTemplatesDto } from './dto/list-templates.dto'
 import { PublishTemplateDto } from './dto/publish-template.dto'
 import { ReviewTemplateDto } from './dto/review-template.dto'
