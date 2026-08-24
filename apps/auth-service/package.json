@@ -34,9 +34,11 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
+    "@reelclone/adapters-wechat": "*",
     "@reelclone/common": "*",
     "@reelclone/database": "*",
     "@reelclone/observability": "*",
+    "@reelclone/platform-data": "*",
     "@reelclone/swagger": "*"
   },
   "devDependencies": {

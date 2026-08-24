@@ -49,7 +49,9 @@
   "peerDependencies": {
     "@reelclone/common": "*",
     "@reelclone/database": "*",
+    "@reelclone/http-client": "*",
     "@reelclone/observability": "*",
+    "@reelclone/platform-data": "*",
     "@reelclone/swagger": "*"
   }
 }

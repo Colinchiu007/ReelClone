@@ -25,6 +25,9 @@
     "react-dom": "^18.3.1",
     "zustand": "^4.5.4"
   },
+  "peerDependencies": {
+    "@reelclone/capability": "*"
+  },
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@tarojs/cli": "3.6.27",

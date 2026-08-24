@@ -37,6 +37,7 @@
     "@reelclone/common": "*",
     "@reelclone/database": "*",
     "@reelclone/observability": "*",
+    "@reelclone/platform-data": "*",
     "@reelclone/swagger": "*"
   },
   "devDependencies": {

@@ -33,11 +33,14 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
+    "@reelclone/ai": "*",
     "@reelclone/common": "*",
     "@reelclone/database": "*",
-    "@reelclone/temporal": "*",
+    "@reelclone/http-client": "*",
     "@reelclone/observability": "*",
-    "@reelclone/swagger": "*"
+    "@reelclone/platform-data": "*",
+    "@reelclone/swagger": "*",
+    "@reelclone/temporal": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.0.0",

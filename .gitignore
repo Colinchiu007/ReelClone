@@ -75,6 +75,7 @@ project.config.json
 # ==================== Nx 缓存 ====================
 .nx/cache/
 .nx/workspace-data/
+nx-graph.json
 
 # ==================== TypeScript 缓存 ====================
 *.tsbuildinfo

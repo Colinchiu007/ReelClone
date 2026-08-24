@@ -25,11 +25,12 @@
     "rxjs": "^7.8.1"
   },
   "peerDependencies": {
+    "@reelclone/ai": "*",
     "@reelclone/common": "*",
     "@reelclone/database": "*",
-    "@reelclone/ai": "*",
-    "@reelclone/temporal": "*",
-    "@reelclone/oss": "*"
+    "@reelclone/oss": "*",
+    "@reelclone/platform-data": "*",
+    "@reelclone/temporal": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^10.0.0",
