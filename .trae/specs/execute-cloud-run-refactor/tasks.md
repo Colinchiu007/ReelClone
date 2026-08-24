@@ -122,9 +122,9 @@
   - [x] 20.2: 更新部署目标为微信云托管（第一章 API 网关流量路径 + 11 服务矩阵；第五章 5.1/5.4 统一为云托管事实，Docker Compose/Nginx 降级为本地/CI；2.1/2.2 数据归属与部署位置解耦）
   - [x] 20.3: 更新 apps 数量描述（3.1 表：admin-service 进入云托管部署清单、admin-web 静态托管）
 
-- [ ] Task 21: template.client.ts 改用 InternalHttpClient
-  - [ ] 21.1: 从 axios 改为 InternalHttpClient
-  - [ ] 21.2: typecheck + spec 验证
+- [x] Task 21: template.client.ts 改用 InternalHttpClient ✅ 核实 + 本轮收尾
+  - [x] 21.1: `template.client.ts` 已由 `7ebdfeb` 迁移至 `@reelclone/http-client` InternalHttpClient（无 axios 残留）；workbench-service peerDependencies 已含 `@reelclone/http-client`；本轮同步修正 workbench.module.ts 过时注释（"内部使用 axios" → InternalHttpClient）
+  - [x] 21.2: workbench-service lint + typecheck 通过；单测 2 套件/34 测试通过（generation.service.spec 以 jest.Mock 断言 TemplateClient）
 
 - [ ] Task 22: admin-web 补充测试
   - [ ] 22.1: 添加 jest 配置

@@ -2,8 +2,8 @@
  * WorkbenchModule — 工作台业务模块
  *
  * 装配：
- *  - BillingClient（注入 ConfigService，内部使用 axios）
- *  - TemplateClient（注入 ConfigService，内部使用 axios）
+ *  - BillingClient（注入 ConfigService，内部使用 InternalHttpClient）
+ *  - TemplateClient（注入 ConfigService，内部使用 InternalHttpClient）
  *  - GenerationService（注入 Redis + DataSource + BillingClient + TemplateClient + TemporalService）
  *  - WorkService（注入 DataSource + TemplateClient）
  *  - GenerationController / WorkController
