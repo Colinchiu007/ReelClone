@@ -66,7 +66,7 @@
   - [x] OSS Mock：OSS_ROLE_ARN 未配置，需启用 mock 模式（已验证：ci.yml L295 设 OSS_MOCK=true）
   - [x] undefined ID：部分测试流程中 ID 为 undefined（E2E 95/95 全通过佐证）
 
-- [x] Task 9: 补全 database 库测试 ✅ 待 commit
+- [x] Task 9: 补全 database 库测试 ✅ `65e199b`（CI run 32707122144 全绿）
   - [x] 9.1: 为 14 个 TypeORM 实体添加字段约束/关系测试（`relations.spec.ts` 校验 11 个关系实体的 ManyToOne/OneToMany 方向、JoinColumn 列名、referencedColumnName、onDelete/nullable 与源 FK 列）
   - [x] 9.2: 验证 snake-naming.strategy 转换逻辑（`snake-naming.strategy.spec.ts`：columnName/joinColumnName/joinTableName 等 15 组用例）
   - [x] 9.3: coverage 验证提升（database 库 Stmts 84.82% / Branch 85.55% / Funcs 43.5% / Lines 89.86%，远超根门禁 52/35/37/52；268 测试全通过）
@@ -93,7 +93,7 @@
   - [x] 13.2: 完善 `.dockerignore`（排除 test/、coverage/、.git/、01-docs/）
   - [x] 13.3: CI 11/11 镜像构建通过（体积量化留待云托管部署实测）
 
-- [x] Task 14: Temporal 部署方案调研 ✅ 待 commit
+- [x] Task 14: Temporal 部署方案调研 ✅ `2773199` + `4f6a9fc` + `75ed935` + `d951f66`（CI run 32711669465 全绿）
   - [x] 14.1: 调研 Temporal Server 独立部署方案（对比 CVM+VPC 内网 / 公网直连 / Temporal Cloud / 消息队列重构，选型：短期方案 A——上海 CVM 同 VPC 内网互联）
   - [x] 14.2: 输出部署文档（`01-docs/20-Temporal部署方案.md`：docker-compose 配置、namespace 注册、安全加固、数据库备份、升级 SOP、监控告警、成本估算、风险演进）
   - [x] 14.3: 记录 TEMPORAL_ADDRESS 云托管配置方式（根 `.env.example` + `docker/.env.production.example` 注释落点；云托管 4 服务需挂载上海 VPC + 环境变量；TEMPORAL_MOCK_MODE 生产必须 false）
