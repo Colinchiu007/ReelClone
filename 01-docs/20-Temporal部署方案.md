@@ -98,10 +98,13 @@ flowchart TB
 
 ### 4.2 docker-compose.yml（/opt/temporal）
 
-> 与现有 `docker/docker-compose.prod.yml` 中 temporal 段保持一致，额外补充：独立 PostgreSQL、数据卷持久化、固定镜像 tag。**镜像 tag 一律固定**，禁止 `latest`。
+> 采用 Temporal 官方 [samples-server/compose](https://github.com/temporalio/samples-server/tree/main/compose) 生产路线：`temporalio/server`（非 auto-setup）+ `temporalio/admin-tools` 负责建 schema/注册 namespace。版本与官方现网对齐（2026-08 官方 samples-server `compose/.env`）：**server/admin-tools = 1.31.0，ui = 2.49.1，postgres = 16**。镜像 tag 一律固定，禁止 `latest`。
+>
+> ⚠️ 版本注意：`temporalio/admin-tools` 自 1.24 起 tag 含 CLI 版本后缀（如 `1.24.0-tctl-1.18.1-cli-0.12.0`），**不存在 `admin-tools:1.24` 这类 tag**；直接使用官方 samples-server 当前验证版本（1.31.0 为有效 tag）即可。项目 CI 中沿用 `temporalio/auto-setup:1.22` 仅作测试基础设施，与生产版本解耦。
 
 ```yaml
 # /opt/temporal/docker-compose.yml
+# 初始化脚本 /opt/temporal/init.sql 内容：CREATE DATABASE temporal_visibility;
 version: '3.8'
 
 services:
@@ -114,13 +117,47 @@ services:
       POSTGRES_DB: temporal
     volumes:
       - temporal-pg:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro # 创建 temporal_visibility 库（仅首启执行）
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U temporal']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
     deploy:
       resources:
         limits: { memory: 1024M, cpus: '1.0' }
 
+  # 建 schema + 注册 namespace（运行完成后退出，server 依赖其成功）
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.31.0
+    restart: on-failure:6
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres16
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD}
+      POSTGRES_SEEDS: postgresql
+      SQL_PASSWORD: ${TEMPORAL_DB_PASSWORD}
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        echo "初始化 Temporal schema..."
+        temporal-sql-tool --plugin postgres16 --ep postgresql -u temporal -p "${SQL_PASSWORD}" --db temporal setup-schema -v 0.0
+        temporal-sql-tool --plugin postgres16 --ep postgresql -u temporal -p "${SQL_PASSWORD}" --db temporal_visibility setup-schema -v 0.0
+        echo "schema 初始化完成"
+
   temporal:
-    image: temporalio/auto-setup:1.24
+    image: temporalio/server:1.31.0
     restart: unless-stopped
+    depends_on:
+      temporal-admin-tools:
+        condition: service_completed_successfully
     environment:
       DB: postgres16
       DB_PORT: 5432
@@ -130,21 +167,22 @@ services:
       DBNAME: temporal
       VISIBILITY_DBNAME: temporal_visibility
       LOG_LEVEL: error
-      # 命令执行复制（默认 1）
       NUM_HISTORY_SHARDS: 16
-    depends_on:
-      - postgresql
     ports:
       - '7233:7233' # 仅内网可达（安全组约束），勿暴露公网
     volumes:
       - temporal-certs:/etc/temporal/certs # 启用 mTLS 时挂载证书
 
-  temporal-admin-tools:
-    image: temporalio/admin-tools:1.24
+  # namespace 注册（server 就绪后执行，幂等）
+  # 注：temporalio/server 镜像不含 temporal CLI/curl，无法为 temporal 挂 healthcheck，
+  # 故不用 depends_on: service_healthy，改为在命令内轮询 cluster health（admin-tools 自带 CLI）
+  temporal-namespace:
+    image: temporalio/admin-tools:1.31.0
+    restart: on-failure:6
     depends_on:
       - temporal
     environment:
-      TEMPORAL_CLI_ADDRESS: temporal:7233
+      TEMPORAL_ADDRESS: temporal:7233
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
@@ -152,10 +190,9 @@ services:
         until temporal operator cluster health 2>/dev/null | grep -q SERVING; do sleep 2; done
         echo "注册 reelclone namespace（保留 3 天）..."
         temporal operator namespace create reelclone --retention=3d || echo "namespace reelclone 已存在，跳过"
-        echo "Temporal namespace 初始化完成"
 
   temporal-ui:
-    image: temporalio/ui:2.31.6
+    image: temporalio/ui:2.49.1
     restart: unless-stopped
     environment:
       TEMPORAL_ADDRESS: temporal:7233
