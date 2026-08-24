@@ -117,10 +117,10 @@
 - [ ] Task 19: console.log 改用 Logger
   - [ ] 19.1: asset/template main.ts 移除 console.log + eslint-disable
 
-- [ ] Task 20: 更新 CURRENT_ARCHITECTURE.md
-  - [ ] 20.1: 同步 common→database 反向依赖已修复
-  - [ ] 20.2: 更新部署目标为微信云托管
-  - [ ] 20.3: 更新 apps 数量描述
+- [x] Task 20: 更新 CURRENT_ARCHITECTURE.md ✅ 本批次
+  - [x] 20.1: 同步 common→database 反向依赖已修复（第四章重写：peerDependencies 已移除 @reelclone/database，database.config.ts 仅 namespace 配置不 import 库）
+  - [x] 20.2: 更新部署目标为微信云托管（第一章 API 网关流量路径 + 11 服务矩阵；第五章 5.1/5.4 统一为云托管事实，Docker Compose/Nginx 降级为本地/CI；2.1/2.2 数据归属与部署位置解耦）
+  - [x] 20.3: 更新 apps 数量描述（3.1 表：admin-service 进入云托管部署清单、admin-web 静态托管）
 
 - [ ] Task 21: template.client.ts 改用 InternalHttpClient
   - [ ] 21.1: 从 axios 改为 InternalHttpClient
