@@ -77,11 +77,12 @@
   - [x] 10.3: 统一 CMD 路径为 `apps/SERVICE/dist/main.js`（配合 per-project tsconfig.build.json 扁平产物）
   - [x] 10.4: Docker build 11/11 验证 ✅ CI run 32691433647（构建链路修复批次 `6cbe580`+`0198ca6`+`1bf952f` 验证）
 
-- [ ] Task 11: 统一 .env.example
-  - [ ] 11.1: 创建根 `.env.example` 作为权威配置模板
-  - [ ] 11.2: 统一 DATABASE_PASSWORD、JWT_SECRET 默认值
-  - [ ] 11.3: 统一微信支付变量名
-  - [ ] 11.4: 补全 template-service 缺失配置项
+- [x] Task 11: 统一 .env.example ✅ 待 commit
+  - [x] 11.1: 创建根 `.env.example` 作为权威配置模板（16 分组，初始 73 变量全覆盖，另补小程序/脚本/画像域）
+  - [x] 11.2: 统一 DATABASE_PASSWORD、JWT_SECRET 默认值
+  - [x] 11.3: 统一微信支付变量名（WECHAT_PAY_API_V3_KEY / WECHAT_PAY_SERIAL_NO / WECHAT_PAY_APPID，废弃 APIV3_KEY/CERT_SERIAL）
+  - [x] 11.4: 补全 template-service 缺失配置项（SERVICE_NAME/多库/Redis/Temporal/HTTP 客户端/BILLING_CLIENT_*/TEMPLATE_REWARD_POINTS）
+  - [x] 11.5: 交叉校验所有服务 .env.example 与根模板一致（scripts/_verify-env-examples.js，12/12 通过）
 
 - [x] Task 12: 修复 test:integration 脚本 ✅ 根级 jest.integration.config.js 复用 tests/integration 配置
   - [x] 12.1: 修正 package.json 中 `test:integration` 指向（根级 jest.integration.config.js spread tests/integration/jest.config.js + rootDir 修正）
