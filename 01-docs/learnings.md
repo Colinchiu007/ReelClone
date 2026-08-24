@@ -1873,3 +1873,135 @@ COPY --from=builder /app/apps/X-service/dist ./apps/X-service/dist
 
 - L-001 ~ L-060: 引用文件均存在，无 STALE 条目
 - L-061 ~ L-065: 本次新增，无过期检测需求
+
+---
+
+## 2026-08-24 复盘批次（微信云托管 Docker 标准化 + monorepo 构建链路修复）
+
+> 背景：统一 11 个服务 Dockerfile（`199db97`）后，Docker 构建要求共享库按拓扑预编译且包解析正确。连续暴露 4 类 monorepo 构建问题（NX 依赖图盲区 / 无 dist 解析 / peerDependencies 缺口 / 扁平产物契约），最终 CI run 32691433647 全绿（13/13 jobs，含 11 个 Docker 构建 + E2E + 小程序）。
+
+### L-066 [pitfall] NX 依赖图无法识别动态 import，lib 预编译顺序必须手工维护拓扑
+
+**场景**: 全新检出 CI `npm run build` 失败。`libs/common` 通过动态 `import('@reelclone/swagger')` 加载，NX `build` target 的 `dependsOn: ["^build"]` 只识别静态依赖，导致 common 先于 swagger 编译，动态导入目标模块缺失。
+
+**根因**: NX 依赖图基于 package.json 静态依赖 + 静态 import 提取，不追踪动态 import。早期 build-libs.js 拓扑序将 common 置于 swagger 之前。
+
+**修复**: [build-libs.js](file:///d:/Data/projects/ReelClone/scripts/build-libs.js) 改为 4 层拓扑手工维护（L1: database/swagger/common/oss/capability → L2: observability/http-client/adapters-sms/adapters-wechat/ai → L3: platform-data → L4: temporal）。common 因动态依赖 swagger 必须置于其后，并在注释中说明原因。
+
+**预防**: 共享库之间优先用静态 import；一旦使用动态 import，必须在预编译脚本中显式把被依赖方排在依赖方之前。NX 依赖图不会替你发现这类盲区。
+
+**置信度**: 10/10（CI lint-test + Docker 构建通过）
+**来源**: observed
+**关联 commit**: `6cbe580`
+**关联文件**: [build-libs.js](file:///d:/Data/projects/ReelClone/scripts/build-libs.js), [nx.json](file:///d:/Data/projects/ReelClone/nx.json)
+
+---
+
+### L-067 [pitfall] 全新检出无 libs/dist，@reelclone/* 按包名解析到 dist 导致 CI 失败
+
+**场景**: CI E2E job（tests/integration）报 `Cannot find module '@reelclone/database'`；lint-test job 中 jest 按包名解析共享库也失败。
+
+**根因**: 12 个 lib 的 package.json `main`/`types` 指向 `./dist/index.js` / `./dist/index.d.ts`，Node/jest 按包名（workspaces 软链）解析到 dist 产物；CI 干净工作区从未执行过 lib 预编译，无 dist。
+
+**修复**: [ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml) 在测试与 E2E 前增加 `npm run build:libs` 步骤。
+
+**预防**: 任何按包名解析共享库产物的 monorepo，CI 中必须先构建被依赖库。本地因 node_modules 提升或旧 dist 残留而"侥幸通过"的路径，必须靠干净检出 CI 兜底 — 本地验证 ≠ CI 验证。
+
+**置信度**: 10/10（E2E 作业通过）
+**来源**: observed
+**关联 commit**: `1bf952f`
+**关联文件**: [ci.yml](file:///d:/Data/projects/ReelClone/.github/workflows/ci.yml)
+
+---
+
+### L-068 [pitfall] monorepo 服务未声明 @reelclone/* peerDependencies，CI tsc TS2307 本地侥幸通过
+
+**场景**: CI 编译多个 app 报 `Cannot find module '@reelclone/platform-data'` 等 TS2307；本地 `npm run build` 通过。
+
+**根因**: 根 node_modules 提升（hoisting）让本地能解析到所有 workspace 库；CI 用 `npm ci` 干净安装，按各 package.json 声明解析，未声明的 workspace 依赖不可见。12 个 app 中 11 个缺少 platform-data / http-client / ai / adapters-wechat / capability 等 peerDependencies。
+
+**修复**: 编写 [check-lib-deps.js](file:///d:/Data/projects/ReelClone/scripts/check-lib-deps.js) 静态扫描所有 app/lib 源码 import vs package.json 声明，一键列出缺口，为 12 个 app 补齐 peerDependencies。脚本要点：
+
+1. 剥离 TS 行/块注释，避免注释中的 import 误报
+2. `@reelclone/` 前缀归一化（package.json 完整名 vs import 短名）
+3. 排除 self-reference（按目录 basename 判断，修复子目录误报）
+4. spec 文件单独归类为 test 依赖
+
+**预防**: 共享库 peerDependencies 必须完整声明（含被依赖库所需传递 peer，如 adapters-wechat 依赖 common）。用静态扫描脚本在 CI 前置检查 import↔声明一致性，别依赖本地 hoisting。
+
+**置信度**: 10/10（check-lib-deps 归零 + CI 编译通过）
+**来源**: observed
+**关联 commit**: `0198ca6`
+**关联文件**: [check-lib-deps.js](file:///d:/Data/projects/ReelClone/scripts/check-lib-deps.js)
+
+---
+
+### L-069 [pitfall] tsc rootDir:"." 产生嵌套 dist 输出，与 Docker CMD 扁平路径不匹配
+
+**场景**: Docker runner 阶段 `CMD ["node", "apps/<SERVICE>/dist/main.js"]` 找不到文件 — 实际产物是 `apps/<SERVICE>/dist/apps/<SERVICE>/src/main.js`（嵌套）。小程序 capability shim 也引用了旧的嵌套路径 `dist/libs/capability/src`。
+
+**根因**: 根 tsconfig.base.json 未显式设 rootDir，tsc 按输入公共路径推断，输出保留 src 目录层级；Dockerfile 模板假设扁平 `dist/main.js`。编译产物结构是部署契约，两处假设不一致。
+
+**修复**: 每个 lib/app 增加 per-project `tsconfig.build.json` 声明 `rootDir: "src"` 生成扁平产物；修正 [capability.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/config/capability.ts) 导入路径为 `../../libs/capability/dist/*.js`。
+
+**预防**: 编译产物路径是部署契约 — Docker CMD、能力 shim、paths 映射必须与 tsc 输出结构一致。多阶段构建场景优先用 per-project tsconfig.build.json 强制扁平输出，而非依赖 rootDir 推断。
+
+**置信度**: 10/10（11 个 Docker 镜像 + 小程序构建通过）
+**来源**: observed
+**关联 commit**: `199db97` + `1bf952f`
+**关联文件**: [Dockerfile.template](file:///d:/Data/projects/ReelClone/docker/Dockerfile.template), [capability.ts](file:///d:/Data/projects/ReelClone/apps/miniprogram/config/capability.ts)
+
+---
+
+### L-070 [pattern] 微信云托管 Dockerfile 标准模板（多阶段 + build:libs 预编译 + npm prune + 扁平 CMD）
+
+**模式**: [Dockerfile.template](file:///d:/Data/projects/ReelClone/docker/Dockerfile.template) 统一 11 个服务：
+
+```dockerfile
+# Stage 1 builder（node:20-alpine）
+COPY package.json package-lock.json* tsconfig.base.json nx.json scripts/ libs/ apps/ ./
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+RUN npm run build:libs                                  # 共享库按拓扑预编译
+RUN npx tsc -p apps/<SERVICE>/tsconfig.build.json       # 扁平产物
+RUN npm prune --production --legacy-peer-deps           # 镜像瘦身
+
+# Stage 2 runner（node:20-alpine, NODE_ENV=production, 无 HEALTHCHECK）
+COPY --from=builder /app/node_modules ./node_modules    # 含 @reelclone/* workspaces 软链
+COPY --from=builder /app/libs ./libs                    # 软链目标
+COPY --from=builder /app/apps/<SERVICE> ./apps/<SERVICE>
+COPY --from=builder /app/package.json ./package.json    # 保留 workspaces 声明
+CMD ["node", "apps/<SERVICE>/dist/main.js"]
+```
+
+**关键约束**:
+
+1. 共享库经 node_modules workspaces 软链解析到 `libs/*/dist`，runner 必须同时复制 node_modules 与 libs，且保留根 package.json 的 workspaces 声明供 Node 解析
+2. 无 HEALTHCHECK — 由微信云托管自动接管健康检查
+3. `npm ci || npm install` 双保险应对 lockfile 与 devDependencies 轻微漂移
+4. Dockerfile 中服务名通过占位符 `<SERVICE>` 维护，实际文件已替换为具体服务名
+
+**置信度**: 10/10（CI 11/11 Docker 镜像构建成功）
+**来源**: observed
+**关联 commit**: `199db97`
+**关联文件**: [Dockerfile.template](file:///d:/Data/projects/ReelClone/docker/Dockerfile.template), [.dockerignore](file:///d:/Data/projects/ReelClone/.dockerignore)
+
+---
+
+## Skillify 检查（微信云托管 Docker 标准化 + 构建链路修复批次）
+
+| 候选模式                           | 出现次数 | 是否生成 skill                         |
+| ---------------------------------- | -------- | -------------------------------------- |
+| 动态 import 依赖序 (L-066)         | 1 处     | ❌ NX/tsc 工具链知识                   |
+| CI 无 dist 需先 build:libs (L-067) | 1 次     | ❌ monorepo 基建知识                   |
+| peerDeps 缺口扫描 (L-068)          | 12 app   | ❌ 工具链知识（脚本已沉淀于 scripts/） |
+| 扁平产物契约 (L-069)               | 1 批     | ❌ tsc 配置知识                        |
+| 云托管 Docker 模板 (L-070)         | 11 服务  | ❌ 已沉淀为 Dockerfile.template 实物   |
+
+**结论**: 本次无 skillify 候选。5 条 learning 均为构建工具链/部署契约知识；L-068 的扫描能力已固化为 `scripts/check-lib-deps.js` 可复用脚本，无需再生成 skill。
+
+---
+
+## 过期检测（微信云托管 Docker 标准化 + 构建链路修复批次）
+
+- L-001 ~ L-065: 引用文件均存在，无 STALE 条目
+- L-066 ~ L-070: 本次新增，无过期检测需求
