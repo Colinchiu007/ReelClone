@@ -165,6 +165,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # -------------------- 构建共享库 --------------------
+      # 微服务用 ts-node + tsconfig-paths 直接运行 TS 源码；但 jest 测试通过 @reelclone/*
+      # 包 main 指向 dist 解析，全新检出无 dist，必须先 build:libs 生成
+      - name: Build shared libraries
+        run: npm run build:libs
+
       # -------------------- 启动基础设施 --------------------
       - name: Start infrastructure (PostgreSQL + Redis + Temporal)
         run: docker compose -f docker/docker-compose.yml up -d

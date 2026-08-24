@@ -20,7 +20,7 @@
     "paths": {
       "@/*": ["src/*"],
       "@reelclone/capability": ["config/capability.ts"],
-      "@reelclone/capability/*": ["../../libs/capability/dist/libs/capability/src/*"]
+      "@reelclone/capability/*": ["../../libs/capability/dist/*"]
     }
   },
   "include": [
