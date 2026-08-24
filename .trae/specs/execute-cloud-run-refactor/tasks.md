@@ -93,10 +93,10 @@
   - [x] 13.2: 完善 `.dockerignore`（排除 test/、coverage/、.git/、01-docs/）
   - [x] 13.3: CI 11/11 镜像构建通过（体积量化留待云托管部署实测）
 
-- [ ] Task 14: Temporal 部署方案调研
-  - [ ] 14.1: 调研 Temporal Server 独立部署方案
-  - [ ] 14.2: 输出部署文档
-  - [ ] 14.3: 记录 TEMPORAL_ADDRESS 云托管配置方式
+- [x] Task 14: Temporal 部署方案调研 ✅ 待 commit
+  - [x] 14.1: 调研 Temporal Server 独立部署方案（对比 CVM+VPC 内网 / 公网直连 / Temporal Cloud / 消息队列重构，选型：短期方案 A——上海 CVM 同 VPC 内网互联）
+  - [x] 14.2: 输出部署文档（`01-docs/20-Temporal部署方案.md`：docker-compose 配置、namespace 注册、安全加固、数据库备份、升级 SOP、监控告警、成本估算、风险演进）
+  - [x] 14.3: 记录 TEMPORAL_ADDRESS 云托管配置方式（根 `.env.example` + `docker/.env.production.example` 注释落点；云托管 4 服务需挂载上海 VPC + 环境变量；TEMPORAL_MOCK_MODE 生产必须 false）
 
 ## Phase 3: P2 一致性改进
 
