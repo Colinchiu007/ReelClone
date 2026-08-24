@@ -63,7 +63,7 @@ async function bootstrap(): Promise<void> {
 }
 
 void bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('❌ media-worker 启动失败:', err)
+  const message = err instanceof Error ? err.message : String(err)
+  new Logger('MediaWorker').error(`media-worker 启动失败: ${message}`)
   process.exit(1)
 })

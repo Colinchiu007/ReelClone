@@ -7,6 +7,7 @@
  * - 启用 CORS，便于小程序本地联调
  * - WebSocket 路径 /ws 由 NotificationGateway 处理，不走全局前缀
  */
+import { Logger } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { JwtService } from '@nestjs/jwt'
 import { bootstrapService, JwtAuthGuard } from '@reelclone/common'
@@ -34,7 +35,7 @@ bootstrapService({
     `🔔 REST API base:      http://localhost:${port}/api/v1/notifications`,
   ],
 }).catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('[notification-service] 启动失败：', err)
+  const message = err instanceof Error ? err.message : String(err)
+  new Logger('notification-service').error(`[notification-service] 启动失败：${message}`)
   process.exit(1)
 })

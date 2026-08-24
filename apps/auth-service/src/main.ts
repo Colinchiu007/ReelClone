@@ -8,6 +8,7 @@
  * - Swagger 文档：/api/docs（仅非 production 环境）
  * - 默认监听端口：3001
  */
+import { Logger } from '@nestjs/common'
 import { bootstrapService } from '@reelclone/common'
 import { AppModule } from './app.module'
 
@@ -28,7 +29,7 @@ bootstrapService({
     '  → POST /api/v1/auth/logout',
   ],
 }).catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('❌ auth-service bootstrap failed:', err)
+  const message = err instanceof Error ? err.message : String(err)
+  new Logger('auth-service').error(`auth-service bootstrap failed: ${message}`)
   process.exit(1)
 })

@@ -9,16 +9,15 @@
  *  - AuthModule（业务模块）
  *
  * 全局注册：
- *  - APP_FILTER  → AllExceptionsFilter
  *  - APP_INTERCEPTOR → ResponseInterceptor + HttpMetricsInterceptor
  *  - APP_PIPE    → ValidationPipe
  *  - APP_GUARD   → JwtAuthGuard（@Public() 装饰器跳过）
+ *  - AllExceptionsFilter 由 bootstrapService 统一注册（APP_FILTER 无重复注册）
  */
 import { Module } from '@nestjs/common'
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
+import { APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { DatabaseModule, RedisModule, DATABASE_CONNECTIONS } from '@reelclone/database'
 import {
-  AllExceptionsFilter,
   ResponseInterceptor,
   JwtAuthGuard,
   createValidationPipe,
@@ -47,7 +46,6 @@ import { AuthModule } from './auth/auth.module'
     AuthModule,
   ],
   providers: [
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
     { provide: APP_PIPE, useValue: createValidationPipe() },

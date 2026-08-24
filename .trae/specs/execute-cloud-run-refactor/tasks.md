@@ -100,22 +100,22 @@
 
 ## Phase 3: P2 一致性改进
 
-- [ ] Task 15: auth-service 异常类型统一
-  - [ ] 15.1: `adminLogin` 中 UnauthorizedException/ForbiddenException 改用 BusinessException
-  - [ ] 15.2: typecheck + auth.service.spec 验证
+- [x] Task 15: auth-service 异常类型统一 ✅ 核实（先前批次已完成）
+  - [x] 15.1: `adminLogin` 已全部改用 `BusinessException.unauthorized/forbidden`（auth.service.ts L248/253/258/264，不再抛 UnauthorizedException/ForbiddenException）
+  - [x] 15.2: typecheck + auth.service.spec 验证（41/41 通过，spec 断言 BusinessException）
 
-- [ ] Task 16: AllExceptionsFilter 注册统一
-  - [ ] 16.1: 统一为 `APP_FILTER` 注册方式（main.ts 中的 useGlobalFilters 移到 app.module.ts）
+- [x] Task 16: AllExceptionsFilter 注册统一 ✅ 本轮
+  - [x] 16.1: `useGlobalFilters` 全仓库零残留；10/11 服务由 bootstrapService 统一注册（main.ts → libs/common/src/bootstrap.service.ts L140），本轮移除 auth-service app.module.ts 中重复的 APP_FILTER 注册（消除双重注册），注释同步更新
 
-- [ ] Task 17: process.env 改用 ConfigService
-  - [ ] 17.1: order.service.ts 微信支付配置改用 ConfigService.get()
-  - [ ] 17.2: typecheck 验证
+- [x] Task 17: process.env 改用 ConfigService ✅ 核实（先前批次已完成）
+  - [x] 17.1: order.service.ts（L705-706）与 wechat-pay.service.ts（L186-212）微信支付配置全部改用 ConfigService.get()，order-service 源码无 process.env 残留
+  - [x] 17.2: typecheck 验证
 
-- [ ] Task 18: 文件命名统一
-  - [ ] 18.1: `billing-client.ts` 重命名为 `billing.client.ts`
+- [x] Task 18: 文件命名统一 ✅ 核实（Task 6 批次已完成）
+  - [x] 18.1: 全仓库无 `billing-client.ts` 文件，所有引用均为 `billing.client`（workbench/template/order/benchmark/admin 6 服务 + spec 25 处）
 
-- [ ] Task 19: console.log 改用 Logger
-  - [ ] 19.1: asset/template main.ts 移除 console.log + eslint-disable
+- [x] Task 19: console.log 改用 Logger ✅ 本轮
+  - [x] 19.1: asset/template main.ts 已无 console.log + eslint-disable（先前批次）；本轮统一 auth/notification/media-worker main.ts 启动失败兜底日志 console.error → Logger（消除 eslint-disable no-console）
 
 - [x] Task 20: 更新 CURRENT_ARCHITECTURE.md ✅ 本批次
   - [x] 20.1: 同步 common→database 反向依赖已修复（第四章重写：peerDependencies 已移除 @reelclone/database，database.config.ts 仅 namespace 配置不 import 库）
