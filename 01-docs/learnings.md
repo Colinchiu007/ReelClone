@@ -2005,3 +2005,27 @@ CMD ["node", "apps/<SERVICE>/dist/main.js"]
 
 - L-001 ~ L-065: 引用文件均存在，无 STALE 条目
 - L-066 ~ L-070: 本次新增，无过期检测需求
+
+---
+
+## 2026-08-24 批次（Temporal 部署方案调研）
+
+### L-071 [knowledge] 微信云托管协议限制只约束入站，出站/VPC 内网不受限
+
+**场景**: 判断云托管容器能否连接自托管 Temporal Server（gRPC 7233）。
+
+**关键结论**: 微信云托管「仅支持 HTTP 协议」限制针对**入站 API 网关**；**容器出站访问公网（动态出口 IP）与同 VPC 内网访问不受协议限制**（官方 Redis 内网调用文档即用 telnet/nc 验证 TCP 连通）。另有约束：不支持有状态服务、容器无持久化存储、不支持 Docker Compose、单服务单端口。
+
+**置信度**: 9/10（官方文档实证）
+**来源**: researched
+**关联文件**: [20-Temporal部署方案.md](file:///d:/Data/projects/ReelClone/01-docs/20-Temporal部署方案.md)
+
+### L-072 [pattern] 自托管有状态中间件接入云托管的通用套路
+
+**场景**: Temporal Server 必须在云托管之外独立部署，云托管服务如何连上。
+
+**模式**: ① 中间件部署在上海地域 CVM/同类资源（云托管地域固定上海，VPC 互联不支持跨地域）；② 云托管「服务设置-私有网络设置」绑定同一 VPC（仅需对连该中间件的服务开启）；③ `TEMPORAL_ADDRESS=内网IP:7233` 走内网（安全组最小放行、不暴露公网），配 `TEMPORAL_MOCK_MODE=false` 生产硬门禁；④ 独立 PostgreSQL 持久化 + 每日 pg_dump。该套路可复用于 Redis/MySQL/其他自托管中间件接入云托管。
+
+**置信度**: 9/10（方案已文档化待落地验证）
+**来源**: observed
+**关联文件**: [20-Temporal部署方案.md](file:///d:/Data/projects/ReelClone/01-docs/20-Temporal部署方案.md), [temporal.client.ts](file:///d:/Data/projects/ReelClone/libs/temporal/src/client/temporal.client.ts)
