@@ -66,10 +66,10 @@
   - [x] OSS Mock：OSS_ROLE_ARN 未配置，需启用 mock 模式（已验证：ci.yml L295 设 OSS_MOCK=true）
   - [x] undefined ID：部分测试流程中 ID 为 undefined（E2E 95/95 全通过佐证）
 
-- [ ] Task 9: 补全 database 库测试
-  - [ ] 9.1: 为 14 个 TypeORM 实体添加字段约束/关系测试
-  - [ ] 9.2: 验证 snake-naming.strategy 转换逻辑
-  - [ ] 9.3: coverage 验证提升
+- [x] Task 9: 补全 database 库测试 ✅ 待 commit
+  - [x] 9.1: 为 14 个 TypeORM 实体添加字段约束/关系测试（`relations.spec.ts` 校验 11 个关系实体的 ManyToOne/OneToMany 方向、JoinColumn 列名、referencedColumnName、onDelete/nullable 与源 FK 列）
+  - [x] 9.2: 验证 snake-naming.strategy 转换逻辑（`snake-naming.strategy.spec.ts`：columnName/joinColumnName/joinTableName 等 15 组用例）
+  - [x] 9.3: coverage 验证提升（database 库 Stmts 84.82% / Branch 85.55% / Funcs 43.5% / Lines 89.86%，远超根门禁 52/35/37/52；268 测试全通过）
 
 - [x] Task 10: 统一 Dockerfile 模板 ✅ `199db97`
   - [x] 10.1: 创建 Dockerfile 模板（Node 20-alpine + 多阶段 + 无 HEALTHCHECK）— `docker/Dockerfile.template`
