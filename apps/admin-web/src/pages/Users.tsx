@@ -1,7 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
-  Card,
-  Table,
   Input,
   Select,
   Space,
@@ -14,7 +12,6 @@ import {
   InputNumber,
   message,
   Popconfirm,
-  type TablePaginationConfig,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -25,6 +22,7 @@ import {
   CrownOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import ListPage, { type PageParams } from '../components/ListPage'
 import {
   listUsers,
   getUserDetail,
@@ -73,15 +71,14 @@ interface GrantFormValues {
   reason: string
 }
 
+interface UserFilters {
+  keyword?: string
+  status?: UserStatus | ''
+  role?: UserRole | ''
+}
+
 export default function Users() {
-  const [loading, setLoading] = useState(false)
-  const [list, setList] = useState<User[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [roleFilter, setRoleFilter] = useState<string>('')
+  const [reloadToken, setReloadToken] = useState(0)
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailUser, setDetailUser] = useState<User | null>(null)
@@ -97,33 +94,16 @@ export default function Users() {
   const [roleLoading, setRoleLoading] = useState(false)
   const [targetRole, setTargetRole] = useState<UserRole>('USER')
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await listUsers({
-        page,
-        pageSize,
-        keyword: keyword || undefined,
-        status: (statusFilter || undefined) as UserStatus | undefined,
-        role: (roleFilter || undefined) as UserRole | undefined,
-      })
-      setList(result.list)
-      setTotal(result.total)
-    } catch {
-      // 错误已由拦截器提示
-    } finally {
-      setLoading(false)
-    }
-  }, [page, pageSize, keyword, statusFilter, roleFilter])
-
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
-
-  const handleSearch = () => {
-    setPage(1)
-    void fetchData()
-  }
+  const fetchUsers = useCallback(async ({ page, pageSize, filters }: PageParams<UserFilters>) => {
+    const result = await listUsers({
+      page,
+      pageSize,
+      keyword: filters.keyword?.trim() || undefined,
+      status: filters.status || undefined,
+      role: filters.role || undefined,
+    })
+    return { list: result.list, total: result.total }
+  }, [])
 
   const openDetail = async (record: User) => {
     setDetailOpen(true)
@@ -144,7 +124,7 @@ export default function Users() {
     try {
       await updateUserStatus(record.id, next)
       message.success(next === 'FROZEN' ? '已封禁' : '已解封')
-      void fetchData()
+      setReloadToken((t) => t + 1)
     } catch {
       // 错误已由拦截器提示
     }
@@ -164,7 +144,7 @@ export default function Users() {
       await grantPoints(grantUser.id, values.amount, values.reason)
       message.success('调账成功')
       setGrantOpen(false)
-      void fetchData()
+      setReloadToken((t) => t + 1)
     } catch {
       // 错误已由拦截器提示
     } finally {
@@ -185,7 +165,7 @@ export default function Users() {
       await updateUserRole(roleUser.id, targetRole)
       message.success('角色已更新')
       setRoleOpen(false)
-      void fetchData()
+      setReloadToken((t) => t + 1)
     } catch {
       // 错误已由拦截器提示
     } finally {
@@ -261,58 +241,29 @@ export default function Users() {
     },
   ]
 
-  const pagination: TablePaginationConfig = {
-    current: page,
-    pageSize,
-    total,
-    showSizeChanger: true,
-    showTotal: (t) => `共 ${t} 条`,
-    onChange: (p, ps) => {
-      setPage(p)
-      setPageSize(ps)
-    },
-  }
-
   return (
     <>
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            placeholder="搜索昵称 / 手机号"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={handleSearch}
-            style={{ width: 220 }}
-            allowClear
-          />
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={statusOptions}
-            style={{ width: 130 }}
-          />
-          <Select
-            value={roleFilter}
-            onChange={setRoleFilter}
-            options={roleOptions}
-            style={{ width: 140 }}
-          />
-          <Button type="primary" onClick={handleSearch}>
-            查询
-          </Button>
-        </Space>
-      </Card>
-
-      <Card>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={list}
-          loading={loading}
-          pagination={pagination}
-          scroll={{ x: 1000 }}
-        />
-      </Card>
+      <ListPage<User, UserFilters>
+        rowKey="id"
+        columns={columns}
+        fetcher={fetchUsers}
+        filterFields={
+          <>
+            <Form.Item name="keyword" noStyle>
+              <Input placeholder="搜索昵称 / 手机号" style={{ width: 220 }} allowClear />
+            </Form.Item>
+            <Form.Item name="status" noStyle>
+              <Select options={statusOptions} style={{ width: 130 }} />
+            </Form.Item>
+            <Form.Item name="role" noStyle>
+              <Select options={roleOptions} style={{ width: 140 }} />
+            </Form.Item>
+          </>
+        }
+        initialFilters={{ keyword: '', status: '', role: '' }}
+        scrollX={1000}
+        reloadToken={reloadToken}
+      />
 
       {/* 用户详情 Drawer */}
       <Drawer

@@ -3,7 +3,14 @@
  *
  * 与后端 @reelclone/common 的 ApiResponse / PaginatedResponse 结构保持一致。
  * 实体类型对应 libs/database/src/entities 下的各 Entity 字段。
+ *
+ * 类型来源约定（Task 28 迁移）：
+ *  - 请求/响应 DTO（如 CreateGenerationDto / UploadTemplateDto）由 OpenAPI 自动生成，
+ *    这里仅以别名形式暴露，定义见 @/types/generated/api-types，请勿手写重复。
+ *  - 实体与接口响应的扁平类型（User / Work / Asset 等）OpenAPI 未生成，
+ *    仍需在此手写维护。
  */
+import type { CreateGenerationDto, UploadTemplateDto } from './generated/api-types'
 
 // -------------------- 通用 API 响应 --------------------
 
@@ -48,20 +55,6 @@ export interface User {
   createdAt: string
 }
 
-// -------------------- Auth --------------------
-
-/**
- * @deprecated 使用 `@/types/generated/api-types` 中的 `WxLoginResult` 替代。
- * 此类型保留是为了向后兼容尚未迁移到生成类型的代码。
- * 待 auth-service 完整 OpenAPI 接入后，所有调用方应改用生成类型。
- */
-export interface LoginResult {
-  accessToken: string
-  refreshToken: string
-  user: User
-  isNewUser: boolean
-}
-
 // -------------------- Work / Generation --------------------
 
 export interface Work {
@@ -88,23 +81,20 @@ export interface GenerationTask {
   errorMessage?: string
 }
 
-/** 提交生成任务参数（对应后端 CreateGenerationDto） */
-export interface CreateGenerationParams {
-  generationType: string
-  prompt: string
-  model?: string
-  resolution?: string
-  aspectRatio?: string
-  duration?: 5 | 10
-  referenceImages?: string[]
-  referenceVideo?: string
-  referenceAudio?: string
-  firstFrame?: string
-  lastFrame?: string
-  idempotencyKey?: string
-  /** 对标解析复刻：关联的对标 ID */
-  benchmarkId?: string
-}
+/** 提交生成任务参数（生成类型，见 @/types/generated/api-types 的 CreateGenerationDto） */
+export type CreateGenerationParams = CreateGenerationDto
+
+/**
+ * 生成类型联合（派生自 CreateGenerationDto.generationType）
+ * 供工作台页面/作品详情在使用 createGeneration 时约束字段
+ */
+export type GenerationTypeKey = CreateGenerationDto['generationType']
+
+/** 生成分辨率（派生自 CreateGenerationDto.resolution） */
+export type GenerationResolution = NonNullable<CreateGenerationDto['resolution']>
+
+/** 生成宽高比（派生自 CreateGenerationDto.aspectRatio） */
+export type GenerationAspectRatio = NonNullable<CreateGenerationDto['aspectRatio']>
 
 // -------------------- Asset --------------------
 
@@ -205,16 +195,8 @@ export interface Favorite {
   createdAt: string
 }
 
-/** 提交视频转模板参数（对应后端 UploadTemplateDto） */
-export interface UploadTemplateParams {
-  assetId: string
-  title: string
-  description?: string
-  category?: string
-  industry?: string
-  platform?: string
-  tags?: string[]
-}
+/** 提交视频转模板参数（生成类型，见 @/types/generated/api-types 的 UploadTemplateDto） */
+export type UploadTemplateParams = UploadTemplateDto
 
 /** 提交视频转模板响应 */
 export interface UploadResult {

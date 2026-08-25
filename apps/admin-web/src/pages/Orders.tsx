@@ -1,21 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
-import {
-  Card,
-  Table,
-  Select,
-  Space,
-  Button,
-  Tag,
-  DatePicker,
-  Modal,
-  Input,
-  message,
-  type TablePaginationConfig,
-} from 'antd'
+import { useState, useCallback } from 'react'
+import { Select, Space, Button, Tag, DatePicker, Modal, Input, Form, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { UndoOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
+import ListPage, { type PageParams } from '../components/ListPage'
 import { listOrders, refundOrder, type Order, type OrderStatus } from '../api/admin'
 
 const statusColor: Record<OrderStatus, string> = {
@@ -35,47 +24,29 @@ const statusOptions = [
 
 const { RangePicker } = DatePicker
 
+interface OrderFilters {
+  status?: OrderStatus | ''
+  dateRange?: [Dayjs | null, Dayjs | null] | null
+}
+
 export default function Orders() {
-  const [loading, setLoading] = useState(false)
-  const [list, setList] = useState<Order[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   const [refundOpen, setRefundOpen] = useState(false)
   const [refundTarget, setRefundTarget] = useState<Order | null>(null)
   const [refundReason, setRefundReason] = useState('')
   const [refundLoading, setRefundLoading] = useState(false)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await listOrders({
-        page,
-        pageSize,
-        status: (statusFilter || undefined) as OrderStatus | undefined,
-        startDate: dateRange?.[0]?.toISOString(),
-        endDate: dateRange?.[1]?.toISOString(),
-      })
-      setList(result.list)
-      setTotal(result.total)
-    } catch {
-      // 错误已由拦截器提示
-    } finally {
-      setLoading(false)
-    }
-  }, [page, pageSize, statusFilter, dateRange])
-
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
-
-  const handleSearch = () => {
-    setPage(1)
-    void fetchData()
-  }
+  const fetchOrders = useCallback(async ({ page, pageSize, filters }: PageParams<OrderFilters>) => {
+    const result = await listOrders({
+      page,
+      pageSize,
+      status: filters.status || undefined,
+      startDate: filters.dateRange?.[0]?.toISOString(),
+      endDate: filters.dateRange?.[1]?.toISOString(),
+    })
+    return { list: result.list, total: result.total }
+  }, [])
 
   const openRefund = (record: Order) => {
     setRefundTarget(record)
@@ -94,7 +65,7 @@ export default function Orders() {
       await refundOrder(refundTarget.id, refundReason)
       message.success('退款已发起')
       setRefundOpen(false)
-      void fetchData()
+      setReloadToken((t) => t + 1)
     } catch {
       // 错误已由拦截器提示
     } finally {
@@ -143,49 +114,26 @@ export default function Orders() {
     },
   ]
 
-  const pagination: TablePaginationConfig = {
-    current: page,
-    pageSize,
-    total,
-    showSizeChanger: true,
-    showTotal: (t) => `共 ${t} 条`,
-    onChange: (p, ps) => {
-      setPage(p)
-      setPageSize(ps)
-    },
-  }
-
   return (
     <>
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={statusOptions}
-            style={{ width: 140 }}
-          />
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null] | null)}
-            showTime
-          />
-          <Button type="primary" onClick={handleSearch}>
-            查询
-          </Button>
-        </Space>
-      </Card>
-
-      <Card>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={list}
-          loading={loading}
-          pagination={pagination}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
+      <ListPage<Order, OrderFilters>
+        rowKey="id"
+        columns={columns}
+        fetcher={fetchOrders}
+        filterFields={
+          <>
+            <Form.Item name="status" noStyle>
+              <Select options={statusOptions} style={{ width: 140 }} />
+            </Form.Item>
+            <Form.Item name="dateRange" noStyle>
+              <RangePicker showTime />
+            </Form.Item>
+          </>
+        }
+        initialFilters={{ status: '', dateRange: null }}
+        scrollX={1200}
+        reloadToken={reloadToken}
+      />
 
       <Modal
         title="订单退款"

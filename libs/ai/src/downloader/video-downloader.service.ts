@@ -3,6 +3,15 @@ import { ConfigService } from '@nestjs/config'
 import { ExternalResourcePolicyService } from '@reelclone/common'
 import { DownloadResult, VideoMetadata, VideoPlatform } from './downloader.types'
 
+/** yt-dlp --print-json 输出的元信息字段（仅声明实际取用的部分） */
+interface YtDlpJsonInfo {
+  _filename?: string
+  title?: string
+  uploader?: string
+  duration?: number
+  thumbnail?: string
+}
+
 /**
  * 视频下载器服务
  *
@@ -272,12 +281,11 @@ export class VideoDownloaderService {
   }
 
   /** 解析 yt-dlp --print-json 输出 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private parseYtDlpJson(stdout: string): Record<string, any> {
+  private parseYtDlpJson(stdout: string): YtDlpJsonInfo {
     try {
       const lines = stdout.trim().split('\n')
       const lastLine = lines[lines.length - 1]
-      return JSON.parse(lastLine)
+      return JSON.parse(lastLine) as YtDlpJsonInfo
     } catch {
       return {}
     }

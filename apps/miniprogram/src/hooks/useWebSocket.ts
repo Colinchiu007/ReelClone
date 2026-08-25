@@ -17,6 +17,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Taro from '@tarojs/taro'
+import { WS_BASE } from '@/config/env'
 import { tokenStore } from '@/services/token'
 
 /** WebSocket 推送事件类型 */
@@ -25,10 +26,8 @@ type WsEvent = 'task:progress' | 'task:completed' | 'task:failed' | 'notificatio
 /** 事件处理函数 */
 type EventHandler = (data: unknown) => void
 
-declare const WS_BASE_URL: string | undefined
-
-const websocketBaseUrl =
-  typeof WS_BASE_URL === 'undefined' || !WS_BASE_URL ? 'wss://api.reelclone.com' : WS_BASE_URL
+/** WebSocket 基础地址（由 defineConstants 构建期注入，env.ts 兜底默认值） */
+const websocketBaseUrl = WS_BASE
 
 /** 心跳间隔（30s） */
 const HEARTBEAT_INTERVAL = 30000

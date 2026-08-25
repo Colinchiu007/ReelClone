@@ -25,6 +25,10 @@ function createProxy<T extends keyof HTMLElementTagNameMap>(tagName: T) {
       // Taro Image 专属
       mode: _mode,
       lazyLoad: _lazyLoad,
+      // Taro View/ScrollView 专属
+      catchMove: _catchMove,
+      scrollY: _scrollY,
+      scrollX: _scrollX,
       // Taro 通用
       ...htmlProps
     } = props

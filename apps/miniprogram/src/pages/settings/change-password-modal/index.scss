@@ -1,44 +1,7 @@
-// 修改密码弹窗样式
+// 修改密码弹窗样式（内容样式，外壳由 BaseModal 提供）
 // variables/mixins 由 sass.resource 自动注入
 
 .pwd-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: $z-index-modal;
-  @include flex-center;
-  background-color: rgba(0, 0, 0, 0.6);
-
-  &__panel {
-    width: 86%;
-    max-width: 600px;
-    background-color: $bg-secondary;
-    border-radius: $radius-xl;
-    box-shadow: $shadow-lg;
-    overflow: hidden;
-  }
-
-  &__head {
-    @include flex-between;
-    padding: $spacing-md $spacing-lg;
-    @include hairline-bottom;
-  }
-
-  &__title {
-    font-size: $font-lg;
-    font-weight: 600;
-    color: $text-primary;
-  }
-
-  &__close {
-    font-size: 36px;
-    color: $text-tertiary;
-    line-height: 1;
-    padding: 0 $spacing-xs;
-  }
-
   &__body {
     @include flex-column;
     padding: $spacing-lg;
@@ -102,13 +65,6 @@
     font-size: $font-xs;
     color: $text-tertiary;
     line-height: 1.5;
-  }
-
-  &__footer {
-    @include flex-start;
-    padding: $spacing-md $spacing-lg;
-    gap: $spacing-md;
-    @include hairline-top;
   }
 
   &__btn {

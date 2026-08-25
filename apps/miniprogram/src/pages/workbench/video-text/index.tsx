@@ -15,7 +15,16 @@ import { CreditBadge, PromptInput } from '@/components'
 import { useCredits } from '@/hooks/useCredits'
 import { createGeneration } from '@/services/api/workbench.api'
 import { usePointsStore } from '@/stores/points.store'
-import { GenerationType, getPointsTable, getResolutions, getAspectRatios, getDurations, getModels, getMaxPromptLength } from '@/utils/capabilities'
+import {
+  GenerationType,
+  getPointsTable,
+  getResolutions,
+  getAspectRatios,
+  getDurations,
+  getModels,
+  getMaxPromptLength,
+} from '@/utils/capabilities'
+import type { GenerationResolution, GenerationAspectRatio } from '@/types'
 import './index.scss'
 
 /** 生成类型 */
@@ -24,8 +33,14 @@ const TYPE = GenerationType.TEXT_TO_VIDEO
 export default function VideoTextWorkbench() {
   useLoad(() => Taro.setNavigationBarTitle({ title: '视频生成' }))
   const MODELS = useMemo(() => getModels(TYPE), [])
-  const RESOLUTIONS = useMemo(() => getResolutions(TYPE), [])
-  const ASPECT_RATIOS = useMemo(() => getAspectRatios(TYPE), [])
+  const RESOLUTIONS = useMemo<GenerationResolution[]>(
+    () => getResolutions(TYPE) as GenerationResolution[],
+    [],
+  )
+  const ASPECT_RATIOS = useMemo<GenerationAspectRatio[]>(
+    () => getAspectRatios(TYPE) as GenerationAspectRatio[],
+    [],
+  )
   const DURATIONS = useMemo(() => getDurations(TYPE), [])
   const POINTS_TABLE = useMemo(() => getPointsTable(TYPE), [])
 
@@ -36,8 +51,8 @@ export default function VideoTextWorkbench() {
   const benchmarkId = urlParams.benchmarkId || ''
 
   const [model, setModel] = useState(MODELS[0].value)
-  const [resolution, setResolution] = useState('720p')
-  const [aspectRatio, setAspectRatio] = useState('9:16')
+  const [resolution, setResolution] = useState<GenerationResolution>('720p')
+  const [aspectRatio, setAspectRatio] = useState<GenerationAspectRatio>('9:16')
   const [duration, setDuration] = useState(5)
   const [prompt, setPrompt] = useState(prefillPrompt)
   const [submitting, setSubmitting] = useState(false)

@@ -55,6 +55,8 @@ import { TemplateModule } from './template/template.module'
     // 缓存（复用 REDIS_CLIENT 实例）
     CacheModule.forRootAsync({
       inject: [REDIS_CLIENT],
+      // ioredis 实例与 cache-manager CacheStore 接口不匹配，运行时由 Redis 缓存适配
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       useFactory: (redis: any) => redis,
     }),
     // Temporal（用户上传视频转模板异步工作流）

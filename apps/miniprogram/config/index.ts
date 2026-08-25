@@ -2,6 +2,7 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import path from 'path'
 import devConfig from './dev'
 import prodConfig from './prod'
+import h5Config from './h5'
 
 // ReelClone Taro 构建配置
 // 文档：https://docs.taro.zone/docs/next/config#defineconfig
@@ -22,11 +23,15 @@ export default defineConfig(async (merge) => {
     defineConstants: {
       API_BASE_URL: JSON.stringify(
         process.env.API_BASE_URL ||
-          (process.env.NODE_ENV === 'production' ? 'https://api.reelclone.com/api' : 'http://localhost:3000/api'),
+          (process.env.NODE_ENV === 'production'
+            ? 'https://api.reelclone.com/api'
+            : 'http://localhost:3000/api'),
       ),
       WS_BASE_URL: JSON.stringify(
         process.env.WS_BASE_URL ||
-          (process.env.NODE_ENV === 'production' ? 'wss://api.reelclone.com' : 'ws://localhost:3008'),
+          (process.env.NODE_ENV === 'production'
+            ? 'wss://api.reelclone.com'
+            : 'ws://localhost:3008'),
       ),
     },
     copy: {
@@ -79,28 +84,7 @@ export default defineConfig(async (merge) => {
         chain.resolve.extensions.merge(['.ts', '.tsx', '.js', '.jsx', '.json'])
       },
     },
-    h5: {
-      router: {
-        mode: 'browser',
-      },
-      devServer: {
-        port: 10086,
-        host: 'localhost',
-      },
-      postcss: {
-        autoprefixer: {
-          enable: true,
-          config: {},
-        },
-        cssModules: {
-          enable: true,
-          config: {
-            namingPattern: 'module',
-            generateScopedName: '[name]__[local]___[hash:base64:5]',
-          },
-        },
-      },
-    },
+    // H5 专属配置见 ./h5（TARO_ENV === 'h5' 时合并）
     rn: {
       appName: 'ReelClone',
       postcss: {
@@ -111,8 +95,15 @@ export default defineConfig(async (merge) => {
     },
   }
 
+  let config = baseConfig
   if (process.env.NODE_ENV === 'development') {
-    return merge({}, baseConfig, devConfig)
+    config = merge({}, config, devConfig)
+  } else {
+    config = merge({}, config, prodConfig)
   }
-  return merge({}, baseConfig, prodConfig)
+  // H5 按需编译：合并 H5 专属配置
+  if (process.env.TARO_ENV === 'h5') {
+    config = merge({}, config, h5Config)
+  }
+  return config
 })

@@ -13,7 +13,7 @@
     "declarationMap": false,
     "sourceMap": true,
     "noEmit": true,
-    "allowImportingTsExtensions": false,
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "types": ["@tarojs/taro", "webpack-env"],
     "baseUrl": ".",

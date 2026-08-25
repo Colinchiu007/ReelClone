@@ -1,67 +1,7 @@
-// 行业偏好弹窗样式
+// 行业偏好弹窗样式（内容样式，外壳由 BaseModal 提供）
 // variables/mixins 由 sass.resource 自动注入
 
 .industry-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: $z-index-modal;
-
-  &__mask {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.65);
-  }
-
-  &__panel {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    max-height: 80vh;
-    background-color: $bg-secondary;
-    border-radius: $radius-xl $radius-xl 0 0;
-    padding: $spacing-lg $spacing-md calc(#{$spacing-lg} + env(safe-area-inset-bottom));
-    @include flex-column;
-    gap: $spacing-md;
-    animation: industry-modal-slide-up 0.24s ease;
-  }
-
-  &__header {
-    @include flex-between;
-  }
-
-  &__title {
-    font-size: $font-lg;
-    font-weight: 700;
-    color: $text-primary;
-  }
-
-  &__close {
-    width: 32px;
-    height: 32px;
-    line-height: 32px;
-    text-align: center;
-    color: $text-tertiary;
-    font-size: $font-md;
-  }
-
-  &__body {
-    max-height: 50vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  &__footer {
-    @include flex-center;
-    padding-top: $spacing-sm;
-  }
-
   &__btn {
     flex: 1;
     @include flex-center;
@@ -78,14 +18,5 @@
       @include disabled;
       box-shadow: none;
     }
-  }
-}
-
-@keyframes industry-modal-slide-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
   }
 }

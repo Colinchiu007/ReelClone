@@ -4,28 +4,17 @@
  * 持久化：余额信息持久化到 Taro 同步存储，
  * 冷启动后先展示上次余额，再异步刷新为最新值。
  */
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import Taro from '@tarojs/taro';
-
-/** Taro 同步存储适配器 */
-const taroStorage = {
-  getItem: (name: string): string | null => Taro.getStorageSync(name) || null,
-  setItem: (name: string, value: string): void => {
-    Taro.setStorageSync(name, value);
-  },
-  removeItem: (name: string): void => {
-    Taro.removeStorageSync(name);
-  },
-};
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { taroStorage } from './storage'
 
 export interface PointsState {
-  balance: number;
-  frozen: number;
-  total: number;
-  setBalance: (b: { balance: number; frozen: number; total: number }) => void;
-  consume: (amount: number) => void;
-  recharge: (amount: number) => void;
+  balance: number
+  frozen: number
+  total: number
+  setBalance: (b: { balance: number; frozen: number; total: number }) => void
+  consume: (amount: number) => void
+  recharge: (amount: number) => void
 }
 
 export const usePointsStore = create<PointsState>()(
@@ -56,4 +45,4 @@ export const usePointsStore = create<PointsState>()(
       storage: createJSONStorage(() => taroStorage),
     },
   ),
-);
+)

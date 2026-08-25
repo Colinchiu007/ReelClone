@@ -270,7 +270,10 @@ export class AdminReviewService {
    */
   private async sendNotification(input: SendNotificationInput): Promise<void> {
     try {
-      await this.httpClient.post('/api/v1/notifications/send', input)
+      await this.httpClient.post(
+        '/api/v1/notifications/send',
+        input as unknown as Record<string, unknown>,
+      )
     } catch (err) {
       this.logger.warn(
         `通知推送失败 userId=${input.userId} title=${input.title}: ${(err as Error).message}`,

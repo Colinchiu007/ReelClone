@@ -22,6 +22,7 @@
  */
 import { type DynamicModule, Module, Provider, type Type } from '@nestjs/common'
 import { PassportModule } from '@nestjs/passport'
+import type { Redis } from 'ioredis'
 import {
   AccessTokenStrategy,
   USER_STATUS_CHECKER,
@@ -40,7 +41,7 @@ export interface AuthStrategyModuleOptions {
   /** 是否检查用户状态 FROZEN/DELETED（默认 false，仅 user-service 启用） */
   userStatusCheck?: boolean
   /** 额外导入的模块（如 UserModule，用于提供 USER_STATUS_CHECKER） */
-  imports?: Array<DynamicModule | Type<any>>
+  imports?: Array<DynamicModule | Type<unknown>>
 }
 
 @Module({})
@@ -57,10 +58,9 @@ export class AuthStrategyModule {
 
     const strategyProvider: Provider = {
       provide: AccessTokenStrategy,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      useFactory: (redis: any, ...args: any[]) => {
+      useFactory: (redis: Redis, ...args: unknown[]) => {
         const userStatusChecker: UserStatusChecker | undefined = enableUserStatusCheck
-          ? args[0]
+          ? (args[0] as UserStatusChecker | undefined)
           : undefined
         return new AccessTokenStrategy({
           redis,

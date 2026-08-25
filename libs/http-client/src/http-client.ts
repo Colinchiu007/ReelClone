@@ -98,8 +98,7 @@ export class InternalHttpClient {
   /** 统一 POST 请求（自动重试 + 熔断 + ApiResponse 解包） */
   async post<T>(
     path: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    body: Record<string, any>,
+    body: Record<string, unknown>,
     options?: { timeoutMs?: number; idempotencyKey?: string },
   ): Promise<T> {
     return this.requestWithRetry<T>(() => this.rawPost<T>(path, body, options))

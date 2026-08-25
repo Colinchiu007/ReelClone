@@ -4,27 +4,16 @@
  * 持久化：使用 Zustand persist 中间件 + Taro 同步存储适配器，
  * 小程序冷启动后可恢复用户信息，避免白屏闪烁。
  */
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import Taro from '@tarojs/taro';
-import type { User } from '@/types';
-
-/** Taro 同步存储适配器（适配 Zustand persist 的 StateStorage 接口） */
-const taroStorage = {
-  getItem: (name: string): string | null => Taro.getStorageSync(name) || null,
-  setItem: (name: string, value: string): void => {
-    Taro.setStorageSync(name, value);
-  },
-  removeItem: (name: string): void => {
-    Taro.removeStorageSync(name);
-  },
-};
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import type { User } from '@/types'
+import { taroStorage } from './storage'
 
 export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  setUser: (user: User) => void;
-  logout: () => void;
+  user: User | null
+  isAuthenticated: boolean
+  setUser: (user: User) => void
+  logout: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -43,4 +32,4 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     },
   ),
-);
+)

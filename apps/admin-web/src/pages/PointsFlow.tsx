@@ -5,20 +5,12 @@
  * 支持 userId 筛选 + 时间范围筛选 + 分页
  * type 用 Tag 颜色区分；amount 正数绿色、负数红色
  */
-import { useEffect, useState, useCallback } from 'react'
-import {
-  Card,
-  Table,
-  Input,
-  Space,
-  Button,
-  Tag,
-  DatePicker,
-  type TablePaginationConfig,
-} from 'antd'
+import { useCallback } from 'react'
+import { Input, Tag, DatePicker, Form } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
+import ListPage, { type PageParams } from '../components/ListPage'
 import { listPointsFlow, type PointsFlowItem, type PointTxType } from '../api/admin'
 
 const typeColor: Record<PointTxType, string> = {
@@ -39,42 +31,25 @@ const typeLabel: Record<PointTxType, string> = {
 
 const { RangePicker } = DatePicker
 
-export default function PointsFlow() {
-  const [loading, setLoading] = useState(false)
-  const [list, setList] = useState<PointsFlowItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [userId, setUserId] = useState<string>('')
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+interface PointsFlowFilters {
+  userId?: string
+  dateRange?: [Dayjs | null, Dayjs | null] | null
+}
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+export default function PointsFlow() {
+  const fetchFlow = useCallback(
+    async ({ page, pageSize, filters }: PageParams<PointsFlowFilters>) => {
       const result = await listPointsFlow({
         page,
         pageSize,
-        userId: userId.trim() || undefined,
-        startDate: dateRange?.[0]?.toISOString(),
-        endDate: dateRange?.[1]?.toISOString(),
+        userId: filters.userId?.trim() || undefined,
+        startDate: filters.dateRange?.[0]?.toISOString(),
+        endDate: filters.dateRange?.[1]?.toISOString(),
       })
-      setList(result.list)
-      setTotal(result.total)
-    } catch {
-      // 错误已由拦截器提示
-    } finally {
-      setLoading(false)
-    }
-  }, [page, pageSize, userId, dateRange])
-
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
-
-  const handleSearch = () => {
-    setPage(1)
-    void fetchData()
-  }
+      return { list: result.list, total: result.total }
+    },
+    [],
+  )
 
   const columns: ColumnsType<PointsFlowItem> = [
     { title: '流水 ID', dataIndex: 'id', width: 200, ellipsis: true },
@@ -111,50 +86,23 @@ export default function PointsFlow() {
     },
   ]
 
-  const pagination: TablePaginationConfig = {
-    current: page,
-    pageSize,
-    total,
-    showSizeChanger: true,
-    showTotal: (t) => `共 ${t} 条`,
-    onChange: (p, ps) => {
-      setPage(p)
-      setPageSize(ps)
-    },
-  }
-
   return (
-    <>
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            placeholder="用户 ID 筛选"
-            style={{ width: 240 }}
-            allowClear
-          />
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null] | null)}
-            showTime
-          />
-          <Button type="primary" onClick={handleSearch}>
-            查询
-          </Button>
-        </Space>
-      </Card>
-
-      <Card>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={list}
-          loading={loading}
-          pagination={pagination}
-          scroll={{ x: 1100 }}
-        />
-      </Card>
-    </>
+    <ListPage<PointsFlowItem, PointsFlowFilters>
+      rowKey="id"
+      columns={columns}
+      fetcher={fetchFlow}
+      filterFields={
+        <>
+          <Form.Item name="userId" noStyle>
+            <Input placeholder="用户 ID 筛选" style={{ width: 240 }} allowClear />
+          </Form.Item>
+          <Form.Item name="dateRange" noStyle>
+            <RangePicker showTime />
+          </Form.Item>
+        </>
+      }
+      initialFilters={{ userId: '', dateRange: null }}
+      scrollX={1100}
+    />
   )
 }

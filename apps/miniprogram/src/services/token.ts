@@ -9,17 +9,15 @@
  * 注意：refreshAccessToken 使用原生 Taro.request 直接调用刷新接口，
  *       不经过 RequestManager，以避免循环依赖。
  */
-import Taro from '@tarojs/taro';
+import Taro from '@tarojs/taro'
+import { API_BASE } from '@/config/env'
 
-/** 由 Taro defineConstants 注入的全局 API 基础地址 */
-declare const API_BASE_URL: string | undefined;
-
-const ACCESS_TOKEN_KEY = 'rc_access_token';
-const REFRESH_TOKEN_KEY = 'rc_refresh_token';
-const TOKEN_EXPIRE_KEY = 'rc_token_expire';
+const ACCESS_TOKEN_KEY = 'rc_access_token'
+const REFRESH_TOKEN_KEY = 'rc_refresh_token'
+const TOKEN_EXPIRE_KEY = 'rc_token_expire'
 
 /** 提前刷新时间（5 分钟，单位 ms） */
-const REFRESH_AHEAD_MS = 5 * 60 * 1000;
+const REFRESH_AHEAD_MS = 5 * 60 * 1000
 
 /**
  * 从 JWT payload 中解析过期时间（exp，秒级时间戳）
@@ -29,22 +27,22 @@ const REFRESH_AHEAD_MS = 5 * 60 * 1000;
  */
 function decodeJwtExp(token: string): number | null {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
     // base64url → base64 + 补齐 padding
-    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     while (b64.length % 4) {
-      b64 += '=';
+      b64 += '='
     }
-    const bytes = new Uint8Array(Taro.base64ToArrayBuffer(b64));
+    const bytes = new Uint8Array(Taro.base64ToArrayBuffer(b64))
     // UTF-8 bytes → string
     const json = decodeURIComponent(
       Array.from(bytes, (b) => '%' + ('00' + b.toString(16)).slice(-2)).join(''),
-    );
-    const decoded = JSON.parse(json) as { exp?: number };
-    return typeof decoded.exp === 'number' ? decoded.exp : null;
+    )
+    const decoded = JSON.parse(json) as { exp?: number }
+    return typeof decoded.exp === 'number' ? decoded.exp : null
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -54,43 +52,43 @@ function decodeJwtExp(token: string): number | null {
  */
 export const tokenStore = {
   getAccessToken(): string | null {
-    return Taro.getStorageSync(ACCESS_TOKEN_KEY) || null;
+    return Taro.getStorageSync(ACCESS_TOKEN_KEY) || null
   },
 
   getRefreshToken(): string | null {
-    return Taro.getStorageSync(REFRESH_TOKEN_KEY) || null;
+    return Taro.getStorageSync(REFRESH_TOKEN_KEY) || null
   },
 
   setTokens(accessToken: string, refreshToken: string): void {
-    Taro.setStorageSync(ACCESS_TOKEN_KEY, accessToken);
-    Taro.setStorageSync(REFRESH_TOKEN_KEY, refreshToken);
+    Taro.setStorageSync(ACCESS_TOKEN_KEY, accessToken)
+    Taro.setStorageSync(REFRESH_TOKEN_KEY, refreshToken)
     // 解析过期时间并缓存（毫秒级时间戳）
-    const exp = decodeJwtExp(accessToken);
+    const exp = decodeJwtExp(accessToken)
     if (exp) {
-      Taro.setStorageSync(TOKEN_EXPIRE_KEY, String(exp * 1000));
+      Taro.setStorageSync(TOKEN_EXPIRE_KEY, String(exp * 1000))
     } else {
-      Taro.removeStorageSync(TOKEN_EXPIRE_KEY);
+      Taro.removeStorageSync(TOKEN_EXPIRE_KEY)
     }
   },
 
   clear(): void {
-    Taro.removeStorageSync(ACCESS_TOKEN_KEY);
-    Taro.removeStorageSync(REFRESH_TOKEN_KEY);
-    Taro.removeStorageSync(TOKEN_EXPIRE_KEY);
+    Taro.removeStorageSync(ACCESS_TOKEN_KEY)
+    Taro.removeStorageSync(REFRESH_TOKEN_KEY)
+    Taro.removeStorageSync(TOKEN_EXPIRE_KEY)
   },
 
   /** 检查是否快过期（提前 5 分钟刷新） */
   isExpiringSoon(): boolean {
-    const expStr = Taro.getStorageSync(TOKEN_EXPIRE_KEY);
-    if (!expStr) return true; // 无过期信息，视为需要刷新
-    const exp = Number(expStr);
-    if (!exp || Number.isNaN(exp)) return true;
-    return Date.now() > exp - REFRESH_AHEAD_MS;
+    const expStr = Taro.getStorageSync(TOKEN_EXPIRE_KEY)
+    if (!expStr) return true // 无过期信息，视为需要刷新
+    const exp = Number(expStr)
+    if (!exp || Number.isNaN(exp)) return true
+    return Date.now() > exp - REFRESH_AHEAD_MS
   },
-};
+}
 
 /** 刷新锁：防止并发刷新（多个 401 请求共享同一个 Promise） */
-let refreshPromise: Promise<string> | null = null;
+let refreshPromise: Promise<string> | null = null
 
 /**
  * 刷新 Access Token
@@ -102,17 +100,15 @@ let refreshPromise: Promise<string> | null = null;
  */
 export async function refreshAccessToken(): Promise<string> {
   if (refreshPromise) {
-    return refreshPromise;
+    return refreshPromise
   }
 
-  const refreshToken = tokenStore.getRefreshToken();
+  const refreshToken = tokenStore.getRefreshToken()
   if (!refreshToken) {
-    throw new Error('无可用的 refreshToken');
+    throw new Error('无可用的 refreshToken')
   }
 
-  const baseUrl =
-    API_BASE_URL ??
-    (process.env.NODE_ENV === 'production' ? 'https://api.reelclone.com/api' : 'http://localhost:3000/api');
+  const baseUrl = API_BASE
 
   refreshPromise = (async () => {
     try {
@@ -121,25 +117,28 @@ export async function refreshAccessToken(): Promise<string> {
         method: 'POST',
         data: { refreshToken },
         timeout: 15000,
-      });
+      })
 
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw new Error(`刷新 Token 失败 (${res.statusCode})`);
+        throw new Error(`刷新 Token 失败 (${res.statusCode})`)
       }
 
-      const body = res.data as { code: number; data?: { accessToken: string; refreshToken: string } };
+      const body = res.data as {
+        code: number
+        data?: { accessToken: string; refreshToken: string }
+      }
       if (body.code !== 0 || !body.data) {
-        throw new Error(body.data ? '刷新 Token 业务错误' : '刷新 Token 响应异常');
+        throw new Error(body.data ? '刷新 Token 业务错误' : '刷新 Token 响应异常')
       }
 
-      const { accessToken, refreshToken: newRefreshToken } = body.data;
-      tokenStore.setTokens(accessToken, newRefreshToken);
-      return accessToken;
+      const { accessToken, refreshToken: newRefreshToken } = body.data
+      tokenStore.setTokens(accessToken, newRefreshToken)
+      return accessToken
     } finally {
       // 清除刷新锁，无论成功或失败
-      refreshPromise = null;
+      refreshPromise = null
     }
-  })();
+  })()
 
-  return refreshPromise;
+  return refreshPromise
 }

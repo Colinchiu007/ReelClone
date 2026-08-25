@@ -25,7 +25,7 @@
  * })
  * ```
  */
-import { DynamicModule, Global, Module, type Provider } from '@nestjs/common'
+import { DynamicModule, Global, Module, type Provider, type Type } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TemporalService } from './temporal.service'
 import type { TemporalClientConfig } from './client/temporal.client'
@@ -38,7 +38,9 @@ export interface TemporalModuleOptions extends TemporalClientConfig {
 
 /** 异步配置工厂接口 */
 export interface TemporalModuleAsyncOptions {
-  inject?: any[]
+  inject?: Array<string | symbol | Type<unknown>>
+  // Nest 工厂注入参数由 inject 数组驱动，类型无法静态绑定，保留 any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   useFactory: (...args: any[]) => Promise<TemporalModuleOptions> | TemporalModuleOptions
 }
 

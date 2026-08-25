@@ -13,7 +13,7 @@ import {
   PointTransactionType,
   DATABASE_CONNECTIONS,
 } from '@reelclone/database'
-import { DataSource } from 'typeorm'
+import { DataSource, type EntityTarget, type ObjectLiteral } from 'typeorm'
 
 /**
  * 历史数据 Inventory 结果
@@ -113,10 +113,10 @@ export class HistoricalDataInventoryService {
    * 获取各表记录数
    */
   private async getCounts(): Promise<InventoryResult['counts']> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mainRepo = (table: any) => this.mainDataSource.getRepository(table)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const billingRepo = (table: any) => this.billingDataSource.getRepository(table)
+    const mainRepo = <T extends ObjectLiteral>(table: EntityTarget<T>) =>
+      this.mainDataSource.getRepository<T>(table)
+    const billingRepo = <T extends ObjectLiteral>(table: EntityTarget<T>) =>
+      this.billingDataSource.getRepository<T>(table)
 
     const [
       creditOperations,

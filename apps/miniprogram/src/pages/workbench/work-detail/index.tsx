@@ -19,7 +19,7 @@ import {
   createGeneration,
 } from '@/services/api/workbench.api'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import type { Work } from '@/types'
+import type { Work, GenerationTypeKey, GenerationResolution, GenerationAspectRatio } from '@/types'
 import './index.scss'
 
 /** 状态展示配置 */
@@ -72,7 +72,9 @@ export default function WorkDetail() {
   useShareAppMessage(() => ({
     title: work ? `${work.workType}作品` : '作品详情',
     path: `/pages/workbench/work-detail/index?workId=${workId}`,
-    imageUrl: work?.coverUrl || (work?.resultUrl && !work.workType.includes('VIDEO') ? work.resultUrl : undefined),
+    imageUrl:
+      work?.coverUrl ||
+      (work?.resultUrl && !work.workType.includes('VIDEO') ? work.resultUrl : undefined),
   }))
 
   /** 拉取作品详情 */
@@ -189,11 +191,11 @@ export default function WorkDetail() {
     try {
       const params = work.params as Record<string, unknown>
       await createGeneration({
-        generationType: work.workType,
+        generationType: work.workType as GenerationTypeKey,
         prompt: (params.prompt as string) ?? '',
         model: params.model as string | undefined,
-        resolution: params.resolution as string | undefined,
-        aspectRatio: params.aspectRatio as string | undefined,
+        resolution: params.resolution as GenerationResolution | undefined,
+        aspectRatio: params.aspectRatio as GenerationAspectRatio | undefined,
         duration: params.duration as 5 | 10 | undefined,
         referenceImages: params.referenceImages as string[] | undefined,
         referenceVideo: params.referenceVideo as string | undefined,
