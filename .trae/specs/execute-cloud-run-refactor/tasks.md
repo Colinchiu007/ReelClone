@@ -138,15 +138,15 @@
 
 ## Phase 4: P3 锦上添花（按需执行）
 
-- [ ] Task 24: 删除 8 个 deprecated jwt.strategy.ts 薄封装
-- [ ] Task 25: 小程序抽取基础 Modal 组件
-- [ ] Task 26: 小程序 taroStorage 提取到 stores/storage.ts
-- [ ] Task 27: admin-web 抽取 ListPage 通用组件
-- [ ] Task 28: 手写类型迁移到 generated 类型
-- [ ] Task 29: 清理 libs/database/src 编译产物
-- [ ] Task 30: tsconfig 启用 allowImportingTsExtensions
-- [ ] Task 31: 消除生产代码 9 处 any
-- [ ] Task 32: 条件编译规范化 + H5 配置预置
+- [x] Task 24: 删除 8 个 deprecated jwt.strategy.ts 薄封装 ✅ `172102c`
+- [x] Task 25: 小程序抽取基础 Modal 组件 ✅ `172102c`
+- [x] Task 26: 小程序 taroStorage 提取到 stores/storage.ts ✅ `172102c`
+- [x] Task 27: admin-web 抽取 ListPage 通用组件 ✅ `172102c`
+- [x] Task 28: 手写类型迁移到 generated 类型 ✅ `172102c`
+- [x] Task 29: 清理 libs/database/src 编译产物 ✅ `172102c`（核实已净：src 下无 .js/.d.ts 编译产物）
+- [x] Task 30: tsconfig 启用 allowImportingTsExtensions ✅ `172102c`
+- [x] Task 31: 消除生产代码 9 处 any ✅ `172102c`
+- [x] Task 32: 条件编译规范化 + H5 配置预置 ✅ `172102c`
 
 # Task Dependencies
 
