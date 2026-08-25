@@ -42,14 +42,16 @@ const baseConfig: OSSConfig = {
 function instantiate(overrides: Partial<OSSConfig> = {}): OSSService {
   const service = Object.create(OSSService.prototype) as OSSService
   const config = { ...baseConfig, ...overrides }
-  ;(service as { config: OSSConfig }).config = config
-  ;(service as { logger: unknown }).logger = { warn: jest.fn(), error: jest.fn() }
+  ;(service as unknown as { config: OSSConfig }).config = config
+  ;(service as unknown as { logger: unknown }).logger = { warn: jest.fn(), error: jest.fn() }
   if (config.mock) {
-    ;(service as { client: null }).client = null
+    ;(service as unknown as { client: null }).client = null
   } else {
     // 复用被 mock 的 ali-oss 构造函数构造真实模式客户端，
     // 否则 !this.client 恒真会误走 Mock 分支
-    ;(service as { client: unknown }).client = new (jest.requireMock('ali-oss') as jest.Mock)()
+    ;(service as unknown as { client: unknown }).client = new (
+      jest.requireMock('ali-oss') as jest.Mock
+    )()
   }
   return service
 }

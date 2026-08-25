@@ -60,8 +60,8 @@ const baseConfig: OSSConfig = {
 /** 直接构造实例并替换 logger（避免测试输出干扰） */
 function instantiate(overrides: Partial<OSSConfig> = {}): STSService {
   const service = Object.create(STSService.prototype) as STSService
-  ;(service as { config: OSSConfig }).config = { ...baseConfig, ...overrides }
-  ;(service as { logger: unknown }).logger = {
+  ;(service as unknown as { config: OSSConfig }).config = { ...baseConfig, ...overrides }
+  ;(service as unknown as { logger: unknown }).logger = {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
