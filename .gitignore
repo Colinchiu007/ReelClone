@@ -84,6 +84,9 @@ nx-graph.json
 __pycache__/
 _tmp_*
 *.tmp
+.npm-tmp-cache/
+.trae/checkpoints/
+.trae/commit-msg.txt
 .e2e-logs/
 *-test-output.txt
 # E2E 调试脚本（本地工具，不入库）

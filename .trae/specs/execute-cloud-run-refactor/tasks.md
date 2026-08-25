@@ -126,13 +126,15 @@
   - [x] 21.1: `template.client.ts` 已由 `7ebdfeb` 迁移至 `@reelclone/http-client` InternalHttpClient（无 axios 残留）；workbench-service peerDependencies 已含 `@reelclone/http-client`；本轮同步修正 workbench.module.ts 过时注释（"内部使用 axios" → InternalHttpClient）
   - [x] 21.2: workbench-service lint + typecheck 通过；单测 2 套件/34 测试通过（generation.service.spec 以 jest.Mock 断言 TemplateClient）
 
-- [ ] Task 22: admin-web 补充测试
-  - [ ] 22.1: 添加 jest 配置
-  - [ ] 22.2: 补充 Users/Orders/Reconcile 页面渲染测试
+- [x] Task 22: admin-web 补充测试 ✅ 本批次
+  - [x] 22.1: 添加 jest 配置（jest.config.cjs：jsdom + ts-jest + coverageThreshold global 10/10/10/10 + testTimeout 15s；jest.setup.cjs：ResizeObserver/matchMedia/rAF polyfill + jest-dom matchers；tsconfig.spec.json；package.json 新增 test 依赖与 scripts）
+  - [x] 22.2: 补充 Users/Orders/Reconcile 页面渲染测试（3 套件 / 9 测试全通过：搜索筛选渲染、列表数据与操作列、空态、订单金额/退款禁用、对账双 Tab 与手动触发）
+  - [x] 22.3: 运行 admin-web 测试验证（3 suites / 9 tests passed；已知 jsdom+antd Table 固有开销，含数据行用例单个约 +30s）
 
-- [ ] Task 23: oss 库补充测试
-  - [ ] 23.1: oss.service.ts 补充单元测试
-  - [ ] 23.2: sts.service.ts 补充单元测试
+- [x] Task 23: oss 库补充测试 ✅ 本批次
+  - [x] 23.1: oss.service.ts 补充单元测试（mock/real 双模式：client 装配回调签名校验、put/get/delete/credential 转发、mock 模式零回调未调用，coverage 提升）
+  - [x] 23.2: sts.service.ts 补充单元测试（STSService mock/real 双模式 + OssClientFactory 工厂分支）
+  - [x] 23.3: 运行 oss 测试 + lint/typecheck 验证（oss 库测试 36/36 通过）
 
 ## Phase 4: P3 锦上添花（按需执行）
 
