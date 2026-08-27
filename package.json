@@ -36,6 +36,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
+    "@tarojs/taro-loader": "3.6.40",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",
@@ -61,7 +62,7 @@
     "tsconfig-paths": "^4.2.0"
   },
   "overrides": {
-    "tar": "^6.2.1",
+    "tar": "7.5.22",
     "brace-expansion": "^1.1.12",
     "request": {
       "uuid": "3.4.0"
