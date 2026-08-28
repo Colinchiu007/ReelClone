@@ -19,6 +19,7 @@
  * - sms:attempts:{mobile}:{purpose} → 计数（TTL 300s，5 次尝试限制）
  */
 import { Inject, Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { IsNull, Repository } from 'typeorm'
 import Redis from 'ioredis'
@@ -27,11 +28,11 @@ import { SmsCode, SmsCodePurpose, DATABASE_CONNECTIONS, REDIS_CLIENT } from '@re
 import { BusinessException, ErrorCode } from '@reelclone/common'
 import { SMS_ADAPTER, type SmsAdapter } from '@reelclone/adapters-sms'
 
-/** 验证码默认过期时间（秒） */
-const CODE_EXPIRE_SECONDS = 300
+/** 验证码默认过期时间（秒），可用环境变量 SMS_CODE_EXPIRE_SECONDS 覆盖 */
+const CODE_EXPIRE_SECONDS_DEFAULT = 300
 
-/** 发送间隔锁定时间（秒） */
-const SEND_LOCKOUT_SECONDS = 60
+/** 发送间隔默认锁定时间（秒），可用环境变量 SMS_SEND_LOCKOUT_SECONDS 覆盖 */
+const SEND_LOCKOUT_SECONDS_DEFAULT = 60
 
 /** 验证码最大尝试次数 */
 const MAX_VERIFY_ATTEMPTS = 5
@@ -65,7 +66,40 @@ export class SmsService {
     private readonly smsCodeRepository: Repository<SmsCode>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(SMS_ADAPTER) private readonly smsAdapter: SmsAdapter,
+    private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * 验证码过期时间（秒）
+   *
+   * 读取 SMS_CODE_EXPIRE_SECONDS 环境变量，非法/未配置时回退默认值 300。
+   * 运营期可动态调节，无需改代码。
+   */
+  private get codeExpireSeconds(): number {
+    return this.readPositiveInt('SMS_CODE_EXPIRE_SECONDS', CODE_EXPIRE_SECONDS_DEFAULT)
+  }
+
+  /**
+   * 发送间隔锁定时间（秒）
+   *
+   * 读取 SMS_SEND_LOCKOUT_SECONDS 环境变量，非法/未配置时回退默认值 60。
+   */
+  private get sendLockoutSeconds(): number {
+    return this.readPositiveInt('SMS_SEND_LOCKOUT_SECONDS', SEND_LOCKOUT_SECONDS_DEFAULT)
+  }
+
+  /**
+   * 解析正整数环境变量：无效值（空/非数字/≤0/小数截断）一律回退默认值，
+   * 避免误配置导致 Redis 写入非法 TTL。
+   */
+  private readPositiveInt(name: string, fallback: number): number {
+    const raw = this.configService.get<string>(name)
+    if (raw === undefined || raw === null || raw === '') {
+      return fallback
+    }
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
+  }
 
   /**
    * 是否为 Mock 模式
@@ -88,7 +122,7 @@ export class SmsService {
     const lockoutKey = `sms:lockout:${mobile}`
     const codeKey = `sms:code:${mobile}:${purpose}`
 
-    // 1. 检查发送间隔锁（同一手机号 60s 内只能发一次）
+    // 1. 检查发送间隔锁（同一手机号 sendLockoutSeconds 内只能发一次）
     const lockoutExists = await this.redis.exists(lockoutKey)
     if (lockoutExists) {
       const ttl = await this.redis.ttl(lockoutKey)
@@ -101,14 +135,14 @@ export class SmsService {
     // 2. 生成验证码（Mock 模式固定值，real 模式密码学安全随机）
     const code = this.smsAdapter.isMock ? MOCK_CODE : this.generateRandomCode()
 
-    // 3. 存入 Redis（TTL 300s）
-    await this.redis.set(codeKey, code, 'EX', CODE_EXPIRE_SECONDS)
+    // 3. 存入 Redis（TTL codeExpireSeconds）
+    await this.redis.set(codeKey, code, 'EX', this.codeExpireSeconds)
 
-    // 4. 设置发送间隔锁（TTL 60s）
-    await this.redis.set(lockoutKey, '1', 'EX', SEND_LOCKOUT_SECONDS)
+    // 4. 设置发送间隔锁（TTL sendLockoutSeconds）
+    await this.redis.set(lockoutKey, '1', 'EX', this.sendLockoutSeconds)
 
     // 5. 持久化到数据库（审计记录，含 messageId 用于状态查询）
-    const expiredAt = new Date(Date.now() + CODE_EXPIRE_SECONDS * 1000)
+    const expiredAt = new Date(Date.now() + this.codeExpireSeconds * 1000)
     const smsCode = this.smsCodeRepository.create({
       mobile,
       code,
@@ -167,7 +201,7 @@ export class SmsService {
     // 1. 检查尝试次数（防暴力破解，5 次尝试限制）
     const attempts = await this.redis.incr(attemptsKey)
     if (attempts === 1) {
-      await this.redis.expire(attemptsKey, CODE_EXPIRE_SECONDS)
+      await this.redis.expire(attemptsKey, this.codeExpireSeconds)
     }
     if (attempts > MAX_VERIFY_ATTEMPTS) {
       // 超过最大尝试次数，删除验证码并锁定
