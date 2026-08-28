@@ -8,6 +8,7 @@
  * 日志轮转由外部管理（systemd journald 或 Docker 日志驱动）。
  */
 import pino, { type LoggerOptions } from 'pino'
+import { getTraceContext } from '@reelclone/common'
 
 /** 服务名注入 Token（由 LoggerModule / HealthModule 提供） */
 export const OBS_SERVICE_NAME = Symbol('OBS_SERVICE_NAME')
@@ -33,6 +34,16 @@ export function createLoggerConfig(options: LoggerConfigOptions = {}): LoggerOpt
   const serviceName = options.serviceName ?? process.env.SERVICE_NAME ?? 'unknown'
   const level = options.level ?? (isProduction ? 'info' : 'debug')
 
+  // 链路追踪字段注入器：存在活跃 TraceContext 时，为每条日志注入 traceId / spanId，
+  // 使业务日志随请求链路可端到端关联（无上下文时返回空对象，不产生多余字段）。
+  const mixin = (): Record<string, unknown> => {
+    const ctx = getTraceContext()
+    if (!ctx) {
+      return {}
+    }
+    return { traceId: ctx.traceId, spanId: ctx.spanId }
+  }
+
   // 结构化字段格式化器：为每条日志注入 service 字段
   const formatters = {
     level: (label: string) => ({ level: label }),
@@ -46,6 +57,7 @@ export function createLoggerConfig(options: LoggerConfigOptions = {}): LoggerOpt
     // 生产环境：JSON 格式
     return {
       level,
+      mixin,
       formatters,
       timestamp: pino.stdTimeFunctions.isoTime,
     }
@@ -54,6 +66,7 @@ export function createLoggerConfig(options: LoggerConfigOptions = {}): LoggerOpt
   // 开发环境：pretty print + colorize
   return {
     level,
+    mixin,
     transport: {
       target: 'pino-pretty',
       options: {

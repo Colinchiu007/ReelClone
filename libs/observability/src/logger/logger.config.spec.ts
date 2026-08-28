@@ -5,6 +5,7 @@
  */
 import pino from 'pino'
 import { createLoggerConfig } from './logger.config'
+import { generateTraceContext, traceStorage, type TraceContext } from '@reelclone/common'
 
 describe('createLoggerConfig', () => {
   const originalNodeEnv = process.env.NODE_ENV
@@ -157,6 +158,41 @@ describe('createLoggerConfig', () => {
         config.formatters as { log: (o: Record<string, unknown>) => Record<string, unknown> }
       ).log
       expect(logFormatter({})).toEqual({ service: 'unknown' })
+    })
+  })
+
+  describe('链路追踪 mixin', () => {
+    function getMixin(config: pino.LoggerOptions): () => Record<string, unknown> {
+      return config.mixin as unknown as () => Record<string, unknown>
+    }
+
+    it('存在活跃 TraceContext 时应注入 traceId 与 spanId', () => {
+      process.env.NODE_ENV = 'production'
+      const config = createLoggerConfig()
+      const ctx: TraceContext = generateTraceContext()
+
+      traceStorage.run(ctx, () => {
+        expect(getMixin(config)()).toEqual({
+          traceId: ctx.traceId,
+          spanId: ctx.spanId,
+        })
+      })
+    })
+
+    it('无活跃 TraceContext 时应返回空对象（不产生多余字段）', () => {
+      process.env.NODE_ENV = 'production'
+      const config = createLoggerConfig()
+      expect(getMixin(config)()).toEqual({})
+    })
+
+    it('生产与开发环境都应包含 mixin', () => {
+      process.env.NODE_ENV = 'production'
+      const prodConfig = createLoggerConfig()
+      expect(typeof (prodConfig.mixin as unknown)).toBe('function')
+
+      process.env.NODE_ENV = 'development'
+      const devConfig = createLoggerConfig()
+      expect(typeof (devConfig.mixin as unknown)).toBe('function')
     })
   })
 })

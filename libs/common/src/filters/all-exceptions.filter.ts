@@ -27,8 +27,10 @@ import { BusinessException } from '../exceptions/business.exception'
 import { type ApiResponse } from '../types/api-response'
 import {
   RESPONSE_TRACE_ID_HEADER,
-  extractTraceId,
-  generateTraceId,
+  TRACE_PARENT_HEADER,
+  extractTraceContext,
+  formatTraceParent,
+  getTraceContext,
 } from '../utils/tracing.util'
 
 /** 请求对象的最小结构 */
@@ -73,9 +75,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<MinimalResponse>()
     const request = ctx.getRequest<MinimalRequest>()
 
-    // 提取或生成 traceId
-    const traceId = extractTraceId(request.headers) ?? generateTraceId()
+    // 提取或复用 TraceContext（优先当前请求上下文，其次请求头；均无则生成全新链路）
+    const traceCtx = getTraceContext() ?? extractTraceContext(request.headers)
+    const traceId = traceCtx.traceId
     response.setHeader(RESPONSE_TRACE_ID_HEADER, traceId)
+    response.setHeader(TRACE_PARENT_HEADER, formatTraceParent(traceCtx))
 
     let code: number = ErrorCode.INTERNAL_ERROR
     let message: string = ErrorCodeMessages[ErrorCode.INTERNAL_ERROR]
@@ -120,13 +124,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // -------------------- 记录日志 --------------------
     const requestInfo = `${request.method ?? ''} ${request.url ?? ''}`
+    const spanId = traceCtx.spanId
     if (httpStatus >= 500) {
       this.logger.error(
-        `[${traceId}] ${requestInfo} → ${code} ${message}`,
+        `[${traceId}] [span:${spanId}] ${requestInfo} → ${code} ${message}`,
         exception instanceof Error ? exception.stack : undefined,
       )
     } else {
-      this.logger.warn(`[${traceId}] ${requestInfo} → ${code} ${message}`)
+      this.logger.warn(`[${traceId}] [span:${spanId}] ${requestInfo} → ${code} ${message}`)
     }
 
     // -------------------- 返回统一响应 --------------------
