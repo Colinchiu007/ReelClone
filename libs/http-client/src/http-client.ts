@@ -6,7 +6,7 @@
  *  - 重试：网络错误 + 5xx 自动重试（指数退避），4xx 不重试
  *  - 熔断：连续失败达到阈值自动打开，冷却后半开试探
  *  - 幂等：自动注入 x-idempotency-key header
- *  - trace：自动注入 x-request-id header
+ *  - trace：自动注入 x-request-id header + 传播 W3C traceparent（存在活跃 TraceContext 时）
  *  - ApiResponse 解包：自动 { code, message, data } → 直接返回 data
  *  - 异常映射：HTTP 错误 → BusinessException
  *
@@ -16,7 +16,7 @@
  */
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios'
 import { v4 as uuidv4 } from 'uuid'
-import { BusinessException, ErrorCode } from '@reelclone/common'
+import { BusinessException, ErrorCode, createOutboundTraceHeaders } from '@reelclone/common'
 import { CircuitBreaker, type CircuitBreakerConfig } from './circuit-breaker'
 
 /** ApiResponse 通用包裹格式 */
@@ -155,7 +155,10 @@ export class InternalHttpClient {
       axiosConfig.timeout = options.timeoutMs
     }
 
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = {
+      // 出站链路传播：存在活跃 TraceContext 时携带 traceparent + x-trace-id
+      ...createOutboundTraceHeaders(),
+    }
     if (options?.idempotencyKey) {
       headers['x-idempotency-key'] = options.idempotencyKey
     }
@@ -175,6 +178,12 @@ export class InternalHttpClient {
     const axiosConfig: AxiosRequestConfig = {}
     if (options?.timeoutMs) {
       axiosConfig.timeout = options.timeoutMs
+    }
+
+    // 出站链路传播：存在活跃 TraceContext 时携带 traceparent + x-trace-id
+    const headers: Record<string, string> = createOutboundTraceHeaders()
+    if (Object.keys(headers).length > 0) {
+      axiosConfig.headers = headers
     }
 
     const response = await this.httpClient.get<ApiResponse<T>>(path, axiosConfig)
