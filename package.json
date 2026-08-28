@@ -60,6 +60,7 @@
     "tools/*"
   ],
   "dependencies": {
+    "@nestjs/platform-express": "^11.1.18",
     "bcrypt": "^6.0.0",
     "tsconfig-paths": "^4.2.0"
   },
