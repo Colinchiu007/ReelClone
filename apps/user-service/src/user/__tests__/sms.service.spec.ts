@@ -9,6 +9,7 @@
  * - adapter.sendSms 抛错时 service 向上抛出且不写 messageId
  */
 import { Test, TestingModule } from '@nestjs/testing'
+import { ConfigService } from '@nestjs/config'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import Redis from 'ioredis'
@@ -100,6 +101,13 @@ function setAdapterIsMock(adapter: SmsAdapter, value: boolean): void {
   })
 }
 
+/** ConfigService mock：get 默认返回 undefined，触发 service 默认值回退；可用 configValues 定制 */
+function createConfigMock(configValues: Record<string, string> = {}): { get: jest.Mock } {
+  return {
+    get: jest.fn((key: string) => configValues[key] ?? undefined),
+  }
+}
+
 // -------------------- 测试 --------------------
 
 describe('SmsService', () => {
@@ -120,6 +128,7 @@ describe('SmsService', () => {
         { provide: REDIS_CLIENT, useValue: redis },
         // 显式注入 SMS_ADAPTER token（验证 @Inject('SMS_ADAPTER') 装饰器）
         { provide: SMS_ADAPTER, useValue: smsAdapter },
+        { provide: ConfigService, useValue: createConfigMock() },
       ],
     }).compile()
 
@@ -146,6 +155,7 @@ describe('SmsService', () => {
           { provide: getRepositoryToken(SmsCode, 'main'), useValue: smsCodeRepo },
           { provide: REDIS_CLIENT, useValue: redis },
           { provide: SMS_ADAPTER, useValue: mockAdapter },
+          { provide: ConfigService, useValue: createConfigMock() },
         ],
       }).compile()
       const svc = module.get<SmsService>(SmsService)
@@ -164,6 +174,7 @@ describe('SmsService', () => {
           { provide: getRepositoryToken(SmsCode, 'main'), useValue: smsCodeRepo },
           { provide: REDIS_CLIENT, useValue: redis },
           { provide: SMS_ADAPTER, useValue: realAdapter },
+          { provide: ConfigService, useValue: createConfigMock() },
         ],
       }).compile()
       const svc = module.get<SmsService>(SmsService)
@@ -253,6 +264,97 @@ describe('SmsService', () => {
       expect(redis.set).toHaveBeenCalledWith('sms:lockout:13800138000', '1', 'EX', 60)
       // 应持久化到数据库
       expect(smsCodeRepo.save).toHaveBeenCalledTimes(1)
+    })
+
+    it('未配置环境变量时应回退默认 TTL（300s / 60s）', async () => {
+      // createConfigMock() 默认 get 返回 undefined → 触发默认值回退
+      const code = await service.sendCode('13800138000', SmsCodePurpose.BIND_MOBILE)
+
+      expect(code).toBe('123456')
+      expect(redis.set).toHaveBeenCalledWith(
+        'sms:code:13800138000:BIND_MOBILE',
+        '123456',
+        'EX',
+        300,
+      )
+      expect(redis.set).toHaveBeenCalledWith('sms:lockout:13800138000', '1', 'EX', 60)
+    })
+
+    it('配置 SMS_CODE_EXPIRE_SECONDS 时验证码 TTL 使用环境变量值', async () => {
+      const config = createConfigMock({ SMS_CODE_EXPIRE_SECONDS: '120' })
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmsService,
+          { provide: getRepositoryToken(SmsCode, 'main'), useValue: smsCodeRepo },
+          { provide: REDIS_CLIENT, useValue: redis },
+          { provide: SMS_ADAPTER, useValue: smsAdapter },
+          { provide: ConfigService, useValue: config },
+        ],
+      }).compile()
+      const svc = module.get<SmsService>(SmsService)
+
+      await svc.sendCode('13800138000', SmsCodePurpose.BIND_MOBILE)
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'sms:code:13800138000:BIND_MOBILE',
+        '123456',
+        'EX',
+        120,
+      )
+      // lockout 未配置仍用默认 60
+      expect(redis.set).toHaveBeenCalledWith('sms:lockout:13800138000', '1', 'EX', 60)
+    })
+
+    it('配置 SMS_SEND_LOCKOUT_SECONDS 时发送间隔锁 TTL 使用环境变量值', async () => {
+      const config = createConfigMock({ SMS_SEND_LOCKOUT_SECONDS: '30' })
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmsService,
+          { provide: getRepositoryToken(SmsCode, 'main'), useValue: smsCodeRepo },
+          { provide: REDIS_CLIENT, useValue: redis },
+          { provide: SMS_ADAPTER, useValue: smsAdapter },
+          { provide: ConfigService, useValue: config },
+        ],
+      }).compile()
+      const svc = module.get<SmsService>(SmsService)
+
+      await svc.sendCode('13800138000', SmsCodePurpose.BIND_MOBILE)
+
+      expect(redis.set).toHaveBeenCalledWith('sms:lockout:13800138000', '1', 'EX', 30)
+      // code 未配置仍用默认 300
+      expect(redis.set).toHaveBeenCalledWith(
+        'sms:code:13800138000:BIND_MOBILE',
+        '123456',
+        'EX',
+        300,
+      )
+    })
+
+    it('环境变量为非法值时回退默认 TTL（防御误配置）', async () => {
+      const config = createConfigMock({
+        SMS_CODE_EXPIRE_SECONDS: 'abc',
+        SMS_SEND_LOCKOUT_SECONDS: '-5',
+      })
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmsService,
+          { provide: getRepositoryToken(SmsCode, 'main'), useValue: smsCodeRepo },
+          { provide: REDIS_CLIENT, useValue: redis },
+          { provide: SMS_ADAPTER, useValue: smsAdapter },
+          { provide: ConfigService, useValue: config },
+        ],
+      }).compile()
+      const svc = module.get<SmsService>(SmsService)
+
+      await svc.sendCode('13800138000', SmsCodePurpose.BIND_MOBILE)
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'sms:code:13800138000:BIND_MOBILE',
+        '123456',
+        'EX',
+        300,
+      )
+      expect(redis.set).toHaveBeenCalledWith('sms:lockout:13800138000', '1', 'EX', 60)
     })
 
     it('Real 模式下应返回 6 位随机数字验证码', async () => {
