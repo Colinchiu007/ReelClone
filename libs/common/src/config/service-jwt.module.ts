@@ -14,6 +14,7 @@
 import { DynamicModule, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt'
+import type { StringValue } from 'ms'
 import { resolveJwtSecret } from './jwt.config'
 import type { JwtConfig } from './jwt.config'
 
@@ -45,7 +46,7 @@ export class ServiceJwtModule {
               return {
                 secret: jwtCfg.secret,
                 signOptions: {
-                  expiresIn: jwtCfg.expiresIn,
+                  expiresIn: jwtCfg.expiresIn as StringValue,
                   issuer: jwtCfg.issuer,
                   audience: jwtCfg.audience,
                 },
@@ -56,7 +57,7 @@ export class ServiceJwtModule {
             return {
               secret: resolveJwtSecret(),
               signOptions: {
-                expiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
+                expiresIn: (process.env.JWT_EXPIRES_IN ?? '1h') as StringValue,
                 issuer: process.env.JWT_ISSUER ?? 'reelclone',
                 audience: process.env.JWT_AUDIENCE ?? 'reelclone-client',
               },

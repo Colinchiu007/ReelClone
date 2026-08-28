@@ -11,10 +11,10 @@
     "test": "jest --config jest.config.js --passWithNoTests"
   },
   "peerDependencies": {
-    "@nestjs/common": "^10.0.0"
+    "@nestjs/common": "^11.1.18"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.6.0"
   }
 }
