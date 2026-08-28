@@ -12,8 +12,8 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
-    "@nestjs/common": "^10.3.0",
-    "@nestjs/config": "^3.2.0",
+    "@nestjs/common": "^11.1.18",
+    "@nestjs/config": "^4.0.0",
     "axios": "^1.7.0",
     "execa": "^9.3.0",
     "reflect-metadata": "^0.2.2",

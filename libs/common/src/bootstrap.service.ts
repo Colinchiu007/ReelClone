@@ -24,6 +24,7 @@ import {
   type LoggerService,
   type Type,
 } from '@nestjs/common'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 
 import { AllExceptionsFilter } from './filters/all-exceptions.filter'
 import { AppValidationPipe } from './pipes/validation.pipe'
@@ -127,7 +128,11 @@ export async function bootstrapService(options: BootstrapOptions): Promise<void>
   if (rawBody) nestOptions.rawBody = true
   if (loggerOption !== undefined) nestOptions.logger = loggerOption
 
-  const app = await NestFactory.create(module, nestOptions)
+  const app = await NestFactory.create<NestExpressApplication>(module, nestOptions)
+
+  // Express 5 默认 simple 查询解析器不支持嵌套对象/数组；
+  // 统一恢复 v4 的 extended 行为，避免 @Query DTO 绑定行为回归
+  app.set('query parser', 'extended')
 
   // 3. 全局前缀（/livez、/readyz 健康检查端点排除）
   app.setGlobalPrefix(globalPrefix, {
