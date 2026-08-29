@@ -14,16 +14,16 @@
     "worker:start": "ts-node -P tsconfig.json src/worker/temporal.worker.ts"
   },
   "dependencies": {
+    "@nestjs/common": "^11.1.18",
+    "@nestjs/config": "^4.0.0",
     "@temporalio/activity": "^1.10.0",
     "@temporalio/client": "^1.10.0",
     "@temporalio/common": "^1.10.0",
     "@temporalio/worker": "^1.10.0",
     "@temporalio/workflow": "^1.10.0",
-    "@nestjs/common": "^11.1.18",
-    "@nestjs/config": "^4.0.0",
     "axios": "^1.7.0",
     "ioredis": "^5.4.0",
-    "uuid": "^8.3.2"
+    "uuid": "^11.1.1"
   },
   "peerDependencies": {
     "@reelclone/ai": "*",

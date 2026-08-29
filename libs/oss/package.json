@@ -18,7 +18,7 @@
     "@nestjs/config": "^4.0.0",
     "ali-oss": "^6.21.0",
     "mime-types": "^2.1.35",
-    "uuid": "^8.3.2"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@types/ali-oss": "^6.16.11",
