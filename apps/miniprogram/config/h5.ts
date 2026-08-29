@@ -16,6 +16,12 @@ export default {
     router: {
       mode: 'browser',
     },
+    // T-2b：swiper 已 override 至 12.1.2（消解 GHSA-hmx5-qpq5-p643 原型污染）。
+    // swiper 12.x 移除了 @tarojs/components H5 产物引用的 swiper-bundle.esm.js（改 .mjs），
+    // 这里 alias 到 .mjs 保证 H5 构建可解析。小程序端走 @tarojs/components/mini，不涉及。
+    webpackChain(chain: any) {
+      chain.resolve.alias.set('swiper/swiper-bundle.esm.js', 'swiper/swiper-bundle.mjs')
+    },
     devServer: {
       port: 10086,
       host: 'localhost',

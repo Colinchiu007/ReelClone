@@ -70,6 +70,7 @@
     "request": {
       "uuid": "3.4.0"
     },
-    "webpack": "5.78.0"
+    "webpack": "5.78.0",
+    "swiper": "12.1.2"
   }
 }
