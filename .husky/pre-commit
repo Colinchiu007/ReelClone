@@ -27,5 +27,15 @@ if ! command -v node >/dev/null 2>&1; then
   fi
 fi
 
+# 质量节拍 — CCG 质量门禁（§5.6.1）
+# 必须放在 lint-staged 之前：本脚本没有 set -e，退出码取自最后一条命令，
+# 若追加到末尾会让 lint-staged 的失败被门禁的退出码掩盖。
+if ! command -v node >/dev/null 2>&1 && [ -d "$HOME/.fnm" ]; then
+  eval "$(fnm env --shell sh 2>/dev/null)" 2>/dev/null || true
+fi
+if [ -f "scripts/ccg-gate.js" ]; then
+  node scripts/ccg-gate.js || exit 1
+fi
+
 # 直接调用本地 lint-staged，避免依赖全局 npx
 node_modules/.bin/lint-staged
