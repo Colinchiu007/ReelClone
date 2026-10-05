@@ -1,7 +1,6 @@
-#!/usr/bin/env sh
 # Husky commit-msg 钩子
 # 校验提交信息是否符合约定式提交规范
-. "$(dirname -- "$0")/_/husky.sh"
+# husky v10 迁移：shebang 与 husky.sh 引导行已移除（v9 起弃用，v10 直接失败）
 
 # L-005 根治：git 子 shell 中 node/npm 可能不在 PATH，显式补充常见位置
 if ! command -v node >/dev/null 2>&1; then
