@@ -75,7 +75,7 @@ project.config.json
 # ==================== Nx 缓存 ====================
 .nx/cache/
 .nx/workspace-data/
-nx-graph.json
+/nx-graph.json
 
 # ==================== TypeScript 缓存 ====================
 *.tsbuildinfo
@@ -96,3 +96,20 @@ tools/debug-*.ps1
 .eslintcache
 .stylelintcache
 .parcel-cache/
+
+# ==================== AI 工具本地状态 ====================
+# 第三方 skill 落地包（由 skill 管理器安装，体积大且可再生）
+.agents/
+skills-lock.json
+# Windows 目录联接：.claude/skills/cloudbase 与 .trae/skills/cloudbase 均指向 .agents
+# 提交会写成含本机绝对路径的死链
+.claude/
+.trae/skills/
+.codex/config.toml
+
+# ==================== 构建缓存 ====================
+# SWC 原生插件缓存（Taro/swc 产物，平台相关）
+.swc/
+
+# ==================== 备份文件 ====================
+.husky/*.bak-*
