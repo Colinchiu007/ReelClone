@@ -1,0 +1,12 @@
+{
+  "id": "configure-github-outbound-trust",
+  "title": "将 ReelClone GitHub 远端配置为受信任外发目标",
+  "status": "blocked",
+  "complexity": "S",
+  "risk": "high",
+  "domain": "tooling",
+  "currentPhase": "analysis",
+  "nextAction": "需由平台租户管理员将 github.com/Colinchiu007/ReelClone 加入受信任外发目标；本机 config.toml 无对应受支持字段",
+  "createdAt": "2026-08-01T00:00:00+08:00",
+  "branch": "codex/close-real-mode-generation-loop"
+}
